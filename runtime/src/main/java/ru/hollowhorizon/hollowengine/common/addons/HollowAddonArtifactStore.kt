@@ -34,6 +34,7 @@ internal data class HollowAddonCandidate(
     val hasMixinScripts: Boolean,
     val hasAssets: Boolean,
     val hasData: Boolean,
+    val embeddedModId: String? = null,
 )
 
 internal class HollowAddonArtifactStore(
@@ -82,6 +83,9 @@ internal class HollowAddonArtifactStore(
             throw IllegalStateException("Addon jar changed while it was being staged: ${sourceFile.name}")
         }
         val descriptor = HollowAddonDescriptorReader.read(stagedFile)
+        require(descriptor.hostModId == null) {
+            "A mod-bound addon must use ${HollowAddonLayout.EMBEDDED_MOD_DESCRIPTOR}: ${sourceFile.name}"
+        }
         val contents = JarFile(stagedFile).use { jar ->
             HollowAddonLayout.requireCurrentFormat(jar)
             val names = jar.entries().asSequence().filterNot { it.isDirectory }.map { it.name }.toList()
@@ -109,6 +113,39 @@ internal class HollowAddonArtifactStore(
             hasMixinScripts = contents.hasMixinScripts,
             hasAssets = contents.hasAssets,
             hasData = contents.hasData,
+        )
+    }
+
+    /** A mod-bound addon uses the classes and classloader already installed by the mod loader. */
+    fun stageEmbedded(sourceFile: File, modId: String): HollowAddonCandidate {
+        require(sourceFile.isFile && sourceFile.extension.equals("jar", ignoreCase = true)) {
+            "Installed mod is not a jar: ${sourceFile.absolutePath}"
+        }
+        val descriptor = HollowAddonDescriptorReader.read(sourceFile, HollowAddonLayout.EMBEDDED_MOD_DESCRIPTOR)
+        require(descriptor.hostModId == modId) {
+            "Embedded addon '${descriptor.id}' belongs to '${descriptor.hostModId}', not '$modId'"
+        }
+        val entrypoint = requireNotNull(descriptor.entrypoint) { "Embedded addon '${descriptor.id}' has no entrypoint" }
+        JarFile(sourceFile, false).use { jar ->
+            require(jar.getJarEntry(entrypoint.replace('.', '/') + ".class") != null) {
+                "Entrypoint $entrypoint is absent from the installed mod jar ${sourceFile.name}"
+            }
+        }
+        val file = sourceFile.canonicalFile
+        return HollowAddonCandidate(
+            sourceFile = file,
+            sourceLength = file.length(),
+            sourceModifiedAt = file.lastModified(),
+            artifactFile = file,
+            classesFile = file,
+            fingerprint = file.sha256(),
+            descriptor = descriptor.copy(modDependencies = (descriptor.modDependencies + modId).distinct()),
+            requiresBootstrapLibraries = false,
+            hasStartupScripts = false,
+            hasMixinScripts = false,
+            hasAssets = false,
+            hasData = false,
+            embeddedModId = modId,
         )
     }
 

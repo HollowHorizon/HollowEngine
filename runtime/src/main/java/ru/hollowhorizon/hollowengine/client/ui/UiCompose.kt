@@ -18,6 +18,7 @@ import ru.hollowhorizon.hollowengine.client.ui.style.UiTransition
 import ru.hollowhorizon.hollowengine.client.ui.style.UiCaretBlinkKeyframes
 import ru.hollowhorizon.hollowengine.client.ui.style.UiCaretBlinkPeriodMillis
 import ru.hollowhorizon.hollowengine.client.ui.style.UiStylesheetReference
+import ru.hollowhorizon.hollowengine.client.ui.style.fontFamily
 import ru.hollowhorizon.hollowengine.client.ui.text.Shadow
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import kotlin.coroutines.CoroutineContext
@@ -28,6 +29,13 @@ typealias HollowUiContent = @Composable () -> Unit
 val LocalUiFrameTimeNanos = staticCompositionLocalOf { 0L }
 val LocalUiViewport = compositionLocalOf { UiRect.Zero }
 val LocalStylesheets = staticCompositionLocalOf<List<UiStylesheetReference>> { emptyList() }
+
+/** Focuses a node by its id once it is on screen; see [HollowUiRuntime.requestFocus]. */
+fun interface UiFocusRequester {
+    fun request(id: String)
+}
+
+val LocalUiFocusRequester = staticCompositionLocalOf { UiFocusRequester {} }
 
 private fun Modifier?.styleReferences(): List<UiStylesheetReference> = when (this) {
     null -> emptyList()
@@ -151,17 +159,19 @@ fun Layout(
                 }
             }
         }
-    ReusableComposeNode<BoxNode, HollowUiApplier>(
-        factory = { BoxNode(id, measurePolicy, tags, modifiers, attributes) },
-        update = {
-            update(measurePolicy) {
-                this.measurePolicy = it
-                invalidateLayout()
-            }
-            updateCommon(modifiers, attributes, tags)
-        },
-        content = scoped,
-    )
+    key(id) {
+        ReusableComposeNode<BoxNode, HollowUiApplier>(
+            factory = { BoxNode(id, measurePolicy, tags, modifiers, attributes) },
+            update = {
+                update(measurePolicy) {
+                    this.measurePolicy = it
+                    invalidateLayout()
+                }
+                updateCommon(modifiers, attributes, tags)
+            },
+            content = scoped,
+        )
+    }
 }
 
 
@@ -201,16 +211,18 @@ fun Span(
     modifier: Modifier? = null,
 ) {
     val modifiers = modifier.asList()
-    ReusableComposeNode<SpanNode, HollowUiApplier>(
-        factory = { SpanNode(value, id, tags, modifiers) },
-        update = {
-            update(value) {
-                text = it
-                invalidateLayout()
-            }
-            updateCommon(modifiers, emptyMap(), tags)
-        },
-    )
+    key(id) {
+        ReusableComposeNode<SpanNode, HollowUiApplier>(
+            factory = { SpanNode(value, id, tags, modifiers) },
+            update = {
+                update(value) {
+                    text = it
+                    invalidateLayout()
+                }
+                updateCommon(modifiers, emptyMap(), tags)
+            },
+        )
+    }
 }
 
 @Composable
@@ -292,19 +304,22 @@ fun Element(
 ) {
     val modifiers = modifier.asList()
     val nodeType = type.lowercase()
-    ReusableComposeNode<BaseUiNode, HollowUiApplier>(
-        factory = {
-            BaseUiNode(
-                nodeType,
-                id?.removePrefix("#"),
-                tags.map { it.removePrefix(".") },
-                modifiers,
-                attributes,
-            )
-        },
-        update = { updateCommon(modifiers, attributes, tags.map { it.removePrefix(".") }) },
-        content = content,
-    )
+    // A node is its id: interaction state is tracked by it, so another id is another node.
+    key(id) {
+        ReusableComposeNode<BaseUiNode, HollowUiApplier>(
+            factory = {
+                BaseUiNode(
+                    nodeType,
+                    id?.removePrefix("#"),
+                    tags.map { it.removePrefix(".") },
+                    modifiers,
+                    attributes,
+                )
+            },
+            update = { updateCommon(modifiers, attributes, tags.map { it.removePrefix(".") }) },
+            content = content,
+        )
+    }
 }
 
 
@@ -549,7 +564,8 @@ fun TextField(
     fieldState.autoPairs = autoPairs
     fieldState.multiCaret = multiCaret
     fieldState.fontSize = fontSize
-    fieldState.fontFamily = fontFamily
+    var hssFontFamily by remember { mutableStateOf<String?>(null) }
+    fieldState.fontFamily = fontFamily ?: hssFontFamily
     fieldState.wrap = wrap ?: multiline
     var hssShadow by remember { mutableStateOf<HssShadowResolution>(HssShadowResolution.Inherit) }
     var hssInlayHints by remember { mutableStateOf(true) }
@@ -588,6 +604,7 @@ fun TextField(
                 HssShadowResolution.Inherit
             }
             if (next != hssShadow) hssShadow = next
+            if (style.fontFamily != hssFontFamily) hssFontFamily = style.fontFamily
             val hintsEnabled = textFieldStyle.inlayHints != false
             if (hintsEnabled != hssInlayHints) hssInlayHints = hintsEnabled
         },
@@ -670,12 +687,14 @@ private fun ContentNode(
     attributes: Map<String, String>,
 ) {
     val modifiers = listOf(if (modifier == null) contentModifier else contentModifier then modifier)
-    ReusableComposeNode<BaseUiNode, HollowUiApplier>(
-        factory = {
-            BaseUiNode(type, id?.removePrefix("#"), tags.map { it.removePrefix(".") }, modifiers, attributes)
-        },
-        update = { updateCommon(modifiers, attributes, tags) },
-    )
+    key(id) {
+        ReusableComposeNode<BaseUiNode, HollowUiApplier>(
+            factory = {
+                BaseUiNode(type, id?.removePrefix("#"), tags.map { it.removePrefix(".") }, modifiers, attributes)
+            },
+            update = { updateCommon(modifiers, attributes, tags) },
+        )
+    }
 }
 
 /** Popups render above everything; the OverlayHost carries this layer so all passes prefer it. */
@@ -810,17 +829,19 @@ private fun PopupNodeEmitter(
     val styledContent: HollowUiContent = {
         CompositionLocalProvider(LocalStylesheets provides stylesheets) { content() }
     }
-    ReusableComposeNode<PopupNode, HollowUiApplier>(
-        factory = { PopupNode(anchorBounds, alignment, id, tags, modifiers, attributes) },
-        update = {
-            update(values) {
-                apply(it)
-                invalidateLayout()
-            }
-            updateCommon(modifiers, attributes, tags)
-        },
-        content = styledContent,
-    )
+    key(id) {
+        ReusableComposeNode<PopupNode, HollowUiApplier>(
+            factory = { PopupNode(anchorBounds, alignment, id, tags, modifiers, attributes) },
+            update = {
+                update(values) {
+                    apply(it)
+                    invalidateLayout()
+                }
+                updateCommon(modifiers, attributes, tags)
+            },
+            content = styledContent,
+        )
+    }
 }
 
 /**

@@ -22,42 +22,32 @@ internal data class KeyframeState(
     }
 }
 
-internal data class LayerState(
+internal data class PropertyState(
     val name: String,
-    val blendMode: BlendMode,
-    val weight: Float,
     val visible: Boolean,
     val locked: Boolean,
 ) {
-    fun applyTo(layer: AnimLayer) {
-        layer.nameState = name
-        layer.blendMode = blendMode
-        layer.weight = weight
-        layer.isVisible = visible
-        layer.isLocked = locked
+    fun applyTo(property: AnimProperty<*>) {
+        property.nameState = name
+        property.isVisible = visible
+        property.isLocked = locked
     }
 
     companion object {
-        fun of(layer: AnimLayer) = LayerState(
-            name = layer.nameState,
-            blendMode = layer.blendMode,
-            weight = layer.weight,
-            visible = layer.isVisible,
-            locked = layer.isLocked,
+        fun of(property: AnimProperty<*>) = PropertyState(
+            name = property.nameState,
+            visible = property.isVisible,
+            locked = property.isLocked,
         )
     }
 }
 
-internal data class LayerSnapshot(
-    val layer: AnimLayer,
-    val state: LayerState,
-    val curves: List<List<KeyframeState>>,
-)
-
 internal data class PropertySnapshot(
     val property: AnimProperty<*>,
     val type: PropertyType<*>,
-    val layers: List<LayerSnapshot>,
+    val state: PropertyState,
+    val curves: List<ChannelCurve>,
+    val keys: List<List<KeyframeState>>,
 )
 
 internal data class TimelineSnapshot(

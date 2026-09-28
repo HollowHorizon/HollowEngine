@@ -10,6 +10,7 @@ data class HollowAddonDescriptor(
     val environment: HollowAddonEnvironment = HollowAddonEnvironment.COMMON,
     val requiredClasses: List<String> = emptyList(),
     val mappingNamespace: HollowAddonMappingNamespace = HollowAddonMappingNamespace.AGNOSTIC,
+    val hostModId: String? = null,
 )
 
 enum class HollowAddonEnvironment {

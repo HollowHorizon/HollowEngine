@@ -87,7 +87,8 @@ open class Config {
         val parentDir = configFile.parent
         try {
             val key = parentDir.register(fileWatcher, ENTRY_MODIFY)
-            configRegistrations[key] = FileWatcherEntry(this, configFile, configFile.fileName.toString())
+            val entry = FileWatcherEntry(this, configFile, configFile.fileName.toString())
+            configRegistrations.compute(key) { _, entries -> entries.orEmpty() + (entry.fileName to entry) }
         } catch (e: Exception) {
             LOGGER.warn("Failed to register file watcher for {}", configFile.fileName, e)
         }
@@ -179,7 +180,8 @@ open class Config {
         val CONFIG_DIR: Path = Paths.get("config").toAbsolutePath()
 
         private val fileWatcher = FileSystems.getDefault().newWatchService()
-        private val configRegistrations = ConcurrentHashMap<WatchKey, FileWatcherEntry>()
+        /** Watched configs by directory, then by file name: every config in a directory shares its key. */
+        private val configRegistrations = ConcurrentHashMap<WatchKey, Map<String, FileWatcherEntry>>()
         private val saveExecutor = Executors.newSingleThreadScheduledExecutor { runnable ->
             Thread(runnable, "Config-Save-Thread").apply {
                 isDaemon = true
@@ -199,12 +201,11 @@ open class Config {
                 while (isActive) {
                     try {
                         val key = fileWatcher.take() ?: continue
-                        val entry = configRegistrations[key] ?: continue
+                        val entries = configRegistrations[key] ?: continue
 
                         key.pollEvents().forEach { event ->
-                            if (event.kind() == ENTRY_MODIFY && event.context()?.toString() == entry.fileName) {
-                                waitForFileStable(entry)
-                            }
+                            if (event.kind() != ENTRY_MODIFY) return@forEach
+                            entries[event.context()?.toString()]?.let { entry -> waitForFileStable(entry) }
                         }
 
                         if (!key.reset()) {

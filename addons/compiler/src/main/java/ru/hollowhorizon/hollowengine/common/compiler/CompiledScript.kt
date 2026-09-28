@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.compiler
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.CompiledScript
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.HollowEngineScriptEvaluator
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.ScriptResult
+import ru.hollowhorizon.hollowengine.common.scripting.compiling.convert
 import ru.hollowhorizon.hollowengine.common.scripting.compiling.isClientSideScript
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptEvaluationException
 import kotlin.reflect.KClass

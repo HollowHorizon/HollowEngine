@@ -36,11 +36,22 @@ class HssParser(private val source: String) {
     private fun parseDocument(): HssDocument {
         val rules = mutableListOf<HssRule>()
         val keyframes = mutableListOf<HssKeyframes>()
+        val imports = mutableListOf<HssImport>()
+        val variables = mutableListOf<HssVariable>()
+        val sets = mutableListOf<HssDeclarationSet>()
         skipIgnored()
         while (!isEnd()) {
             val start = index
             try {
-                if (peek() == '@') keyframes += parseAtRule() else rules += parseRule()
+                when {
+                    peekAhead("@import") -> imports += parseImport()
+                    peek() == '@' -> keyframes += parseAtRule()
+                    peek() == '$' -> when (val parsed = parseVariableOrSet()) {
+                        is HssVariable -> variables += parsed
+                        is HssDeclarationSet -> sets += parsed
+                    }
+                    else -> rules += parseRule()
+                }
             } catch (exception: HssParseException) {
                 if (!recovering) throw exception
                 errors += exception
@@ -49,7 +60,48 @@ class HssParser(private val source: String) {
             if (index == start) index++
             skipIgnored()
         }
-        return HssDocument(rules, keyframes)
+        return HssDocument(rules, keyframes, imports, variables, sets)
+    }
+
+    private fun parseImport(): HssImport {
+        val start = index
+        expect('@')
+        readIdentifier()
+        skipIgnored()
+        val quote = if (isEnd()) ' ' else peek()
+        if (quote != '"' && quote != '\'') throw HssParseException("Expected the quoted stylesheet to import", start, index + 1)
+        val valueStart = ++index
+        while (!isEnd() && peek() != quote) index++
+        if (isEnd()) throw HssParseException("Unterminated import", valueStart - 1, index)
+        val location = source.substring(valueStart, index)
+        index++
+        endStatement()
+        return HssImport(location, valueStart, valueStart + location.length)
+    }
+
+    /** `$name: value;` is a variable, `$name { … }` a set of declarations. */
+    private fun parseVariableOrSet(): Any {
+        val start = index
+        expect('$')
+        val name = readIdentifier()
+        val token = HssToken("$" + name.text, start, name.end)
+        skipIgnored()
+        if (!isEnd() && peek() == '{') {
+            expect('{')
+            val declarations = parseDeclarations()
+            expect('}')
+            return HssDeclarationSet(name.text, declarations, start)
+        }
+        expect(':', "Expected ':' or '{' after '${token.text}'", token)
+        val value = readDeclarationValue(token)
+        endStatement()
+        return HssVariable(name.text, value.text, start, value.start)
+    }
+
+    /** A top-level statement may end in `;`, which is optional before the next one. */
+    private fun endStatement() {
+        skipIgnored()
+        if (!isEnd() && peek() == ';') index++
     }
 
     private fun parseRule(): HssRule {
@@ -226,6 +278,12 @@ class HssParser(private val source: String) {
     }
 
     private fun parseDeclaration(): HssDeclaration {
+        if (peekAhead(HssDeclaration.APPLY)) {
+            val start = index
+            index += HssDeclaration.APPLY.length
+            val value = readDeclarationValue(HssToken(HssDeclaration.APPLY, start, index))
+            return HssDeclaration(HssDeclaration.APPLY, value.text, start, value.start)
+        }
         val property = readPropertyName()
         expect(':', "Expected ':' after '${property.text}'", property)
         val value = readDeclarationValue(property)

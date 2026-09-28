@@ -75,6 +75,9 @@ class SlotZoneLayout(
 ) {
     val flatIndices: IntRange get() = offset until offset + size
 
+    /** Whether the client can compute a gesture on this zone exactly as the server will. */
+    val isPredictable: Boolean get() = predictable && rules.isPredictable
+
     fun rulesAt(local: Int): SlotRules =
         overrides.firstOrNull { it.index == local }?.rules ?: rules
 
@@ -102,9 +105,8 @@ class SlotLayout(
     @Transient
     val totalSize: Int = zones.sumOf { it.size }
 
-    /** False when any zone is unpredictable; the client then never applies a click optimistically. */
     @Transient
-    val isPredictable: Boolean = zones.all { it.predictable && it.rules.isPredictable }
+    val isPredictable: Boolean = zones.all { it.isPredictable }
 
     fun zone(name: String): SlotZoneLayout? = zones.firstOrNull { it.name == name }
 
@@ -113,6 +115,25 @@ class SlotLayout(
     fun rulesAt(flat: Int): SlotRules {
         val zone = zoneOf(flat) ?: return EmptyRules
         return zone.rulesAt(flat - zone.offset)
+    }
+
+    /**
+     * Whether the client may apply [intent] before the server answers: every zone the gesture can read or
+     * write has to be predictable. One unpredictable zone (a result slot guarded by a server check) then
+     * only slows down the gestures that touch it, not every click on the screen.
+     */
+    fun predicts(intent: SlotIntent): Boolean {
+        if (isPredictable) return true
+        val involved = when (intent.kind) {
+            SlotIntentKind.CLICK, SlotIntentKind.DROP, SlotIntentKind.CLONE -> listOf(zoneOf(intent.slot))
+            SlotIntentKind.COLLECT -> listOf(zoneOf(intent.slot))
+            SlotIntentKind.QUICK_MOVE -> zoneOf(intent.slot)
+                ?.let { listOf(it) + quickMoveTargets(it.name) }
+                ?: listOf(null)
+            SlotIntentKind.DISTRIBUTE -> intent.slots.map(::zoneOf)
+            SlotIntentKind.DROP_CARRIED -> emptyList()
+        }
+        return involved.all { it != null && it.isPredictable }
     }
 
     /** Whether this slot edits by copying rather than by moving; see [SlotZoneLayout.copyOnClick]. */
@@ -141,7 +162,7 @@ class SlotLayout(
             if (candidate.name == from || ordered.any { it.name == candidate.name }) continue
             ordered += candidate
         }
-        return ordered.filter { it.role.canReceive }
+        return ordered.filter { it.role.canReceive && !it.copyOnClick }
     }
 
     private companion object {

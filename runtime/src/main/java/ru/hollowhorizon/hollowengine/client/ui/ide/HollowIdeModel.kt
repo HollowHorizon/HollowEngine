@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockItem
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeItem
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeReveal
 import ru.hollowhorizon.hollowengine.client.utils.IconHelper
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
@@ -29,6 +30,10 @@ internal class HollowIdeModel(
     val selectedTreePaths = mutableStateListOf<String>()
     var selectedTreePath by mutableStateOf("")
         private set
+
+    /** A path the tree should scroll to, set by [revealPath] and dropped once the tree has done it. */
+    var treeReveal by mutableStateOf<UiTreeReveal?>(null)
+    private var revealRevision = 0
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val pasteMutex = Mutex()
     private val pendingSaves = mutableMapOf<String, Job>()
@@ -36,7 +41,7 @@ internal class HollowIdeModel(
     fun visibleTreeItems(filter: String, rootLabel: String): List<UiTreeItem<HollowIdeFileNode>> {
         return tree.visible(filter).map { node ->
             UiTreeItem(
-                id = node.path.ifEmpty { "root" }.replace('/', '-'),
+                id = treeItemId(node.path),
                 label = if (node.path.isEmpty()) rootLabel else node.name,
                 depth = node.depth,
                 payload = node,
@@ -78,7 +83,10 @@ internal class HollowIdeModel(
     fun revealPath(path: String) {
         tree.expandTo(path)
         selectPath(path)
+        treeReveal = UiTreeReveal(treeItemId(path), ++revealRevision)
     }
+
+    private fun treeItemId(path: String): String = path.ifEmpty { "root" }.replace('/', '-')
 
     fun open(node: HollowIdeFileNode, additive: Boolean = false): HollowIdeOpenResult {
         select(node, additive)
@@ -392,6 +400,16 @@ internal class HollowIdeModel(
             if (file.dirty && save(file.path)) count++
         }
         return count
+    }
+
+    /** Saves and closes every file opened with [type], whose addon is unloading. */
+    fun closeFilesUsing(type: HollowIdeFileType) {
+        files.values.filter { file -> file.type === type }.map(HollowIdeOpenFile::path).forEach { path ->
+            if (files[path]?.dirty == true) save(path)
+            pendingSaves.remove(path)?.cancel()
+            files.remove(path)?.close()
+            onFileRemoved?.invoke(path)
+        }
     }
 
     private fun scheduleSave(path: String) {

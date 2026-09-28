@@ -50,15 +50,11 @@ loom {
 
     runs {
         configureEach {
-            runDir("../run")
+            runDirectory.set(rootProject.layout.projectDirectory.dir("run"))
             if (name == "client") {
-                programArgs("--username", "TheHollowHorizon")
+                programArguments.addAll("--username", "TheHollowHorizon")
             }
         }
-    }
-
-    settingsPostEdit.add {
-        it.runDirIdeaUrl = "file://\$PROJECT_DIR\$/run"
     }
 }
 
@@ -117,14 +113,14 @@ dependencies {
     val fabricApi = "net.fabricmc.fabric-api:fabric-api:$fabricApiVersion"
     modImplementation(fabricApi)
     include(fabricApi)
-    modImplementation("lib:iris-fabric:1.8.8+mc1.21.1")
-    modImplementation("lib:sodium-fabric:0.6.13+mc1.21.1")
+    modImplementation("lib:iris-fabric:1.8.14-beta.1+mc1.21.1-devpatch")
+    modImplementation("lib:sodium-fabric:0.8.13+mc1.21.1")
     val mixinExtras = "io.github.llamalad7:mixinextras-fabric:0.4.1"
     modImplementation(mixinExtras)
     include(mixinExtras)
 
     implementation("org.anarres:jcpp:1.4.14")
-    implementation("io.github.douira:glsl-transformer:2.0.1")
+    implementation("io.github.douira:glsl-transformer:3.0.0-pre3")
 
     add("embeddedRuntime", project(path = ":runtime", configuration = "embeddedRuntimeElements"))
     add("payloadRemapTable", project(path = ":runtime", configuration = "payloadRemapTableElements"))

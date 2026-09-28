@@ -1,0 +1,540 @@
+{
+  "nodes": [
+    {
+      "type": "hollowengine:vfx/group",
+      "id": "source",
+      "name": "Source",
+      "transform": {
+        "position": [
+          0.0,
+          3.0,
+          0.0
+        ]
+      },
+      "children": [
+        {
+          "type": "hollowengine:vfx/emitter",
+          "id": "cloud",
+          "name": "Cloud",
+          "children": [
+            {
+              "type": "hollowengine:vfx/plane",
+              "id": "cloud-plane",
+              "particle": {
+                "size": {
+                  "x": {
+                    "type": "range",
+                    "from": 0.8,
+                    "to": 1.4
+                  },
+                  "y": {
+                    "type": "const",
+                    "value": 1.0
+                  },
+                  "z": {
+                    "type": "const",
+                    "value": 1.0
+                  }
+                },
+                "rotation": {
+                  "z": {
+                    "type": "expr",
+                    "source": "p.random * 360"
+                  }
+                },
+                "color": {
+                  "type": "gradient",
+                  "gradient": {
+                    "stops": [
+                      {
+                        "color": {
+                          "r": 0.15,
+                          "g": 0.15,
+                          "b": 0.2,
+                          "a": 0.0
+                        }
+                      },
+                      {
+                        "position": 0.3,
+                        "color": {
+                          "r": 0.15,
+                          "g": 0.15,
+                          "b": 0.2,
+                          "a": 0.6
+                        }
+                      },
+                      {
+                        "position": 1.0,
+                        "color": {
+                          "r": 0.15,
+                          "g": 0.15,
+                          "b": 0.2,
+                          "a": 0.0
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "emission": {
+            "rate": {
+              "type": "const",
+              "value": 12.0
+            },
+            "duration": 0.0,
+            "maxParticles": 48
+          },
+          "shape": {
+            "kind": "SPHERE",
+            "radius": {
+              "type": "const",
+              "value": 0.6
+            }
+          },
+          "spawn": {
+            "lifetime": {
+              "type": "range",
+              "from": 1.5,
+              "to": 2.5
+            },
+            "speed": {
+              "type": "range",
+              "from": 0.05,
+              "to": 0.2
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "hollowengine:vfx/beam",
+      "id": "bolt",
+      "name": "Bolt",
+      "tint": {
+        "type": "solid",
+        "color": {
+          "r": 0.75,
+          "g": 0.85
+        }
+      },
+      "target": "source",
+      "width": {
+        "type": "const",
+        "value": 0.12
+      },
+      "segments": 40,
+      "noise": {
+        "type": "const",
+        "value": 0.5
+      },
+      "noiseFrequency": 2.5,
+      "noiseSpeed": 12.0
+    },
+    {
+      "type": "hollowengine:vfx/beam",
+      "id": "branch",
+      "name": "Branch",
+      "transform": {
+        "position": [
+          0.0,
+          1.5,
+          0.0
+        ]
+      },
+      "tint": {
+        "type": "solid",
+        "color": {
+          "r": 0.75,
+          "g": 0.85
+        }
+      },
+      "end": [
+        0.9,
+        -1.2,
+        0.4
+      ],
+      "width": {
+        "type": "curve",
+        "curve": {
+          "keys": [
+            {
+              "value": 0.06,
+              "interpolation": "LINEAR"
+            },
+            {
+              "time": 1.0,
+              "value": 0.01,
+              "interpolation": "LINEAR"
+            }
+          ]
+        }
+      },
+      "segments": 20,
+      "noise": {
+        "type": "const",
+        "value": 0.3
+      },
+      "noiseFrequency": 3.0,
+      "noiseSpeed": 12.0
+    },
+    {
+      "type": "hollowengine:vfx/emitter",
+      "id": "sparks",
+      "name": "Sparks",
+      "children": [
+        {
+          "type": "hollowengine:vfx/plane",
+          "id": "sparks-plane",
+          "transform": {
+            "scale": [
+              1.0,
+              3.0,
+              1.0
+            ]
+          },
+          "material": {
+            "blend": "ADDITIVE"
+          },
+          "facing": "VELOCITY",
+          "particle": {
+            "size": {
+              "x": {
+                "type": "const",
+                "value": 0.05
+              },
+              "y": {
+                "type": "const",
+                "value": 1.0
+              },
+              "z": {
+                "type": "const",
+                "value": 1.0
+              }
+            },
+            "color": {
+              "type": "gradient",
+              "gradient": {
+                "stops": [
+                  {
+                    "color": {
+                      "r": 0.75,
+                      "g": 0.85
+                    }
+                  },
+                  {
+                    "position": 1.0,
+                    "color": {
+                      "r": 0.75,
+                      "g": 0.85,
+                      "a": 0.0
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "type": "hollowengine:vfx/trail",
+          "id": "sparks-trail",
+          "width": {
+            "type": "curve",
+            "curve": {
+              "keys": [
+                {
+                  "value": 0.03,
+                  "interpolation": "LINEAR"
+                },
+                {
+                  "time": 1.0,
+                  "interpolation": "LINEAR"
+                }
+              ]
+            }
+          },
+          "lifetime": 0.2,
+          "maxPoints": 10,
+          "particle": {
+            "color": {
+              "type": "gradient",
+              "gradient": {
+                "stops": [
+                  {
+                    "color": {
+                      "r": 0.75,
+                      "g": 0.85
+                    }
+                  },
+                  {
+                    "position": 1.0,
+                    "color": {
+                      "r": 0.75,
+                      "g": 0.85,
+                      "a": 0.0
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "emission": {
+        "rate": {
+          "type": "const"
+        },
+        "burst": 40,
+        "duration": 0.1,
+        "loopDelay": 1.9,
+        "maxParticles": 64
+      },
+      "shape": {
+        "kind": "SPHERE",
+        "radius": {
+          "type": "const",
+          "value": 0.05
+        }
+      },
+      "spawn": {
+        "lifetime": {
+          "type": "range",
+          "from": 0.4,
+          "to": 0.9
+        },
+        "speed": {
+          "type": "range",
+          "from": 2.0,
+          "to": 5.0
+        }
+      },
+      "motion": {
+        "gravity": {
+          "type": "const",
+          "value": 8.0
+        }
+      },
+      "modules": [
+        {
+          "type": "hollowengine:vfx/collision",
+          "bounce": 0.3
+        }
+      ]
+    },
+    {
+      "type": "hollowengine:vfx/sphere",
+      "id": "glow",
+      "name": "Ground Glow",
+      "transform": {
+        "scale": [
+          0.1,
+          0.1,
+          0.1
+        ]
+      },
+      "material": {
+        "texture": "hollowengine:textures/particle/white.png",
+        "blend": "ADDITIVE"
+      },
+      "tint": {
+        "type": "solid",
+        "color": {
+          "r": 0.75,
+          "g": 0.85
+        }
+      }
+    },
+    {
+      "type": "hollowengine:vfx/post_effect",
+      "id": "aberration",
+      "name": "Aberration",
+      "shader": "hollowengine:vfx/post/chromatic_aberration",
+      "uniforms": [
+        {
+          "name": "Strength"
+        }
+      ]
+    },
+    {
+      "type": "hollowengine:vfx/camera_shake",
+      "id": "shake",
+      "strength": {
+        "type": "expr",
+        "source": "max(0, 1 - p.age * 3) * clamp(1 - n.camera_distance / 24, 0, 1) * 2"
+      },
+      "frequency": {
+        "type": "const",
+        "value": 20.0
+      },
+      "amplitude": [
+        1.2,
+        1.2,
+        1.5
+      ]
+    }
+  ],
+  "timeline": {
+    "duration": 2.0,
+    "tracks": [
+      {
+        "node": "bolt",
+        "curves": [
+          {
+            "keys": [
+              {
+                "value": 1.0,
+                "interpolation": "CONSTANT"
+              },
+              {
+                "time": 0.12,
+                "interpolation": "CONSTANT"
+              },
+              {
+                "time": 0.2,
+                "value": 1.0,
+                "interpolation": "CONSTANT"
+              },
+              {
+                "time": 0.3,
+                "interpolation": "CONSTANT"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "node": "branch",
+        "curves": [
+          {
+            "keys": [
+              {
+                "interpolation": "CONSTANT"
+              },
+              {
+                "time": 0.2,
+                "value": 1.0,
+                "interpolation": "CONSTANT"
+              },
+              {
+                "time": 0.3,
+                "interpolation": "CONSTANT"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "node": "glow",
+        "property": "transform.scale",
+        "curves": [
+          {
+            "keys": [
+              {
+                "value": 0.1,
+                "interpolation": "LINEAR"
+              },
+              {
+                "time": 0.05,
+                "value": 1.2,
+                "interpolation": "LINEAR"
+              },
+              {
+                "time": 0.35,
+                "interpolation": "LINEAR"
+              }
+            ]
+          },
+          {
+            "channel": 1,
+            "keys": [
+              {
+                "value": 0.1,
+                "interpolation": "LINEAR"
+              },
+              {
+                "time": 0.05,
+                "value": 1.2,
+                "interpolation": "LINEAR"
+              },
+              {
+                "time": 0.35,
+                "interpolation": "LINEAR"
+              }
+            ]
+          },
+          {
+            "channel": 2,
+            "keys": [
+              {
+                "value": 0.1,
+                "interpolation": "LINEAR"
+              },
+              {
+                "time": 0.05,
+                "value": 1.2,
+                "interpolation": "LINEAR"
+              },
+              {
+                "time": 0.35,
+                "interpolation": "LINEAR"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "node": "aberration",
+        "property": "uniforms.Strength",
+        "curves": [
+          {
+            "keys": [
+              {
+                "value": 3.0,
+                "interpolation": "LINEAR"
+              },
+              {
+                "time": 0.3,
+                "interpolation": "LINEAR"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "node": "aberration",
+        "curves": [
+          {
+            "keys": [
+              {
+                "value": 1.0,
+                "interpolation": "CONSTANT"
+              },
+              {
+                "time": 0.3,
+                "interpolation": "CONSTANT"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "node": "glow",
+        "curves": [
+          {
+            "keys": [
+              {
+                "value": 1.0,
+                "interpolation": "CONSTANT"
+              },
+              {
+                "time": 0.35,
+                "interpolation": "CONSTANT"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

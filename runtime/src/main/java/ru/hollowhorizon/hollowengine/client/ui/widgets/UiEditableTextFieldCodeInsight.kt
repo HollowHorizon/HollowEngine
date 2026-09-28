@@ -142,14 +142,9 @@ private fun EditableFieldSignatureHelpPopup(
     visible: Boolean,
 ) {
     val anchor = layout.caretAt(help.anchor)
-    val viewport = scrollState.viewport
+    val at = scrollState.toScreen(contentOffsetX + anchor.x - scrollState.offsetX, anchor.y - scrollState.offsetY)
     Popup(
-        anchorBounds = UiRect(
-            viewport.x + contentOffsetX + anchor.x - scrollState.offsetX,
-            viewport.y + anchor.y - scrollState.offsetY,
-            0f,
-            layout.fontSize,
-        ),
+        anchorBounds = UiRect(at.x, at.y, 0f, layout.fontSize * scrollState.screenScale),
         alignment = UiPopupAlignment(
             anchorVertical = UiAlign.START,
             popupVertical = UiAlign.END,
@@ -158,7 +153,7 @@ private fun EditableFieldSignatureHelpPopup(
         id = "editable-text-field-signature-help",
         visible = visible,
         tags = listOf("ide-code-insight-popup", "ide-signature-help"),
-        modifier = codeInsightPopupModifier(layout, viewport),
+        modifier = codeInsightPopupModifier(layout, scrollState.viewport),
         dismissOnOutside = false,
     ) {
         Column(modifier = Modifier.size(UiLength.Fit, UiLength.Fit).gap(3.px)) {
@@ -191,21 +186,22 @@ private fun EditableFieldHoverPopup(
     contentOffsetX: Float,
     visible: Boolean,
 ) {
-    val viewport = scrollState.viewport
     val start = layout.caretAt(info.start)
     val end = layout.caretAt(info.end)
+    val at = scrollState.toScreen(contentOffsetX + start.x - scrollState.offsetX, start.y - scrollState.offsetY)
+    val scale = scrollState.screenScale
     Popup(
         anchorBounds = UiRect(
-            viewport.x + contentOffsetX + start.x - scrollState.offsetX,
-            viewport.y + start.y - scrollState.offsetY,
-            (end.x - start.x).coerceAtLeast(layout.fontSize),
-            layout.fontSize,
+            at.x,
+            at.y,
+            (end.x - start.x).coerceAtLeast(layout.fontSize) * scale,
+            layout.fontSize * scale,
         ),
         alignment = UiPopupAlignment.BelowStart.copy(offsetY = CodeInsightPopupGap),
         id = "editable-text-field-hover-info",
         visible = visible,
         tags = listOf("ide-code-insight-popup", "ide-hover-info"),
-        modifier = codeInsightPopupModifier(layout, viewport),
+        modifier = codeInsightPopupModifier(layout, scrollState.viewport),
         dismissOnOutside = false,
     ) {
         Column(modifier = Modifier.size(UiLength.Fit, UiLength.Fit).gap(5.px)) {
@@ -241,10 +237,7 @@ private fun CodeInsightText(
             CodeInsightSpans(text, segments)
         } else {
             CodeInsightSpans(text, segments.subList(0, firstActive))
-            Text(
-                tags = listOf("ide-active-parameter"),
-                modifier = Modifier.background(CodeInsightActiveParameter),
-            ) {
+            Text(tags = listOf("ide-active-parameter")) {
                 CodeInsightSpans(text, segments.subList(firstActive, lastActive + 1))
             }
             CodeInsightSpans(text, segments.subList(lastActive + 1, segments.size))
@@ -312,9 +305,6 @@ private fun codeInsightPopupModifier(layout: EditableFieldLayout, viewport: UiRe
     val maxWidth = (viewport.width - CodeInsightViewportMargin * 2f).coerceAtLeast(1f)
     return Modifier.size(UiLength.Fit, UiLength.Fit)
         .maxSize(width = maxWidth.px)
-        .padding(8.px)
-        .background(CodeInsightBackground)
-        .border(1.px, CodeInsightBorder, 4f)
         .clip()
         .scrollable(vertical = true, horizontal = false, hasHorizontalScrollbar = false)
         .fontSize(layout.fontSize)
@@ -325,7 +315,4 @@ private const val EditorHoverDelayMillis = 1_000L
 private const val CodeInsightPopupGap = 5f
 private const val CodeInsightViewportMargin = 8f
 private const val CodeInsightMaxVisibleSignatures = 6
-private val CodeInsightBackground = parseColor("#24272E")
-private val CodeInsightBorder = parseColor("#3B404A")
-private val CodeInsightActiveParameter = parseColor("#334A63")
 private val CodeInsightDocumentation = parseColor("#A9B7C6")

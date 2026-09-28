@@ -77,31 +77,8 @@ object GizmoColors {
 /**
  * Builds the screen-space geometry for the gizmo.
  */
-object GizmoGeometry {
-    private const val AXIS_LENGTH_PX = 38f
-    private const val PLANE_OFFSET = 0.36f
-    private const val PLANE_HALF = 0.17f
-    private const val RING_RADIUS_PX = 36f
-    private const val RING_SEGMENTS = 72
-    private const val CENTER_RADIUS_PX = 7f
-    private const val SCALE_CUBE_PX = 4.5f
-    private const val CIRCLE_SEGMENTS = 48
-    private const val CONE_LENGTH_PX = 10f
-    private const val CONE_RADIUS_PX = 3.6f
-    private const val CONE_SEGMENTS = 16
-
-    private const val COMBINED_RING_RADIUS_PX = 52f
-    private const val COMBINED_SCALE_LENGTH_PX = 24f
-
-    private const val AWAY_DIMMING = 0.6f
-    private const val RING_BACK_EMPHASIS = 0.3f
-    private const val EDGE_ON_PLANE_EMPHASIS = 0.35f
-
-    private const val AXIS_WIDTH = 1.7f
-    private const val RING_WIDTH = 1.7f
-
+class GizmoGeometry(private val projector: GizmoProjector) {
     fun buildHandles(translation: Vec3f, rotation: QuatF, modes: Set<GizmoEditMode>): List<GizmoHandle> {
-        val projector = WorldToScreenProjector
         val origin = Vec3(translation.x.toDouble(), translation.y.toDouble(), translation.z.toDouble())
         val perPixel = projector.worldPerPixel(origin)
         val originScreen = projector.project(origin) ?: return emptyList()
@@ -135,7 +112,7 @@ object GizmoGeometry {
             }
 
             if (GizmoEditMode.SCALE in modes) {
-                // Next to the arrows the scale handles lose their shafts and the centre stays free movement.
+                // Next to the arrows the scale handles lose their shafts and the center stays free movement.
                 val basis = Triple(lx, ly, lz)
                 scaleAxis(GizmoHandleId.SCALE_X, origin, lx, basis, perPixel, translate, GizmoColors.AXIS_X)?.let(::add)
                 scaleAxis(GizmoHandleId.SCALE_Y, origin, ly, basis, perPixel, translate, GizmoColors.AXIS_Y)?.let(::add)
@@ -149,7 +126,6 @@ object GizmoGeometry {
     }
 
     private fun axisArrow(id: GizmoHandleId, origin: Vec3, axis: Vec3f, perPixel: Float, color: UiColor): GizmoHandle? {
-        val projector = WorldToScreenProjector
         val direction = worldVec(axis)
         val length = (perPixel * AXIS_LENGTH_PX).toDouble()
         val tip = origin.add(direction.scale(length))
@@ -171,7 +147,6 @@ object GizmoGeometry {
     }
 
     private fun cone(tip: Vec3, axis: Vec3, perPixel: Float): List<Pt>? {
-        val projector = WorldToScreenProjector
         val base = tip.subtract(axis.scale((perPixel * CONE_LENGTH_PX).toDouble()))
         val radius = (perPixel * CONE_RADIUS_PX).toDouble()
         val u = perpendicular(axis)
@@ -188,7 +163,6 @@ object GizmoGeometry {
     }
 
     private fun planeQuad(id: GizmoHandleId, origin: Vec3, normal: Vec3f, spanA: Vec3f, spanB: Vec3f, perPixel: Float, color: UiColor): GizmoHandle? {
-        val projector = WorldToScreenProjector
         val length = perPixel * AXIS_LENGTH_PX
         val offset = length * PLANE_OFFSET
         val half = length * PLANE_HALF
@@ -231,7 +205,6 @@ object GizmoGeometry {
         radiusPx: Float,
         color: UiColor,
     ): GizmoHandle? {
-        val projector = WorldToScreenProjector
         val radius = perPixel * radiusPx
         val worldPts = ArrayList<Vec3>(RING_SEGMENTS + 1)
         val pts = ArrayList<Pt>(RING_SEGMENTS + 1)
@@ -297,7 +270,6 @@ object GizmoGeometry {
         besideArrows: Boolean,
         color: UiColor,
     ): GizmoHandle? {
-        val projector = WorldToScreenProjector
         val direction = worldVec(axis)
         val length = perPixel * if (besideArrows) COMBINED_SCALE_LENGTH_PX else AXIS_LENGTH_PX
         val tipWorld = origin.add(direction.scale(length.toDouble()))
@@ -327,7 +299,7 @@ object GizmoGeometry {
         color: UiColor,
     ): GizmoHandle? {
         val cube = projectedCube(origin, basis, half) ?: return null
-        val depth = WorldToScreenProjector.project(origin)?.depth ?: return null
+        val depth = projector.project(origin)?.depth ?: return null
         return GizmoHandle(
             id, origin, worldAxis = null, listOf(GizmoStroke(cube, closed = true)), fillPolygon = cube,
             color = color, width = RING_WIDTH, depth = depth, pick = PickPrimitive.Polygon(cube),
@@ -335,7 +307,6 @@ object GizmoGeometry {
     }
 
     private fun projectedCube(center: Vec3, basis: Triple<Vec3f, Vec3f, Vec3f>, half: Float): List<Pt>? {
-        val projector = WorldToScreenProjector
         val (a, b, c) = basis
         val points = ArrayList<Pt>(8)
         for (sa in SIGNS) for (sb in SIGNS) for (sc in SIGNS) {
@@ -361,7 +332,7 @@ object GizmoGeometry {
 
     /** Cosine between [direction] and the direction from [origin] towards the camera. */
     private fun viewFacing(origin: Vec3, direction: Vec3): Float {
-        val toCamera = WorldToScreenProjector.cameraPosition.subtract(origin)
+        val toCamera = projector.cameraPosition.subtract(origin)
         val length = toCamera.length() * direction.length()
         if (length < 1e-9) return 1f
         return (direction.dot(toCamera) / length).toFloat()
@@ -404,7 +375,6 @@ object GizmoGeometry {
      * [axis], for the rotation drag readout. Basis matches [GizmoManipulator.anglePlane].
      */
     fun buildRotationSector(origin: Vec3, axis: Vec3, startAngle: Double, endAngle: Double, perPixel: Float): List<Pt>? {
-        val projector = WorldToScreenProjector
         val radius = perPixel * RING_RADIUS_PX * 0.92f
         val u = perpendicular(axis)
         val v = axis.cross(u)
@@ -434,7 +404,6 @@ object GizmoGeometry {
 
     /** The 12 edges of [bounds] projected into screen space, or empty when any corner is off-screen. */
     fun buildBoundsEdges(bounds: AABB): List<List<Pt>> {
-        val projector = WorldToScreenProjector
         val corners = arrayOf(
             Vec3(bounds.minX, bounds.minY, bounds.minZ), Vec3(bounds.maxX, bounds.minY, bounds.minZ),
             Vec3(bounds.maxX, bounds.minY, bounds.maxZ), Vec3(bounds.minX, bounds.minY, bounds.maxZ),
@@ -463,7 +432,6 @@ object GizmoGeometry {
 
     /** Projects a world-space polyline; returns null if any vertex is off-screen. */
     fun projectPolyline(points: List<Vec3>): List<Pt>? {
-        val projector = WorldToScreenProjector
         val result = ArrayList<Pt>(points.size)
         for (point in points) {
             val p = projector.project(point) ?: return null
@@ -471,5 +439,29 @@ object GizmoGeometry {
             result += Pt(p.x, p.y)
         }
         return result
+    }
+
+    companion object {
+        /** The one the world overlay uses. */
+        val World = GizmoGeometry(WorldToScreenProjector)
+
+        private const val AXIS_LENGTH_PX = 38f
+        private const val PLANE_OFFSET = 0.36f
+        private const val PLANE_HALF = 0.17f
+        private const val RING_RADIUS_PX = 36f
+        private const val RING_SEGMENTS = 72
+        private const val CENTER_RADIUS_PX = 7f
+        private const val SCALE_CUBE_PX = 4.5f
+        private const val CIRCLE_SEGMENTS = 48
+        private const val CONE_LENGTH_PX = 10f
+        private const val CONE_RADIUS_PX = 3.6f
+        private const val CONE_SEGMENTS = 16
+        private const val COMBINED_RING_RADIUS_PX = 52f
+        private const val COMBINED_SCALE_LENGTH_PX = 24f
+        private const val AWAY_DIMMING = 0.6f
+        private const val RING_BACK_EMPHASIS = 0.3f
+        private const val EDGE_ON_PLANE_EMPHASIS = 0.35f
+        private const val AXIS_WIDTH = 1.7f
+        private const val RING_WIDTH = 1.7f
     }
 }

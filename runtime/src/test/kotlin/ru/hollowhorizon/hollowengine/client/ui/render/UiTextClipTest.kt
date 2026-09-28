@@ -18,6 +18,7 @@ import ru.hollowhorizon.hollowengine.client.ui.layout.UiLayoutPipeline
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollState
 import ru.hollowhorizon.hollowengine.client.ui.style.UiModifierResolver
 import ru.hollowhorizon.hollowengine.client.ui.style.UiTextOverflow
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextRun
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -65,5 +66,33 @@ class UiTextClipTest {
         assertEquals(40f, command.rect.width, 0.5f)
         val displayed = UiTextOverflowResolver.ellipsizeLine(command, command.layout.lines.single())
         assertTrue(displayed.text.endsWith("..."), "overflow result was '${displayed.text}'")
+    }
+
+    @Test
+    fun `shortened text keeps the spaces between its words`() {
+        val span = SpanNode("one two three four five six")
+        val text = BoxNode(
+            measurePolicy = UiMeasurePolicies.InlineFlow,
+            modifiers = listOf(
+                Modifier.size(70.px, 12.px).fontFamily(TestFontFamily).fontSize(10f)
+                    .textWrap(false).textOverflow(UiTextOverflow.DOTS),
+            ),
+        ).also { node ->
+            node.children += span
+            span.layoutState.attachTo(node)
+        }
+        val root = BoxNode(measurePolicy = UiMeasurePolicies.Column).also { node ->
+            node.children += text
+            text.layoutState.attachTo(node)
+        }
+        UiModifierResolver().resolve(root, animate = false)
+        val layout = UiLayoutPipeline().compute(root, 100f, 100f, UiScrollState())
+        val command = UiCommandRenderer().collect(root, layout).filterIsInstance<DrawTextCommand>().single()
+
+        val displayed = UiTextOverflowResolver.ellipsizeLine(command, command.layout.lines.single())
+        assertTrue(displayed.text.startsWith("one two"), "overflow result was '${displayed.text}'")
+        val runs = displayed.fragments.filterIsInstance<UiTextRun>()
+        assertTrue(runs.zipWithNext().all { (left, right) -> right.x > left.x + left.width - 0.01f })
+        assertTrue(runs[1].x > runs[0].x + runs[0].width + 0.5f, "the words were drawn back to back")
     }
 }

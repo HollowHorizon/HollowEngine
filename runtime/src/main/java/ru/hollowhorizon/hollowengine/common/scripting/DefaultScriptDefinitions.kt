@@ -5,6 +5,7 @@ import net.minecraft.server.MinecraftServer
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.scripting.annotations.Import
+import ru.hollowhorizon.hollowengine.common.scripting.console.ServerConsoleScript
 import ru.hollowhorizon.hollowengine.common.scripting.mixins.MixinScript
 import ru.hollowhorizon.hollowengine.common.scripting.nodes.NodeScript
 import ru.hollowhorizon.hollowengine.common.scripting.reload.ReloadScript
@@ -18,6 +19,7 @@ const val UI_SCRIPT_EXTENSION = "ui.kts"
 const val RELOAD_SCRIPT_EXTENSION = "reload.kts"
 const val STARTUP_SCRIPT_EXTENSION = "startup.kts"
 const val CONSOLE_SCRIPT_EXTENSION = "console.kts"
+const val SERVER_CONSOLE_SCRIPT_EXTENSION = "server-console.kts"
 const val MIXIN_SCRIPT_EXTENSION = "mixin.kts"
 private const val CLIENT_RELOAD_CONTEXT = "ru.hollowhorizon.hollowengine.client.scripting.ClientReloadContext"
 private const val CONSOLE_SCRIPT = "ru.hollowhorizon.hollowengine.client.scripting.ConsoleScript"
@@ -26,11 +28,22 @@ object DefaultScriptDefinitions {
     private val definitions by lazy(::createProviders)
 
     fun providerFor(fileName: String): Provider? =
-        definitions.asSequence()
+        providers().asSequence()
             .filter { fileName.endsWith(it.extension) }
             .maxByOrNull { it.extension.length }
 
-    fun providers(): List<Provider> = definitions
+    fun providers(): List<Provider> {
+        val registered = definitions.toMutableList()
+        ScriptDefinitionsEvent.post(ScriptDefinitionsEvent(registered))
+        require(registered.map(Provider::extension).distinct().size == registered.size) {
+            "Script suffixes must be unique"
+        }
+        return registered.map { provider ->
+            val imports = provider.defaultImports.toMutableList()
+            ScriptDefaultImportsEvent.post(ScriptDefaultImportsEvent(provider.extension, imports))
+            provider.copy(defaultImports = imports.distinct())
+        }
+    }
 
     /**
      * What a script compiled while mixins are prepared may consist of: mixin scripts and the plain scripts
@@ -199,6 +212,26 @@ object DefaultScriptDefinitions {
                     "net.minecraft.world.phys.Vec3",
                     "net.minecraft.world.entity.Entity",
                     "net.minecraft.world.entity.LivingEntity",
+                    "kotlinx.coroutines.launch",
+                    "kotlinx.coroutines.delay",
+                    "kotlin.time.Duration.Companion.seconds",
+                    "ru.hollowhorizon.hollowengine.common.utils.rl",
+                    "ru.hollowhorizon.hollowengine.common.utils.literal",
+                ),
+            )
+            this += Provider(
+                extension = SERVER_CONSOLE_SCRIPT_EXTENSION,
+                baseClass = ServerConsoleScript::class.qualifiedName!!,
+                defaultImports = listOf(
+                    Import::class.qualifiedName!!,
+                    ResourceLocation::class.qualifiedName!!,
+                    ItemStack::class.qualifiedName!!,
+                    "net.minecraft.core.BlockPos",
+                    "net.minecraft.world.phys.Vec3",
+                    "net.minecraft.world.entity.Entity",
+                    "net.minecraft.world.entity.LivingEntity",
+                    "net.minecraft.server.level.ServerLevel",
+                    "net.minecraft.server.level.ServerPlayer",
                     "kotlinx.coroutines.launch",
                     "kotlinx.coroutines.delay",
                     "kotlin.time.Duration.Companion.seconds",

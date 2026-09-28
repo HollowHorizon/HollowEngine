@@ -160,7 +160,17 @@ internal val HssDeclaration.canonicalProperty: String
     get() = HssSchema.find(property)?.name ?: property.lowercase()
 
 internal fun compileHss(source: String, origin: StyleOrigin = StyleOrigin.STYLESHEET): CompiledHss =
-    HssCompiler(origin).compile(parseHss(source))
+    compileHss(parseHss(source), origin)
+
+/** Compiles [document] with its imports read and its variables written in. */
+internal fun compileHss(
+    document: HssDocument,
+    origin: StyleOrigin = StyleOrigin.STYLESHEET,
+    scope: HssScope = HssScope.of(document),
+): CompiledHss {
+    scope.failures.firstOrNull()?.let { (import, reason) -> throw HssParseException(reason, import.start, import.end) }
+    return HssCompiler(origin).compile(document.resolved(scope))
+}
 
 /** Compiles a single `name: value` pair, as used by HSS-valued node attributes. */
 internal fun compileStyleModifier(property: String, value: String): Modifier? =

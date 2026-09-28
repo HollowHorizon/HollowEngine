@@ -81,6 +81,7 @@ import ru.hollowhorizon.hollowengine.client.ui.script.UiScriptHudHost
 import ru.hollowhorizon.hollowengine.common.ui.HudPlacement
 import ru.hollowhorizon.hollowengine.client.editor.WorldInspector
 import ru.hollowhorizon.hollowengine.client.ui.notification.NotificationOverlay
+import ru.hollowhorizon.hollowengine.client.vfx.render.VfxWorldRenderer
 import ru.hollowhorizon.hollowengine.common.ui.hud.HudLayerRegistry
 import ru.hollowhorizon.hollowengine.common.ui.hud.VanillaHudLayers
 import ru.hollowhorizon.hollowengine.client.utils.HollowCoreLoader
@@ -499,13 +500,21 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun shouldForceAutoGuiScale(screen: Screen?): Boolean = screen is AutoScaled
 
+    override fun onLevelFrameRendered(minecraft: Minecraft) {
+        RenderTickEvent.LevelRendered.post(RenderTickEvent.LevelRendered(minecraft))
+    }
+
     override fun onBeforeBlitScreen(minecraft: Minecraft) {
-        HollowIdeGameViewport.endRender()
+        HollowIdeGameViewport.beginWindowPass()
     }
 
     override fun onBlitScreen(minecraft: Minecraft) {
         HollowIdeGameViewport.restoreWindowViewport()
-        RenderTickEvent.Blit.post(RenderTickEvent.Blit(minecraft))
+        try {
+            RenderTickEvent.Blit.post(RenderTickEvent.Blit(minecraft))
+        } finally {
+            HollowIdeGameViewport.endWindowPass()
+        }
     }
 
     override fun onServerCreated(server: MinecraftServer, serverThread: Thread, levelRoot: Path) {
@@ -545,21 +554,17 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onClientTick(client: Minecraft) {
+        HollowIdeGameViewport.beginFrame(client)
         RuntimeDispatcherState.runClientTasks(client)
     }
 
     override fun onClientRenderTickPre(client: Minecraft) {
-        HollowIdeGameViewport.beginRender(client)
         CutsceneCameraSystem.update(client)
         RenderTickEvent.Pre.post(RenderTickEvent.Pre(client))
     }
 
     override fun onClientRenderTickPost(client: Minecraft) {
         RenderTickEvent.Post.post(RenderTickEvent.Post(client))
-    }
-
-    override fun onClientResized(client: Minecraft) {
-        HollowIdeGameViewport.invalidateWindowMetrics()
     }
 
     override fun onClientStopping(client: Minecraft) {
@@ -794,6 +799,10 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         IrisHelper.invalidateInstancingPrograms()
     }
 
+    override fun onIrisLevelFinished() {
+        VfxWorldRenderer.onShaderPackFrameFinished()
+    }
+
     override fun onIrisShadowRenderStart() {
         InstanceBatchManager.clear()
     }
@@ -957,7 +966,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun getGameViewportMetrics(): RuntimeBridge.GameViewportMetrics? = HollowIdeGameViewport.metrics()
 
-    override fun isGameViewportRendering(): Boolean = HollowIdeGameViewport.isRendering()
+    override fun isGameViewportWindowPass(): Boolean = HollowIdeGameViewport.isWindowPass()
 
     override fun onRenderLevelStage(
         renderer: LevelRenderer,

@@ -11,7 +11,7 @@ import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import kotlin.math.abs
 
-private const val TimelineKeyframeSize = 13f
+private const val TimelineKeyframeSize = 10f
 private const val LaneContentId = "timeline-lane-content"
 
 @Composable
@@ -343,15 +343,23 @@ private fun KeyConnections(row: TimelineRow, pxPerSec: Float, keys: List<Keyfram
     }
 }
 
+/** Darkens the time the playback never reaches: before zero and past the end of the work area. */
 @Composable
-private fun WorkAreaShade(controller: TimelineController, pxPerSec: Float, contentWidth: Float, rowsHeight: Float) {
+internal fun WorkAreaShade(controller: TimelineController, pxPerSec: Float, contentWidth: Float, height: Float) {
+    val shadeHeight = height.coerceAtLeast(1f).px
+    Box(
+        modifier = Modifier.position(0.px, 0.px).size(TimelineLeftPadding.px, shadeHeight)
+            .background(OutsideWorkArea).inputTransparent(),
+    )
     val x = TimelineLeftPadding + controller.workAreaEnd * pxPerSec
     if (x >= contentWidth) return
     Box(
-        modifier = Modifier.position(x.px, 0.px).size((contentWidth - x).px, rowsHeight.coerceAtLeast(1f).px)
-            .background(UiColor(0f, 0f, 0f, 0.38f)).inputTransparent(),
+        modifier = Modifier.position(x.px, 0.px).size((contentWidth - x).px, shadeHeight)
+            .background(OutsideWorkArea).inputTransparent(),
     )
 }
+
+private val OutsideWorkArea = UiColor(0f, 0f, 0f, 0.38f)
 
 @Composable
 internal fun TimelineContextMenu(
@@ -390,7 +398,7 @@ internal fun TimelineContextMenu(
             add(
                 UiDropdownItem(
                     CutsceneLang.CURVE_PRESET.lang,
-                    icon = GraphIcon,
+                    icon = PresetIcon,
                     enabled = hasCurveSelection,
                     closeOnClick = false,
                 ) { showPresets = true })
@@ -425,9 +433,10 @@ internal fun TimelineContextMenu(
     )
 }
 
-private const val PulseIcon = "hollowengine:textures/gui/icons/pulse.svg"
-private const val GraphIcon = "hollowengine:textures/gui/icons/graph.svg"
-private const val RemoveIcon = "hollowengine:textures/gui/icons/remove.svg"
-private const val CopyIcon = "hollowengine:textures/gui/icons/copy.svg"
-private const val CutIcon = "hollowengine:textures/gui/icons/cut.png"
-private const val PasteIcon = "hollowengine:textures/gui/icons/paste.svg"
+private const val PulseIcon = "hollowengine:textures/gui/icons/timeline/key_add.svg"
+private const val GraphIcon = "hollowengine:textures/gui/icons/timeline/smooth.svg"
+private const val PresetIcon = "hollowengine:textures/gui/icons/timeline/preset.svg"
+private const val RemoveIcon = "hollowengine:textures/gui/icons/timeline/delete.svg"
+private const val CopyIcon = "hollowengine:textures/gui/icons/timeline/copy.svg"
+private const val CutIcon = "hollowengine:textures/gui/icons/timeline/cut.svg"
+private const val PasteIcon = "hollowengine:textures/gui/icons/timeline/paste.svg"

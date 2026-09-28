@@ -1,18 +1,13 @@
 {
-  "layers": "Layers",
-  "layers_empty": "Empty. Add a layer below.",
-  "add_layer": "+ Add",
+  "add_layer": "Add layer",
   "kind_controller": "Controller",
   "kind_clip": "Clip",
   "kind_procedural": "Procedural",
-  "show_layers": "Show layers",
-  "hide_layers": "Hide layers",
   "reset_view": "Reset view",
   "parameters": "Parameters",
   "no_graph": "This layer has no graph; its parameters are in the inspector.",
   "no_layers": "No layers",
   "nothing_selected": "Nothing selected",
-  "pick_controller": "Select a controller layer",
   "layer_removed": "Layer removed",
   "state_removed": "State removed",
   "transition_removed": "Transition removed",
@@ -61,5 +56,7 @@
   "exit_time": "Exit time",
   "condition": "Condition",
   "any_state": "any state",
-  "always": "always"
+  "always": "always",
+  "delete_layer": "Delete layer",
+  "no_layers_hint": "Layers live in the Scene window: right-click there to add one."
 }

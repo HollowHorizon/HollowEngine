@@ -1,11 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.entity
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateSetOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import net.minecraft.nbt.CompoundTag
 import ru.hollowhorizon.hollowengine.client.slots.PlayerInventory
 import ru.hollowhorizon.hollowengine.client.slots.SlotGrid
@@ -13,8 +9,6 @@ import ru.hollowhorizon.hollowengine.client.slots.Slots
 import ru.hollowhorizon.hollowengine.client.slots.ClientSlots
 import ru.hollowhorizon.hollowengine.client.ui.inspector.*
 import ru.hollowhorizon.hollowengine.client.ui.*
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeView
-import ru.hollowhorizon.hollowengine.client.ui.widgets.tooltipOnHover
 import ru.hollowhorizon.hollowengine.common.attachments.editor.EntityEditorSlots
 import ru.hollowhorizon.hollowengine.common.ui.UiData
 import ru.hollowhorizon.hollowengine.common.ui.UiScope
@@ -50,65 +44,6 @@ private fun EditorDialog(id: String, title: String, width: Float, onClose: () ->
             content()
         }
     }
-}
-
-@Composable
-internal fun AssetPickerDialog(request: InspectorAssetRequest) {
-    val session = LocalEntityEditorSession.current
-    var filter by remember(request) { mutableStateOf("") }
-    val expanded = remember(request) { mutableStateSetOf<String>() }
-    val close = { session?.pendingPicker = null }
-
-    val rows = PathTree.rows(
-        paths = request.candidates,
-        expanded = expanded,
-        query = filter,
-        folderIcon = EntityEditorIcons.FOLDER,
-        fileIcon = ::assetIconFor,
-        selected = request.current,
-    )
-
-    EditorDialog("ee-asset-dialog", request.title, 420f, close) {
-        Row(tags = listOf("ee-search")) {
-            Image(EntityEditorIcons.SEARCH, tags = listOf("ee-search-icon"))
-            TextField(
-                value = filter,
-                id = "ee-asset-filter",
-                placeholder = EntityEditorLang.searchHint,
-                fontSize = 9f,
-                onChange = { filter = it },
-                tags = listOf("insp-input", "flat"),
-                modifier = Modifier.grow(1f),
-            )
-        }
-
-        if (rows.isEmpty()) {
-            Text(EntityEditorLang.nothingFound, tags = listOf("insp-hint"))
-            return@EditorDialog
-        }
-
-        UiTreeView(
-            items = rows,
-            onToggle = { item -> if (!expanded.add(item.id)) expanded.remove(item.id) },
-            onSelect = { item, _ ->
-                val picked = item.payload
-                if (picked == null) {
-                    if (!expanded.add(item.id)) expanded.remove(item.id)
-                } else {
-                    request.onPick(picked)
-                    close()
-                }
-            },
-            modifier = Modifier.size(100.percent, 280.px),
-            tags = listOf("ee-asset-tree"),
-        )
-    }
-}
-
-private fun assetIconFor(path: String): String = when {
-    path.endsWith(".png") -> "hollowengine:textures/gui/icons/file_image.svg"
-    path.endsWith(".kts") -> EntityEditorIcons.SCRIPT
-    else -> "hollowengine:textures/gui/icons/file_model.svg"
 }
 
 @Composable

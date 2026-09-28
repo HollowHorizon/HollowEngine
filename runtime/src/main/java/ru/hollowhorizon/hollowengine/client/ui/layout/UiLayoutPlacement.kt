@@ -26,7 +26,8 @@ internal fun UiLayoutPipeline.placeNodeNow(
     val scrollOffset = style.scroll?.state?.offset ?: UiScrollOffset.Zero
     // Computed by the parent inline flow (wrapping depends on where the span starts in a line)
     val textLayout = (node as? SpanNode)?.lineLayout
-    val clip = if (style.clip || style.scrollable) parentClip.intersect(boxes.content) else parentClip
+    val overflowClip = overflowClipRect(rect, style, boxes.content)
+    val clip = if (style.clip || style.scrollable) parentClip.intersect(overflowClip) else parentClip
     val localX = rect.x - parentRect.x
     val localY = rect.y - parentRect.y
     val nodeTransform = style.transform
@@ -66,6 +67,7 @@ internal fun UiLayoutPipeline.placeNodeNow(
         content = boxes.content,
         clip = clip,
         outerClip = parentClip,
+        overflowClip = overflowClip,
         worldTransform = transform,
         inputTransform = inputTransform,
         needsFramebuffer = needsFramebuffer,

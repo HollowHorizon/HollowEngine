@@ -418,6 +418,27 @@ internal fun nodeBoxes(rect: UiRect, style: UiComputedStyle, reserve: UiScrollba
     )
 }
 
+/**
+ * Where a clipping node cuts its children.
+ */
+internal fun overflowClipRect(rect: UiRect, style: UiComputedStyle, content: UiRect): UiRect {
+    val scroll = style.scroll ?: return content
+    if (scroll.horizontal && scroll.vertical) return content
+    val border = style.border.width.resolve(rect.width, rect.height)
+    val paddingBox = UiRect(
+        rect.x + border.left,
+        rect.y + border.top,
+        (rect.width - border.left - border.right).coerceAtLeast(0f),
+        (rect.height - border.top - border.bottom).coerceAtLeast(0f),
+    )
+    return UiRect(
+        x = if (scroll.horizontal) content.x else paddingBox.x,
+        y = if (scroll.vertical) content.y else paddingBox.y,
+        width = if (scroll.horizontal) content.width else paddingBox.width,
+        height = if (scroll.vertical) content.height else paddingBox.height,
+    )
+}
+
 internal fun UiComputedStyle.verticalGutter(reserve: UiScrollbarReserve, reference: Float): Float =
     if (reserve.vertical) scrollbar.resolved(reference).gutter else 0f
 

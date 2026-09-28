@@ -30,7 +30,7 @@ class TextEffectParsingTest {
     }
 
     @Test
-    fun `a rule takes thickness, offset and colour in that order`() {
+    fun `a rule takes thickness, offset and color in that order`() {
         val underline = parseTextEffect("underline(0.09, 0.04, #FF5555)") as Underline
         assertEquals(0.09f, underline.thickness)
         assertEquals(0.04f, underline.offset)

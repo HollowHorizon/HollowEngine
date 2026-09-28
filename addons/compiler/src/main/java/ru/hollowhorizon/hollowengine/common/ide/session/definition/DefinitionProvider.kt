@@ -54,7 +54,7 @@ private fun List<KaSymbol>.pickDefinitionSymbol(): KaDeclarationSymbol? {
         ?: firstNotNullOfOrNull { it as? KaDeclarationSymbol }
 }
 
-private fun ScriptingAnalyzerImpl.definitionForSymbol(symbol: KaDeclarationSymbol): DefinitionLocation? {
+internal fun ScriptingAnalyzerImpl.definitionForSymbol(symbol: KaDeclarationSymbol): DefinitionLocation? {
     val targetPsi = symbol.psi
     runCatching {
         targetPsi?.toDefinitionLocation()?.let { return it }
@@ -174,7 +174,7 @@ private object CfrDefinitionDecompiler {
         if (!classPath.endsWith(".class") || "!/" !in classPath) return null
         val key = classPath
         val text = cache.getOrPut(key) {
-            decompileClass(classPath) ?: return null
+            decompileClass(classFile) ?: return null
         }
         return DefinitionLocation(
             path = "decompiled/${classPath.substringAfterLast("!/").removeSuffix(".class")}.java",
@@ -184,25 +184,21 @@ private object CfrDefinitionDecompiler {
         )
     }
 
-    private fun decompileClass(classPath: String): String? {
-        val jarPath = classPath.substringBefore("!/")
-        val entryName = classPath.substringAfter("!/")
+    /**
+     * Copies [classFile] and its nested classes out of whatever file system holds them, a jar or the
+     * JDK's module image, into a directory CFR can read, and decompiles the outer class there.
+     */
+    private fun decompileClass(classFile: VirtualFile): String? {
+        val entryName = classFile.path.substringAfterLast("!/")
+        val outerClass = classFile.nameWithoutExtension.substringBefore('$')
+        val siblings = classFile.parent?.children.orEmpty()
+            .filter { it.extension == "class" && it.nameWithoutExtension.substringBefore('$') == outerClass }
         val tempRoot = Files.createTempDirectory("hollowengine-cfr-")
         return try {
-            JarFile(File(jarPath)).use { jar ->
-                val outerClassPrefix = entryName.removeSuffix(".class").substringBefore('$')
-                jar.entries().asSequence()
-                    .filter { !it.isDirectory && it.name.endsWith(".class") && it.name.removeSuffix(".class").substringBefore('$') == outerClassPrefix }
-                    .forEach { entry ->
-                        val target = tempRoot.resolve(entry.name)
-                        Files.createDirectories(target.parent)
-                        jar.getInputStream(entry).use { input ->
-                            Files.copy(input, target)
-                        }
-                    }
-            }
-            val targetClass = tempRoot.resolve(entryName)
-            CfrSourceDecompiler.decompile(targetClass.absolutePathString())
+            val packageDirectory = tempRoot.resolve(entryName).parent
+            Files.createDirectories(packageDirectory)
+            siblings.forEach { sibling -> Files.write(packageDirectory.resolve(sibling.name), sibling.contentsToByteArray()) }
+            CfrSourceDecompiler.decompile(tempRoot.resolve(entryName).absolutePathString())
         } finally {
             tempRoot.toFile().deleteRecursively()
         }

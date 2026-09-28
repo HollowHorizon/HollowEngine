@@ -27,13 +27,28 @@ fun Modifier.tooltipOnHover(
     text: String,
     alignment: UiPopupAlignment = UiPopupAlignment.BelowStart,
     delayMillis: Long = TooltipDelayMillis,
+): Modifier = tooltipOnHover(enabled = text.isNotBlank(), alignment, delayMillis) {
+    Text(text, tags = listOf("ui-tooltip-label"))
+}
+
+/**
+ * A hover tooltip with any [content], such as an item's own tooltip lines. Nothing shows while
+ * [enabled] is false, so a node can keep the modifier and simply have nothing to say.
+ */
+@Composable
+fun Modifier.tooltipOnHover(
+    enabled: Boolean,
+    alignment: UiPopupAlignment = UiPopupAlignment.BelowStart,
+    delayMillis: Long = TooltipDelayMillis,
+    tags: List<String> = listOf("ui-tooltip"),
+    content: HollowUiContent,
 ): Modifier {
     var bounds by remember { mutableStateOf(UiRect.Zero) }
     var hovered by remember { mutableStateOf(false) }
     var visible by remember { mutableStateOf(false) }
 
-    LaunchedEffect(hovered, text, delayMillis) {
-        if (!hovered || text.isBlank()) {
+    LaunchedEffect(hovered, enabled, delayMillis) {
+        if (!hovered || !enabled) {
             visible = false
             return@LaunchedEffect
         }
@@ -46,12 +61,11 @@ fun Modifier.tooltipOnHover(
             anchorBounds = bounds,
             alignment = alignment,
             layer = TooltipLayer,
-            tags = listOf("ui-tooltip"),
+            tags = tags,
             modifier = Modifier.inputTransparent(),
             dismissOnOutside = false,
-        ) {
-            Text(text, tags = listOf("ui-tooltip-label"))
-        }
+            content = { content() },
+        )
     }
 
     return then(Modifier.input(hoverable = true)

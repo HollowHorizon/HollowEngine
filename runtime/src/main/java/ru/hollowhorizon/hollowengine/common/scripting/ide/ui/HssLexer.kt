@@ -33,7 +33,7 @@ internal data class HssScanState(
 /**
  * Scanner behind HSS highlighting. It tracks block depth and `@keyframes` bodies, so a
  * keyframe selector (`from`, `50%`) is never mistaken for a property and the declarations
- * nested two blocks deep keep their colours.
+ * nested two blocks deep keep their colors.
  *
  * Value tokens are classified against [UiLanguageCatalog], which means the keywords a
  * property accepts are highlighted as keywords without any list living here.
@@ -48,6 +48,9 @@ internal class HssLexer(
     private var keyframesDepth = -1
     private var pendingKeyframes = false
     private var inValue = false
+
+    /** Between a top-level `$name` and its `:`, where the next `:` starts the variable's value. */
+    private var pendingVariable = false
     private var property: String? = null
     private var valueStart = 0
     private val spans = ArrayList<TextSpan>()
@@ -88,6 +91,7 @@ internal class HssLexer(
     }
 
     private fun region(): HssRegion = when {
+        inValue -> HssRegion.VALUE
         depth == 0 -> HssRegion.SELECTOR
         depth == keyframesDepth -> HssRegion.KEYFRAME_SELECTOR
         inValue -> HssRegion.VALUE
@@ -98,6 +102,7 @@ internal class HssLexer(
         emit(index, index + 1, TokenType.DEFAULT)
         index++
         inValue = false
+        pendingVariable = false
         property = null
         if (open) {
             depth++
@@ -137,7 +142,21 @@ internal class HssLexer(
     }
 
     private fun readSelectorToken() {
+        if (pendingVariable && text[index] == ':') {
+            emit(index, index + 1, TokenType.DEFAULT)
+            index++
+            pendingVariable = false
+            inValue = true
+            property = null
+            valueStart = index
+            return
+        }
         when (val char = text[index]) {
+            '$' -> {
+                readVariable()
+                pendingVariable = true
+            }
+
             '@' -> readAtRule()
             '.' -> readPrefixed(TokenType.FUNCTION)
             '#' -> readPrefixed(TokenType.EXTENSION_RECEIVER)
@@ -186,6 +205,14 @@ internal class HssLexer(
     private fun readPropertyToken() {
         val char = text[index]
         when {
+            text.startsWith("@apply", index) -> {
+                emit(index, index + "@apply".length, TokenType.KEYWORD)
+                index += "@apply".length
+                inValue = true
+                property = null
+                valueStart = index
+            }
+
             char == ':' -> {
                 emit(index, index + 1, TokenType.DEFAULT)
                 index++
@@ -207,6 +234,7 @@ internal class HssLexer(
     private fun readValueToken() {
         val char = text[index]
         when {
+            char == '$' -> readVariable()
             char == '"' || char == '\'' -> readString()
             char == '#' -> readWhile(TokenType.NUMERIC_LITERAL) { it.isLetterOrDigit() || it == '#' }
             char.isDigit() || (char == '-' && text.getOrNull(index + 1)?.isDigit() == true) ->
@@ -215,6 +243,14 @@ internal class HssLexer(
             isIdentifierPart(char) -> readValueWord()
             else -> readSingle(TokenType.DEFAULT)
         }
+    }
+
+    /** `$name`, whether declared or used. */
+    private fun readVariable() {
+        val start = index
+        index++
+        while (index < text.length && isIdentifierPart(text[index])) index++
+        emit(start, index, TokenType.VARIABLE)
     }
 
     private fun readValueWord() {

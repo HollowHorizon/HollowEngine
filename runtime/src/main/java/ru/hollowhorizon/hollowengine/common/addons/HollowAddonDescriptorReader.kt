@@ -10,9 +10,9 @@ internal object HollowAddonDescriptorReader {
     private val DESCRIPTOR_PATH = AddonBootstrapContract.DESCRIPTOR_PATH
     private val addonIdPattern = Regex("[a-z0-9_.-]+")
 
-    fun read(file: File): HollowAddonDescriptor = JarFile(file).use { jar ->
-        val entry = jar.getJarEntry(DESCRIPTOR_PATH)
-            ?: throw IllegalArgumentException("Missing $DESCRIPTOR_PATH")
+    fun read(file: File, descriptorPath: String = DESCRIPTOR_PATH): HollowAddonDescriptor = JarFile(file).use { jar ->
+        val entry = jar.getJarEntry(descriptorPath)
+            ?: throw IllegalArgumentException("Missing $descriptorPath")
         val properties = Properties().apply {
             jar.getInputStream(entry).use(::load)
         }
@@ -29,6 +29,7 @@ internal object HollowAddonDescriptorReader {
                 .uppercase()
                 .let(HollowAddonEnvironment::valueOf),
             requiredClasses = properties.list("requiredClasses"),
+            hostModId = properties.getProperty("hostModId")?.trim()?.takeIf(String::isNotEmpty),
         ).also(::validate)
     }
 
@@ -41,6 +42,9 @@ internal object HollowAddonDescriptorReader {
         require(descriptor.id !in descriptor.dependencies) { "Addon '${descriptor.id}' cannot depend on itself" }
         require(descriptor.dependencies.distinct().size == descriptor.dependencies.size) {
             "Addon '${descriptor.id}' declares duplicate dependencies"
+        }
+        require(descriptor.hostModId == null || descriptor.hostModId.matches(addonIdPattern)) {
+            "Addon '${descriptor.id}' has an invalid hostModId"
         }
     }
 

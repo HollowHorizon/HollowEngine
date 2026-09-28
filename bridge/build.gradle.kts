@@ -47,7 +47,7 @@ dependencies {
         parchment("org.parchmentmc.data:parchment-$minecraftVersion:$parchmentVersion")
     })
 
-    modImplementation("lib:iris-fabric:1.8.8+mc1.21.1")
+    modImplementation("lib:iris-fabric:1.8.14-beta.1+mc1.21.1-devpatch")
     modImplementation("net.fabricmc:fabric-loader:$fabricLoaderVersion")
 
     compileOnly("org.spongepowered:mixin:0.8.7")

@@ -1,21 +1,51 @@
+/*
+ * The whole IDE is set in the code font, like its editor and its log: one face for every panel, tab,
+ * menu and tooltip, narrower than the vanilla one and crisp at any size. Popups are not under
+ * #ide-root, so they are named here too; this sheet is only loaded by the IDE, so the game's own
+ * screens keep their font.
+ *
+ * Sizes: 9px for text, 8px for what is secondary, 11px for the title of a dialog.
+ */
+
+@import "hollowengine:ui/styles/theme.hss";
+
+#ide-root,
+.dropdown-popup,
+.ui-tooltip,
+.vfx-popup,
+#cutscene-dialog {
+    font-family: $font;
+    font-size: $font-size;
+}
+
+.dropdown-popup .dropdown-item-shortcut {
+    font-size: $font-size-small;
+}
+
+/* The vanilla drop shadow suits the pixel font only; under the code font it reads as a blur. */
+.text-field {
+    text-shadow: none;
+}
+
 #ide-root {
     background: none;
 }
 
 .project-tree-panel.drop-target {
-    background: rgba(88, 123, 174, 0.20);
+    background: alpha($accent, 0.2);
 }
 
 #ide-toolbar {
     size: 100% fit;
+    padding: 1px 0px;
     gap: 2px;
-    background: #24272E;
+    background: $bg-window;
 }
 
 #ide-logo {
-    size: 24px 24px;
+    size: $rail $rail;
     align-items: center center;
-    border-radius: 4px;
+    border-radius: $radius;
     rotate: 0 0 0;
     scale: 0.9;
     transition: all 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -29,58 +59,78 @@
 .ide-toolbar-divider {
     size: 1px 14px;
     margin: 0px 6px;
-    background: #3a3f4b;
+    background: $bg-hover;
 }
 
 .ide-toolbar-group {
     gap: 1px;
-    background: #1E2127;
-    border-radius: 4px;
+    background: $bg-panel;
+    border-radius: $radius;
 }
 
 .ide-toolbar-button {
     size: fit fit;
     margin: 1px;
     padding: 4px;
-    border-radius: 3px;
-    background: #00000000;
+    border-radius: $radius-small;
+    background: transparent;
     transition: background 110ms ease-out;
 }
 
 .ide-toolbar-button:hover {
-    background: #414653;
+    background: $bg-hover;
 }
 
 .ide-toolbar-button.active {
-    background: rgba(67, 106, 154, 0.62);
+    background: $bg-selected;
+}
+
+#ide-toolbar-search {
+    size: $rail $rail;
+    margin: 0px;
+    padding: 5px;
 }
 
 .ide-toolbar-button-icon {
-    size: 13px 13px;
-    tint: #aeb8ca;
+    size: 12px 12px;
+    tint: $text-soft;
     transition: all 110ms ease-out;
 }
 
 .ide-toolbar-button:hover .ide-toolbar-button-icon,
 .ide-toolbar-button.active .ide-toolbar-button-icon {
-    tint: #ffffff;
+    tint: $white;
 }
 
 .ide-panel, .ide-empty-editor, .ide-editor-shell {
     size: fill fill;
     margin: 2px;
-    padding: 4px;
-    border-radius: 4px;
+    padding: $panel-inset;
+    border-radius: $radius-large;
     gap: 6px;
-    background: #24272E;
+    background: $bg-panel;
+}
+
+.ide-editor-shell {
+    padding: 2px;
+    background: $bg-field;
 }
 
 .ide-empty-editor {
     align-items: center center;
+    background: $bg-field;
+}
+
+/* The game sits in the editor area like any editor: a rounded panel inside the tab bar's stack. */
+.game-viewport {
+    size: fill fill;
+    margin: 2px;
+    border-radius: $radius-large;
+    background: $bg-window;
 }
 
 .game-viewport-hint {
-    foreground: #8d96a8;
+    foreground: $text-muted;
     text-align: center;
 }
 
@@ -89,40 +139,87 @@
     padding: 0px 4px;
     gap: 4px;
     align-items: start center;
-    background: #31343D;
-    border-radius: 4px;
+    background: $bg-field;
+    border-radius: $radius;
 }
 
 .project-filter-icon {
     size: 14px 14px;
-    tint: #FFFFFF;
+    tint: $white;
 }
 
 .project-filter {
     grow: 1;
     margin-top: 2px;
     align: center center;
-    caret-color: #f0f6ff;
-    selection-color: rgba(95, 140, 205, 0.46);
+    caret-color: $caret;
+    selection-color: $selection;
 }
 
 .ide-empty-title {
-    foreground: #cbd3df;
+    foreground: $text-muted;
     height: 18px;
 }
 
-.ide-status {
-    height: 16px;
-    margin-right: 6px;
-    max-width: 360px;
-    wrap: false;
-    text-overflow: dots;
-    font-size: 10px;
-    foreground: #8f9bad;
+/* The first breadcrumb's icon sits on the rail, under the stripe buttons. */
+#ide-status-bar {
+    padding: 0px 8px 0px 1px;
+    gap: 12px;
+    align-items: start center;
+    background: $bg-window;
 }
 
-.ide-empty-editor .ide-status {
-    font-size: 11px;
+.ide-breadcrumbs {
+    gap: 2px;
+    align-items: start center;
+}
+
+.ide-breadcrumb {
+    size: fit 16px;
+    padding: 0px 4px;
+    gap: 4px;
+    align-items: start center;
+    border-radius: $radius-small;
+    background: transparent;
+    foreground: $text-muted;
+    transition:
+            background 100ms ease-out,
+            foreground 100ms ease-out;
+}
+
+.ide-breadcrumb.last {
+    foreground: $text-strong;
+}
+
+.ide-breadcrumb.link:hover {
+    background: $bg-hover;
+    foreground: $caret;
+}
+
+.ide-breadcrumb-icon {
+    size: 11px 11px;
+}
+
+.ide-breadcrumb-separator {
+    size: 8px 8px;
+    shape: path("M 3 1 L 6 4 L 3 7", 8 8);
+    fill: none;
+    stroke: $text-faint;
+    stroke-width: 1px;
+}
+
+.ide-status-message {
+    max-width: 360px;
+    foreground: $text-soft;
+}
+
+.ide-status-detail {
+    wrap: false;
+    foreground: $text-muted;
+}
+
+.ide-status-detail.version {
+    foreground: $text-faint;
 }
 
 .ide-shortcuts-dialog {
@@ -132,44 +229,42 @@
 .ide-shortcuts-content {
     gap: 3px;
     padding: 0px 8px 0px 0px;
-    scrollbar: 6px;
-    scrollbar-thumb: rgba(155, 169, 194, 0.42);
-    scrollbar-thumb-radius: 3px;
+    @apply $thin-scroll;
 }
 
 .ide-shortcuts-title {
     margin-bottom: 4px;
-    font-size: 14px;
-    foreground: #F0F3F8;
+    font-size: $font-size-title;
+    foreground: $caret;
 }
 
 .ide-shortcuts-group {
     margin-top: 6px;
-    font-size: 10px;
-    foreground: #8f9bad;
+    font-size: $font-size;
+    foreground: $text-muted;
 }
 
 .ide-shortcuts-row {
     min-height: 20px;
     padding: 0px 6px;
     gap: 12px;
-    background: #2A2E36;
-    border-radius: 3px;
+    background: $bg-hover;
+    border-radius: $radius-small;
 }
 
 .ide-shortcuts-description {
     width: 0px;
-    foreground: #d7deea;
+    foreground: $text-strong;
 }
 
 .ide-shortcuts-keys {
     wrap: false;
     padding: 1px 5px;
-    font-size: 10px;
-    foreground: #F0F3F8;
-    background: #3A3F49;
-    border: 1px #4b5362;
-    border-radius: 3px;
+    font-size: $font-size-small;
+    foreground: $caret;
+    background: $border;
+    border: 1px $border;
+    border-radius: $radius-small;
 }
 
 .ui-profiler-panel {
@@ -186,18 +281,18 @@
     width: fit;
     height: fit;
     padding: 3px 8px;
-    background: #31343D;
-    border-radius: 3px;
-    foreground: #d7deea;
+    background: $bg-selected;
+    border-radius: $radius-small;
+    foreground: $text-strong;
 }
 
 .ui-profiler-button:hover {
-    background: #414653;
+    background: $bg-pressed;
 }
 
 .ui-profiler-scroll {
     width: 100%;
-    background: #1d2026;
+    background: $bg-panel;
     padding: 6px;
 }
 
@@ -205,17 +300,75 @@
     width: fit;
     height: fit;
     white-space: pre;
-    font-size: 10px;
-    foreground: #d7deea;
+    font-size: $font-size;
+    foreground: $text-strong;
 }
 
-.console-panel {
-    gap: 4px;
+.tool-window-header {
+    size: 100% 24px;
+    padding: 0px 4px 0px 8px;
+    gap: 2px;
+    align-items: start center;
+}
+
+.tool-window-title {
+    margin: 0px 8px 0px 4px;
+}
+
+.tool-window-tab {
+    size: fit 18px;
+    padding: 0px 8px;
+    gap: 5px;
+    align-items: center center;
+    border-radius: $radius;
+    background: transparent;
+    foreground: $text-muted;
+    transition:
+            background 110ms ease-out,
+            foreground 110ms ease-out;
+}
+
+.tool-window-tab:hover {
+    background: $bg-hover;
+    foreground: $text-strong;
+}
+
+.tool-window-tab.selected {
+    background: $row-selected;
+    foreground: $caret;
+}
+
+.tool-window-tab.selected:hover {
+    background: $row-selected;
+}
+
+.tool-window-tab-count {
+    min-width: 12px;
+    padding: 2px 4px 0px 4px;
+    text-align: center;
+    border-radius: $radius-large;
+    background: $bg-hover;
+    foreground: $text-soft;
+}
+
+.tool-window-tab-count.has-errors {
+    background: alpha($danger, 0.16);
+    foreground: $danger;
+}
+
+.tool-window-tab-count.has-warnings {
+    background: alpha($warning, 0.14);
+    foreground: $warning;
+}
+
+.ide-panel.console-panel {
+    padding: 0px;
+    gap: 0px;
 }
 
 .console-toolbar {
     size: fit 22px;
-    padding: 0px 3px;
+    padding: 0px $panel-inset;
     gap: 5px;
     align-items: start center;
 }
@@ -224,82 +377,76 @@
     min-width: 64px;
     height: 18px;
     padding: 0px 6px;
-    background: #24272E;
-    border: 1px #383D48;
-    border-radius: 3px;
 }
 
 .console-mode-dropdown {
     min-width: 84px;
     height: 20px;
     padding: 0px 6px;
-    background: #24272E;
-    border: 1px #383D48;
-    border-radius: 3px;
+    background: $bg-field;
+    border: 1px $divider;
+    border-radius: $radius;
 }
 
 .console-command-row {
     width: 100%;
     height: fit;
     min-height: 26px;
-    padding: 2px 4px;
+    padding: 3px 6px 5px 6px;
     gap: 4px;
 }
 
 .console-filter, .console-command {
     padding: 2px 5px;
-    background: #24272E;
-    border: 1px #383D48;
-    border-radius: 3px;
-    caret-color: #f0f6ff;
-    selection-color: rgba(95, 140, 205, 0.46);
+    background: $bg-field;
+    border: 1px $divider;
+    border-radius: $radius;
+    caret-color: $caret;
+    selection-color: $selection;
 }
 
-/* The whole log is one read-only field; its colours come from the console's own highlighter. */
+/*
+ * The whole log is one read-only field; its colors come from the console's own highlighter. It sits
+ * a shade lighter than the header and the command line around it, like the editor does.
+ */
 .console-log {
     width: 100%;
-    padding: 2px 6px;
-    background: #1E2127;
-    border-radius: 4px;
-    foreground: #d7deea;
-    caret-color: #f0f6ff;
-    selection-color: rgba(95, 140, 205, 0.46);
-    scrollbar: 6px;
-    scrollbar-track: rgba(255, 255, 255, 0.03);
-    scrollbar-thumb: rgba(155, 169, 194, 0.42);
-    scrollbar-thumb-radius: 3px;
+    padding: 2px 8px;
+    background: $bg-field;
+    foreground: $text-strong;
+    caret-color: $caret;
+    selection-color: $selection;
+    @apply $thin-scroll;
 }
 
-.console-empty {
+.console-empty, .problems-empty {
     align-items: center center;
-    background: #1E2127;
-    border-radius: 4px;
-    foreground: #7f8a9d;
+    background: $bg-field;
+    foreground: $text-faint;
 }
 
 .console-button {
     size: 22px 22px;
-    border-radius: 3px;
-    background: #24272E;
-    border: 1px #383D48;
+    border-radius: $radius;
+    background: transparent;
     transition: background 110ms ease-out;
 }
 
 .console-button:hover {
-    background: #5f6b80;
+    background: $bg-hover;
 }
 
 .console-button.disabled, .console-button.disabled:hover {
-    background: #2a2d34;
+    background: transparent;
 }
 
 .console-button-icon {
     size: 13px 13px;
-    tint: #d7deea;
+    tint: $text-strong;
 }
 
 .console-button.disabled .console-button-icon {
-    tint: #687588;
+    tint: $text-faint;
 }
 
 .project-context-menu {
@@ -328,15 +475,15 @@
 
 .project-name-dialog-title {
     height: 18px;
-    foreground: #d7deea;
+    foreground: $text-strong;
 }
 
 .project-name-dialog-input {
-    caret-color: #f0f6ff;
-    background: #1E2127;
-    border-radius: 4px;
-    border: 1px #5F6677;
-    selection-color: rgba(95, 140, 205, 0.46);
+    caret-color: $caret;
+    background: $bg-field;
+    border-radius: $radius;
+    border: 1px $border-strong;
+    selection-color: $selection;
 }
 
 .project-name-dialog-actions {
@@ -354,22 +501,22 @@
     size: fit fit;
     margin: 2px 0px;
     padding: 3px;
-    border-radius: 3px;
-    background: #00000000;
+    border-radius: $radius-small;
+    background: transparent;
     transition: background 110ms ease-out;
 }
 
 .project-action:hover {
-    background: #414653;
+    background: $bg-hover;
 }
 
 .project-action-icon {
     size: 13px 13px;
-    tint: #aeb8ca;
+    tint: $text-soft;
 }
 
 .project-action:hover .project-action-icon {
-    tint: #ffffff;
+    tint: $white;
 }
 
 .project-dialog-content {
@@ -378,8 +525,8 @@
 }
 
 .project-dialog-title {
-    foreground: #F0F3F8;
-    font-size: 14px;
+    foreground: $caret;
+    font-size: $font-size-title;
 }
 
 .project-dialog-field {
@@ -389,69 +536,65 @@
 .project-dialog-scroll {
     gap: 7px;
     padding: 0px 8px 0px 0px;
-    scrollbar: 6px;
-    scrollbar-thumb: rgba(155, 169, 194, 0.42);
-    scrollbar-thumb-radius: 3px;
+    @apply $thin-scroll;
 }
 
 .project-dialog-label {
-    foreground: #8f9bad;
-    font-size: 10px;
+    foreground: $text-muted;
+    font-size: $font-size-small;
 }
 
 .project-dialog-input {
     padding: 2px 5px;
-    background: #1E2127;
-    border: 1px #4b5362;
-    border-radius: 3px;
-    caret-color: #f0f6ff;
-    selection-color: rgba(95, 140, 205, 0.46);
+    background: $bg-field;
+    border: 1px $border;
+    border-radius: $radius-small;
+    caret-color: $caret;
+    selection-color: $selection;
 }
 
 .project-dialog-dropdown {
     height: 22px;
     padding: 0px 6px;
-    background: #1E2127;
-    border: 1px #4b5362;
-    border-radius: 3px;
+    background: $bg-field;
+    border: 1px $border;
+    border-radius: $radius-small;
 }
 
 .project-dialog-dependencies {
     padding: 3px 5px;
     gap: 2px;
-    background: #1E2127;
-    border-radius: 3px;
-    scrollbar: 6px;
-    scrollbar-thumb: rgba(155, 169, 194, 0.42);
-    scrollbar-thumb-radius: 3px;
+    background: $bg-field;
+    border-radius: $radius-small;
+    @apply $thin-scroll;
 }
 
 .project-dialog-checkbox-row {
     gap: 7px;
-    foreground: #D7DEEA;
+    foreground: $text-strong;
 }
 
 .project-dialog-text {
-    foreground: #D7DEEA;
-    font-size: 11px;
+    foreground: $text-strong;
+    font-size: $font-size;
     line-spacing: 2px;
 }
 
 .project-dialog-hint, .project-dialog-progress {
-    foreground: #8f9bad;
-    font-size: 10px;
+    foreground: $text-muted;
+    font-size: $font-size-small;
     line-spacing: 2px;
 }
 
 .project-dialog-warning {
-    foreground: #ffc266;
-    font-size: 11px;
+    foreground: $warning;
+    font-size: $font-size;
     line-spacing: 2px;
 }
 
 .project-dialog-error {
-    foreground: #ff8787;
-    font-size: 11px;
+    foreground: $danger;
+    font-size: $font-size;
     line-spacing: 2px;
 }
 
@@ -460,8 +603,8 @@
 }
 
 .project-dialog-path {
-    foreground: #aeb8ca;
-    font-size: 10px;
+    foreground: $text-soft;
+    font-size: $font-size-small;
 }
 
 .project-dialog-actions {
@@ -472,29 +615,29 @@
 .project-dialog-button {
     min-width: 72px;
     padding: 0px 10px;
-    border-radius: 4px;
-    border: 1px #E7EBF2;
-    background: #3A3F49;
+    border-radius: $radius;
+    border: 1px $text-strong;
+    background: $border;
     transition: background 80ms ease-out;
 }
 
 .project-dialog-button:hover {
-    background: #4A515E;
+    background: $bg-pressed;
 }
 
 .project-dialog-button.primary {
-    background: #5F8CCD;
-    foreground: #FFFFFF;
+    background: $accent;
+    foreground: $white;
 }
 
 .project-dialog-button.primary:hover {
-    background: #6E9BDC;
+    background: $accent;
 }
 
 .project-dialog-button.disabled, .project-dialog-button.disabled:hover {
-    background: #2C3038;
-    foreground: #687588;
-    border: 1px #4b5362;
+    background: $bg-hover;
+    foreground: $text-faint;
+    border: 1px $border;
 }
 
 .ide-hide-toolbar-dialog {
@@ -506,19 +649,19 @@
 }
 
 .ide-hide-toolbar-dialog-title {
-    foreground: #F0F3F8;
-    font-size: 14px;
+    foreground: $caret;
+    font-size: $font-size-title;
 }
 
 .ide-hide-toolbar-dialog-message {
-    foreground: #B9C1CF;
-    font-size: 11px;
+    foreground: $text-soft;
+    font-size: $font-size;
     line-spacing: 2px;
 }
 
 .ide-hide-toolbar-dialog-checkbox-row {
     gap: 7px;
-    foreground: #D7DEEA;
+    foreground: $text-strong;
 }
 
 .ide-hide-toolbar-dialog-actions {
@@ -526,31 +669,31 @@
 }
 
 .ide-hide-toolbar-dialog-button {
-    border-radius: 4px;
-    border: 1px #E7EBF2;
-    background: #3A3F49;
+    border-radius: $radius;
+    border: 1px $text-strong;
+    background: $border;
     transition: background 80ms ease-out;
 }
 
 .ide-hide-toolbar-dialog-button:hover {
-    background: #4A515E;
+    background: $bg-pressed;
 }
 
 .ide-hide-toolbar-dialog-button:active {
-    background: #303640;
+    background: $bg-selected;
 }
 
 .ide-hide-toolbar-dialog-button.primary {
-    background: #5F8CCD;
-    foreground: #FFFFFF;
+    background: $accent;
+    foreground: $white;
 }
 
 .ide-hide-toolbar-dialog-button.primary:hover {
-    background: #6E9BDC;
+    background: $accent;
 }
 
 .ide-hide-toolbar-dialog-button.primary:active {
-    background: #4D78B8;
+    background: $accent;
 }
 
 .ide-editor-stack {
@@ -568,23 +711,23 @@
     padding: 0px 3px;
     gap: 3px;
     align-items: center center;
-    background: #1E1F22;
+    background: $bg-panel;
     margin-left: 2px;
     margin-right: 4px;
-    border-radius: 3px;
+    border-radius: $radius-small;
 }
 
 .code-editor-inlay-text {
     /* A share of the code font, so the hints follow ctrl+wheel along with the text. */
     font-size: 85%;
-    foreground: rgba(142, 153, 171, 0.9);
+    foreground: alpha($text-muted, 0.9);
     text-wrap: false;
 }
 
 .code-editor-inlay-icon {
     size: 9px 9px;
     align-y: center;
-    tint: rgba(142, 153, 171, 0.9);
+    tint: alpha($text-muted, 0.9);
     transition: all 170ms ease-in-out;
 }
 
@@ -593,25 +736,25 @@
 }
 
 .code-editor-inlay.inlay-action:hover {
-    background: #2B2D31;
+    background: $bg-hover;
 }
 
 .code-editor-inlay.inlay-action:hover .code-editor-inlay-icon {
-    tint: #FFFFFF;
+    tint: $white;
 }
 
 .code-editor-inlay.color-hint {
     padding: 1px;
-    background: #00000000;
+    background: transparent;
     margin-left: 0px;
     margin-right: 2px;
-    border: 1px rgba(255, 255, 255, 0.22);
-    border-radius: 3px;
+    border: 1px alpha($white, 0.22);
+    border-radius: $radius-small;
 }
 
 .code-editor-inlay.color-hint:hover {
-    background: #00000000;
-    border: 1px #FFFFFF;
+    background: transparent;
+    border: 1px $white;
 }
 
 .code-editor-inlay-swatch {
@@ -625,9 +768,8 @@
     height: fit;
     gap: 3px;
     padding: 3px;
-    background: #2A2E36;
-    border: 1px #3a3f4b;
-    border-radius: 4px;
+    background: $bg-panel;
+    border-radius: $radius;
 }
 
 .ide-find-row {
@@ -639,89 +781,89 @@
 
 .ide-find-icon {
     size: 14px 14px;
-    tint: #aeb8ca;
+    tint: $text-soft;
 }
 
 .ide-find-input {
     height: 20px;
     padding: 2px 5px;
-    background: #1E2127;
-    border: 1px #4b5362;
-    border-radius: 3px;
-    caret-color: #f0f6ff;
-    selection-color: rgba(95, 140, 205, 0.46);
+    background: $bg-field;
+    border: 1px $divider;
+    border-radius: $radius-small;
+    caret-color: $caret;
+    selection-color: $selection;
 }
 
 .ide-find-toggle {
     size: 20px 20px;
-    border-radius: 3px;
-    foreground: #8f9bad;
-    background: #00000000;
+    border-radius: $radius-small;
+    foreground: $text-muted;
+    background: transparent;
     transition: all 110ms ease-out;
 }
 
 .ide-find-toggle:hover {
-    background: #414653;
+    background: $bg-pressed;
 }
 
 .ide-find-toggle.on {
-    background: rgba(67, 106, 154, 0.62);
-    foreground: #f0f6ff;
+    background: alpha($accent-fill-hover, 0.62);
+    foreground: $caret;
 }
 
 .ide-find-toggle-label {
     wrap: false;
-    font-size: 10px;
+    font-size: $font-size-small;
 }
 
 .ide-find-status {
     width: fit;
     min-width: 58px;
     wrap: false;
-    foreground: #8f9bad;
+    foreground: $text-muted;
 }
 
 .ide-find-status.empty {
-    foreground: #ff8787;
+    foreground: $danger;
 }
 
 .ide-find-button {
     size: 20px 20px;
-    border-radius: 3px;
-    background: #00000000;
+    border-radius: $radius-small;
+    background: transparent;
     transition: background 110ms ease-out;
 }
 
 .ide-find-button:hover {
-    background: #414653;
+    background: $bg-pressed;
 }
 
 .ide-find-button-icon {
     size: 11px 11px;
-    tint: #aeb8ca;
+    tint: $text-soft;
 }
 
 .ide-find-text-button {
     width: fit;
     height: 20px;
     padding: 0px 8px;
-    background: #414653;
-    foreground: #d7deea;
-    border-radius: 3px;
+    background: $border;
+    foreground: $text-strong;
+    border-radius: $radius-small;
 }
 
 .ide-find-text-button:hover {
-    background: #5f6b80;
+    background: $bg-pressed;
 }
 
 
 .ide-search-overlay {
     padding: 5px;
     gap: 4px;
-    background: #24272E;
-    border: 1px #5F6677;
-    border-radius: 6px;
-    shadow: 2px 4px 12px 0px rgba(0, 0, 0, 0.55);
+    background: $bg-raised;
+    border: 1px $border-strong;
+    border-radius: $radius-large;
+    shadow: 2px 4px 12px 0px $shadow;
 }
 
 .ide-search-scopes {
@@ -735,25 +877,25 @@
     width: fit;
     height: 20px;
     padding: 0px 10px;
-    border-radius: 3px;
-    foreground: #8f9bad;
-    background: #00000000;
+    border-radius: $radius-small;
+    foreground: $text-muted;
+    background: transparent;
     transition: all 110ms ease-out;
 }
 
 .ide-search-scope:hover {
-    background: #414653;
+    background: $bg-pressed;
 }
 
 .ide-search-scope.on {
-    background: rgba(67, 106, 154, 0.62);
-    foreground: #f0f6ff;
+    background: alpha($accent-fill-hover, 0.62);
+    foreground: $caret;
 }
 
 .ide-search-status {
     width: fit;
     wrap: false;
-    foreground: #687588;
+    foreground: $text-faint;
 }
 
 .ide-search-query-row {
@@ -761,30 +903,27 @@
     height: fit;
     gap: 5px;
     padding: 0px 4px;
-    background: #1E2127;
-    border: 1px #4b5362;
-    border-radius: 4px;
+    background: $bg-field;
+    border: 1px $border;
+    border-radius: $radius;
 }
 
 .ide-search-icon {
     size: 14px 14px;
-    tint: #aeb8ca;
+    tint: $text-soft;
 }
 
 .ide-search-input {
     height: 24px;
-    caret-color: #f0f6ff;
-    selection-color: rgba(95, 140, 205, 0.46);
+    caret-color: $caret;
+    selection-color: $selection;
 }
 
 .ide-search-results {
     width: 100%;
     max-height: 320px;
     gap: 1px;
-    scrollbar: 6px;
-    scrollbar-track: rgba(255, 255, 255, 0.03);
-    scrollbar-thumb: rgba(155, 169, 194, 0.42);
-    scrollbar-thumb-radius: 3px;
+    @apply $thin-scroll;
 }
 
 .ide-search-result {
@@ -793,15 +932,15 @@
     min-height: 20px;
     padding: 2px 6px;
     gap: 6px;
-    border-radius: 3px;
+    border-radius: $radius-small;
 }
 
 .ide-search-result:hover {
-    background: rgba(84, 124, 176, 0.42);
+    background: $bg-hover;
 }
 
 .ide-search-result.selected {
-    background: rgba(67, 106, 154, 0.62);
+    background: $row-selected;
 }
 
 .ide-search-result-icon {
@@ -811,139 +950,127 @@
 .ide-search-result-name {
     width: fit;
     wrap: false;
-    foreground: #d7deea;
+    foreground: $text-strong;
 }
 
 .ide-search-result-detail {
     width: 0px;
     grow: 1;
     wrap: false;
-    font-size: 10px;
-    foreground: #687588;
+    font-size: $font-size-small;
+    foreground: $text-faint;
 }
 
 .ide-search-result-match {
-    foreground: #ffc266;
+    foreground: $warning;
 }
 
 .ide-diagnostics-badge {
     height: fit;
-    padding: 4px;
+    margin: 4px 10px 0px 0px;
+    padding: 3px 5px;
     align-items: center center;
     gap: 4px;
-    background: #31343DBB;
-    border: 1px rgba(255, 255, 255, 0.16);
-    border-radius: 4px;
-    shadow: 1px 2px 1px 0px rgba(0, 0, 0, 0.72);
+    background: alpha($bg-panel, 0.88);
+    border: 1px $divider;
+    border-radius: $radius;
     translate: 0 0 20px;
-    foreground: #d7deea;
-    transition: background 120ms ease-out, translate 120ms ease-out, shadow 120ms ease-out;
-}
-
-.ide-diagnostics-badge:hover {
-    background: #31343D;
-    translate: -1px -1px 20px;
-    shadow: 2px 3px 1px 0px rgba(0, 0, 0, 0.72);
-}
-
-.ide-diagnostics-badge.has-errors {
-    foreground: #ff8787;
-}
-
-.ide-diagnostics-badge.has-warnings {
-    foreground: #ffc266;
-}
-
-.ide-diagnostics-text {
-    translate: 0 1px 0;
-}
-
-.ide-diagnostics-wrap {
-    width: 100%;
-    background: #24272E;
-    border-top: 1px #323846;
-}
-
-.ide-diagnostics-resizer {
-    size: 100% 5px;
-    background: #5F6677BB;
+    foreground: $text-strong;
     transition: background 120ms ease-out;
 }
 
-.ide-diagnostics-resizer:hover {
-    background: #5F6677;
+.ide-diagnostics-badge:hover {
+    background: $bg-hover;
 }
 
-.ide-diagnostics-header {
-    width: 100%;
-    padding: 3px 6px;
-    gap: 6px;
-    background: #2A2E36;
-    border-bottom: 1px #323846;
+.problems-file {
+    size: 100% 22px;
+    padding: 0px 6px 0px 10px;
+    gap: 5px;
+    align-items: start center;
 }
 
-.ide-diagnostics-title {
-    foreground: #8f9bad;
+.problems-file-icon {
+    size: 12px 12px;
+}
+
+.problems-file-name {
+    margin-right: 4px;
     wrap: false;
+    foreground: $text-strong;
 }
 
-.ide-diagnostics-panel {
-    width: 100%;
-    padding: 4px;
-    gap: 2px;
+.problem-count-icon {
+    size: 9px 9px;
 }
 
-.ide-diagnostic-copy {
-    size: 16px 16px;
-    border-radius: 3px;
-    background: #00000000;
+.problem-count {
+    margin-right: 3px;
+    foreground: $text-muted;
+}
+
+.problem-count.has-errors {
+    foreground: $danger;
+}
+
+.problem-count.has-warnings {
+    foreground: $warning;
+}
+
+.problems-list {
+    padding: 2px 4px 4px 4px;
+    background: $bg-field;
+    @apply $thin-scroll;
+}
+
+.problem-row {
+    size: 100% 20px;
+    padding: 0px 4px 0px 22px;
+    gap: 6px;
+    align-items: start center;
+    border-radius: $radius-small;
+    background: transparent;
     transition: background 100ms ease-out;
 }
 
-.ide-diagnostic-copy:hover {
-    background: #454B58;
+.problem-row:hover {
+    background: $bg-hover;
 }
 
-.ide-diagnostic-copy-icon {
-    size: 11px 11px;
-    tint: #aeb8ca;
+.problem-icon {
+    size: 10px 10px;
 }
 
-.ide-diagnostic-row {
-    width: 100%;
-    height: fit;
-    padding: 4px 6px;
-    gap: 8px;
-    background: #31343D;
-    border-radius: 3px;
-}
-
-.ide-diagnostic-severity {
-    width: 68px;
-    foreground: #8f9bad;
-}
-
-.ide-diagnostic-location {
-    width: 54px;
-    foreground: #8f9bad;
-}
-
-.ide-diagnostic-row.error .ide-diagnostic-severity {
-    foreground: #ff8787;
-}
-
-.ide-diagnostic-row.warning .ide-diagnostic-severity {
-    foreground: #ffc266;
-}
-
-.ide-diagnostic-row.info .ide-diagnostic-severity {
-    foreground: #78a8ff;
-}
-
-.ide-diagnostic-message {
+.problem-message {
     width: 0px;
     grow: 1;
-    foreground: #d7deea;
+    foreground: $text-strong;
+}
+
+.problem-location {
+    wrap: false;
+    foreground: $text-faint;
+}
+
+.problem-copy {
+    size: 16px 16px;
+    border-radius: $radius-small;
+    background: transparent;
+    transition: background 100ms ease-out;
+}
+
+.problem-copy:hover {
+    background: $bg-hover;
+}
+
+.problem-copy-icon {
+    size: 10px 10px;
+    tint: $text-faint;
+}
+
+.problem-row:hover .problem-copy-icon,
+.problem-copy:hover .problem-copy-icon {
+    tint: $text-strong;
 }
 
 .file-context-menu {
@@ -969,7 +1096,7 @@
     width: 100%;
     height: 1px;
     margin: 2px 0px;
-    background: #3a3f4b;
+    background: $border;
 }
 
 .drag-ghost {
@@ -980,10 +1107,10 @@
 .drag-ghost-content {
     gap: 4px;
     padding: 2px 6px;
-    background: #24272ECC;
-    border: 1px #5F6677;
-    border-radius: 4px;
-    shadow: 1px 1px 3px 0px rgba(0, 0, 0, 0.42);
+    background: alpha($bg-raised, 0.8);
+    border: 1px $border-strong;
+    border-radius: $radius;
+    shadow: 1px 1px 3px 0px $shadow;
 }
 
 .drag-ghost-icon {
@@ -992,5 +1119,126 @@
 
 .drag-ghost-label {
     wrap: false;
-    foreground: #d7deea;
+    foreground: $text-strong;
+}
+
+.scene-hint {
+    size: 100% fit;
+    padding: 4px 6px;
+    foreground: $text-faint;
+    font-size: $font-size-small;
+}
+
+/* The scene window with nothing in it: the same dashed frame the inspector uses, in the middle. */
+.scene-empty {
+    size: 100% 100%;
+    padding: 12px;
+    align-items: center center;
+}
+
+.scene-empty-state {
+    size: 100% fit;
+    padding: 22px 12px 18px 12px;
+    gap: 8px;
+    align-items: center start;
+    border: 1px $divider;
+    border-dash: 5px 4px;
+    border-radius: $radius-large;
+}
+
+.scene-empty-icon {
+    size: 22px 22px;
+    tint: $text-muted;
+}
+
+.scene-empty-text {
+    size: 100% fit;
+    text-align: center;
+    foreground: $text-muted;
+    font-size: $font-size;
+}
+
+.scene-empty-hint {
+    size: 100% fit;
+    text-align: center;
+    foreground: $text-faint;
+    font-size: $font-size-small;
+}
+
+/* Text / split / preview switch of a file with a preview, at the right end of its tab bar. */
+.ide-view-modes {
+    size: fit 100%;
+    padding: 0px 2px;
+    gap: 1px;
+    align-items: center center;
+}
+
+.ide-view-mode {
+    size: fit fit;
+    margin: 2px 0px;
+    padding: 3px;
+    border-radius: $radius-small;
+    background: transparent;
+    transition: background 110ms ease-out;
+}
+
+.ide-view-mode:hover {
+    background: $bg-hover;
+}
+
+.ide-view-mode.selected {
+    background: $bg-selected;
+}
+
+.ide-view-mode-icon {
+    size: 13px 13px;
+    tint: $text-soft;
+}
+
+.ide-view-mode:hover .ide-view-mode-icon,
+.ide-view-mode.selected .ide-view-mode-icon {
+    tint: $white;
+}
+
+.ide-preview-divider {
+    background: transparent;
+    transition: background 120ms ease-out;
+}
+
+.ide-preview-divider:hover {
+    background: $accent-soft;
+}
+
+.ide-preview-error {
+    size: fill fill;
+    margin: 2px;
+    padding: 12px;
+    gap: 6px;
+    border-radius: $radius-large;
+    background: $bg-panel;
+}
+
+.ide-preview-error-title {
+    height: fit;
+    foreground: $caret;
+    font-size: $font-size-title;
+}
+
+.ide-preview-error-message {
+    size: 100% fit;
+    foreground: $danger;
+    text-wrap: true;
+}
+
+/* A file's visual editor or preview: the same rounded panel the text editor sits in. */
+.ide-file-panel {
+    size: fill fill;
+    margin: 2px;
+    border-radius: $radius-large;
+    background: $bg-field;
+}
+
+/* Something drawn edge to edge inside a file panel, such as a 3D preview, rounded with it. */
+.ide-file-viewport {
+    border-radius: $radius-large;
 }

@@ -225,7 +225,7 @@ class CutsceneCurveTest {
             listOf("Test"),
             AnimProperty("test.value", "Value", FloatPropertyType(), 0f),
         )
-        val curve = property.layers.first().channels.first()
+        val curve = property.curves.first()
         curve.keyframes.addAll(keys)
         curve.sort()
         return curve

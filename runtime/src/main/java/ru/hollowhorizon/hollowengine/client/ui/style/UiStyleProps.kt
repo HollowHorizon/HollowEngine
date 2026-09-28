@@ -120,6 +120,7 @@ object UiProps {
         interpolate = ::interpolatePaint,
     )
     val BorderRadius = prop("border-radius", 0f)
+    val BorderDash = prop<UiBorderDash?>("border-dash", null)
 
     // Visuals
     val Background = prop(
@@ -265,13 +266,15 @@ var UiStylePatch.border: UiBorder?
         val width = this[UiProps.BorderWidth]
         val paint = this[UiProps.BorderPaint]
         val radius = this[UiProps.BorderRadius]
-        if (width == null && paint == null && radius == null) return null
-        return UiBorder(width ?: UiInsets.Zero, paint ?: UiPaint.None, radius ?: 0f)
+        val dash = this[UiProps.BorderDash]
+        if (width == null && paint == null && radius == null && dash == null) return null
+        return UiBorder(width ?: UiInsets.Zero, paint ?: UiPaint.None, radius ?: 0f, dash)
     }
     set(value) {
         this[UiProps.BorderWidth] = value?.width
         this[UiProps.BorderPaint] = value?.paint
         this[UiProps.BorderRadius] = value?.radius
+        this[UiProps.BorderDash] = value?.dash
     }
 var UiStylePatch.background by UiProps.Background
 var UiStylePatch.foreground by UiProps.Foreground
@@ -397,7 +400,12 @@ val UiComputedStyle.grow by UiProps.Grow
 val UiComputedStyle.position by UiProps.Position
 
 val UiComputedStyle.border: UiBorder
-    get() = UiBorder(this[UiProps.BorderWidth], this[UiProps.BorderPaint], this[UiProps.BorderRadius])
+    get() = UiBorder(
+        this[UiProps.BorderWidth],
+        this[UiProps.BorderPaint],
+        this[UiProps.BorderRadius],
+        this[UiProps.BorderDash],
+    )
 val UiComputedStyle.background by UiProps.Background
 val UiComputedStyle.foreground by UiProps.Foreground
 val UiComputedStyle.image by UiProps.Image

@@ -1,0 +1,12 @@
+{
+    "vertex": "hollowengine:vfx/post/screen",
+    "fragment": "hollowengine:vfx/glow/downsample",
+    "attributes": [ "Position", "UV0" ],
+    "samplers": [
+        { "name": "Source" }
+    ],
+    "uniforms": [
+        { "name": "SourceTexel", "type": "float", "count": 2, "values": [ 1.0, 1.0 ] },
+        { "name": "FirstPass", "type": "float", "count": 1, "values": [ 0.0 ] }
+    ]
+}

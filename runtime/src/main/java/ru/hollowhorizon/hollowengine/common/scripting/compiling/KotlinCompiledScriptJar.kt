@@ -360,11 +360,12 @@ class MemoryClassLoader(
     override fun getResourceAsStream(name: String): InputStream? = resources[name]?.inputStream()
 }
 
+/** Kotlin scripting counts lines and columns from 1; [Position] counts them from 0, like the analyzer. */
 fun ScriptDiagnostic.convert(): Diagnostic {
     return Diagnostic(location?.let {
         Range(
-            Position(it.start.line, it.start.col),
-            Position(it.end?.line ?: it.start.line, it.end?.col ?: it.start.col)
+            Position(it.start.line - 1, it.start.col - 1),
+            Position((it.end?.line ?: it.start.line) - 1, (it.end?.col ?: it.start.col) - 1)
         )
     } ?: Range(Position(-1, -1), Position(-1, -1)), when (severity) {
         ScriptDiagnostic.Severity.DEBUG -> Severity.DEBUG

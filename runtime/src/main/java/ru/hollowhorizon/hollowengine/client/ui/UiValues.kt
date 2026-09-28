@@ -268,7 +268,8 @@ enum class UiCursorShape {
     RESIZE_HORIZONTAL,
     RESIZE_VERTICAL,
     RESIZE_NESW,
-    RESIZE_NWSE
+    RESIZE_NWSE,
+    NOT_ALLOWED
 }
 
 sealed interface UiLength {
@@ -380,12 +381,24 @@ data class UiColor(
     val blue: Float,
     val alpha: Float = 1f,
 ) {
-    fun interpolate(to: UiColor, progress: Float) = UiColor(
-        red = red + (to.red - red) * progress,
-        green = green + (to.green - green) * progress,
-        blue = blue + (to.blue - blue) * progress,
-        alpha = alpha + (to.alpha - alpha) * progress,
-    )
+    /**
+     * Mixes in premultiplied alpha, as CSS does. A straight mix from `transparent`, which is black at
+     * zero alpha, would pass through a dark translucent gray and flash darker before fading in.
+     */
+    fun interpolate(to: UiColor, progress: Float): UiColor {
+        val mixedAlpha = alpha + (to.alpha - alpha) * progress
+        if (mixedAlpha <= MinPremultipliedAlpha) {
+            return UiColor(
+                red = red + (to.red - red) * progress,
+                green = green + (to.green - green) * progress,
+                blue = blue + (to.blue - blue) * progress,
+                alpha = mixedAlpha,
+            )
+        }
+        fun channel(from: Float, target: Float) =
+            (from * alpha + (target * to.alpha - from * alpha) * progress) / mixedAlpha
+        return UiColor(channel(red, to.red), channel(green, to.green), channel(blue, to.blue), mixedAlpha)
+    }
 
     fun toArgb(): Int {
         fun channel(value: Float) = (value.coerceIn(0f, 1f) * 255f + 0.5f).toInt()
@@ -396,6 +409,9 @@ data class UiColor(
         val Transparent = UiColor(0f, 0f, 0f, 0f)
         val White = UiColor(1f, 1f, 1f, 1f)
         val Black = UiColor(0f, 0f, 0f, 1f)
+
+        /** Below this the mix has no color worth recovering, and dividing by it would blow up. */
+        private const val MinPremultipliedAlpha = 1e-4f
 
         fun fromArgb(argb: Int) = UiColor(
             red = (argb ushr 16 and 0xFF) / 255f,
@@ -414,11 +430,19 @@ data class UiBorder(
     val width: UiInsets = UiInsets.Zero,
     val paint: UiPaint = UiPaint.None,
     val radius: Float = 0f,
+    val dash: UiBorderDash? = null,
 ) {
     constructor(width: UiInsets, color: UiColor, radius: Float = 0f) : this(width, UiPaint.Color(color), radius)
 
     /** The flat color of a solid border, and `null` for a gradient one. */
     val color: UiColor? get() = (paint as? UiPaint.Color)?.color
+}
+
+/**
+ * Dashes along a border, measured along its center line.
+ */
+data class UiBorderDash(val length: Float, val gap: Float) {
+    val isSolid: Boolean get() = length <= 0f || gap <= 0f
 }
 
 data class UiTransform(

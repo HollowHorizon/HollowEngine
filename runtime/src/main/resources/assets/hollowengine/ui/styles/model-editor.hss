@@ -1,6 +1,8 @@
-/* Styling for the model editor dock panel (client/gui/scripting/panels/ModelEditorPanel.kt).
-   Palette follows ColorTheme: bg #1E1F22/#24272E/#31343D, accent #5F6677, text #C4CBDA,
-   main accent #D77F1C. */
+/* Styling for the model editor dock panel (client/ui/ide/panels/ModelEditorPanel.kt). Colors come
+   from theme.hss. */
+
+@import "hollowengine:ui/styles/theme.hss";
+
 
 .model-editor-root {
     size: fill fill;
@@ -11,9 +13,9 @@
     grow: 1;
     size: 0px 100%;
     min-size: 0px 0px;
-    background: #1E1F22;
-    border-radius: 6px;
-    border: 1px #31343D;
+    background: $bg-panel;
+    border-radius: $radius-large;
+    border: 1px $bg-selected;
     clip: true;
 }
 
@@ -22,11 +24,11 @@
     margin: 8px;
     padding: 3px 9px;
     layer: 1000;
-    foreground: #C4CBDA;
+    foreground: $text;
     font-size: 11px;
-    background: rgba(30, 32, 38, 0.9);
-    border-radius: 6px;
-    border: 1px #31343D;
+    background: alpha($bg-field, 0.9);
+    border-radius: $radius-large;
+    border: 1px $bg-selected;
     wrap: false;
     backdrop-filter: blur(9px);
 }
@@ -43,9 +45,9 @@
 .model-chip {
     size: 28px 28px;
     align-items: center center;
-    background: rgba(36, 39, 46, 0.82);
-    border-radius: 7px;
-    border: 1px #31343D;
+    background: alpha($bg-raised, 0.82);
+    border-radius: $radius-large;
+    border: 1px $bg-selected;
     hoverable: true;
     clickable: true;
     transition: background 140ms ease-out, border 140ms ease-out;
@@ -53,21 +55,21 @@
 }
 
 .model-chip:hover {
-    background: rgba(49, 52, 61, 0.88);
+    background: $bg-hover;
 }
 
 .model-chip.selected {
-    background: rgba(215, 127, 28, 0.72);
-    border: 1px #D77F1C;
+    background: $row-selected;
+    border: 1px $accent;
 }
 
 .model-chip-icon {
     size: 16px 16px;
-    tint: #C4CBDA;
+    tint: $text;
 }
 
 .model-chip-icon.selected {
-    tint: #D77F1C;
+    tint: $accent;
 }
 
 /* ---- animation control bar ---- */
@@ -79,13 +81,13 @@
     gap: 7px;
     width: 300px;
     layer: 1000;
-    background: #24272E;
-    border-radius: 8px;
-    border: 1px #31343D;
+    background: $bg-raised;
+    border-radius: $radius-large;
+    border: 1px $bg-selected;
 }
 
 .model-anim-title {
-    foreground: #8B93A5;
+    foreground: $text-muted;
     font-size: 10px;
     height: 13px;
 }
@@ -100,51 +102,51 @@
     grow: 1;
     height: 26px;
     padding: 0px 8px;
-    background: #1E1F22;
-    border-radius: 6px;
-    border: 1px #31343D;
+    background: $bg-panel;
+    border-radius: $radius-large;
+    border: 1px $bg-selected;
 }
 
 .model-play {
     size: 26px 26px;
     align-items: center center;
-    background: #31343D;
-    border-radius: 6px;
-    border: 1px #3B3F49;
+    background: $bg-selected;
+    border-radius: $radius-large;
+    border: 1px $border;
     hoverable: true;
     clickable: true;
     transition: background 140ms ease-out, border 140ms ease-out;
 }
 
 .model-play:hover {
-    background: #3B3F49;
+    background: $bg-pressed;
 }
 
 .model-play.active {
-    background: rgba(215, 127, 28, 0.9);
-    border: 1px #E8912E;
+    background: $accent-soft;
+    border: 1px $accent;
 }
 
 .model-play-icon {
     size: 14px 14px;
-    tint: #C4CBDA;
+    tint: $text;
 }
 
 .model-play.active .model-play-icon {
-    tint: #1E1F22;
+    tint: $bg-panel;
 }
 
 .model-progress-track {
     width: 100%;
     height: 4px;
-    background: #1E1F22;
+    background: $bg-panel;
     border-radius: 2px;
     clip: true;
 }
 
 .model-progress-fill {
     height: 100%;
-    background: #D77F1C;
+    background: $accent;
     border-radius: 2px;
 }
 
@@ -152,18 +154,18 @@
 
 .model-splitter {
     size: 5px 100%;
-    background: rgba(95, 102, 119, 0.0);
-    border-radius: 3px;
+    background: transparent;
+    border-radius: $radius-small;
     hoverable: true;
     transition: background 140ms ease-out;
 }
 
 .model-splitter:hover {
-    background: rgba(215, 127, 28, 0.55);
+    background: $accent;
 }
 
 .model-splitter:dragging {
-    background: #D77F1C;
+    background: $accent;
 }
 
 /* ---- sidebar (collapsible sections) ---- */
@@ -172,9 +174,9 @@
     min-size: 190px 0px;
     gap: 4px;
     padding: 6px;
-    background: #24272E;
-    border-radius: 6px;
-    border: 1px #31343D;
+    background: $bg-raised;
+    border-radius: $radius-large;
+    border: 1px $bg-selected;
     clip: true;
 }
 
@@ -187,12 +189,12 @@
 
 /* The node-tree eye icon is a button: dim by default, accent on hover. */
 .model-node-tree .tree-icon-button {
-    tint: #8B93A5;
+    tint: $text-muted;
     transition: tint 120ms ease-out;
 }
 
 .model-node-tree .tree-icon-button:hover {
-    tint: #D77F1C;
+    tint: $accent;
 }
 
 .model-anim-item {
@@ -200,9 +202,9 @@
     height: 22px;
     padding: 0px 8px;
     align-items: start center;
-    background: rgba(255, 255, 255, 0);
-    foreground: #AEB8CA;
-    border-radius: 4px;
+    background: transparent;
+    foreground: $text-soft;
+    border-radius: $radius;
     hoverable: true;
     clickable: true;
     transition:
@@ -211,17 +213,17 @@
 }
 
 .model-anim-item:hover {
-    background: rgba(255, 255, 255, 0.07);
-    foreground: #ffffff;
+    background: $bg-hover;
+    foreground: $white;
 }
 
 .model-anim-item.selected {
-    background: rgba(215, 127, 28, 0.28);
-    foreground: #ffffff;
+    background: $row-selected;
+    foreground: $white;
 }
 
 .model-empty {
-    foreground: #5F6677;
+    foreground: $border-strong;
     font-size: 11px;
     padding: 2px 4px;
 }
@@ -230,8 +232,8 @@
     height: fit;
     padding: 5px 8px;
     align: center end;
-    foreground: #ff8787;
-    background: rgba(36, 39, 46, 0.88);
-    border: 1px rgba(255, 135, 135, 0.45);
-    border-radius: 4px;
+    foreground: $danger;
+    background: alpha($bg-raised, 0.88);
+    border: 1px alpha($danger, 0.45);
+    border-radius: $radius;
 }

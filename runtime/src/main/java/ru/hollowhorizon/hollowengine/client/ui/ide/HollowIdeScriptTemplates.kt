@@ -1,6 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide
 
-import ru.hollowhorizon.hollowengine.client.utils.IconHelper.Icons
+import ru.hollowhorizon.hollowengine.client.utils.IconHelper
 import ru.hollowhorizon.hollowengine.common.scripting.source.SandboxScriptSource
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
 
@@ -15,18 +15,20 @@ internal enum class ScriptTemplate(
     val extension: String,
     private val defaultName: String,
     private val resource: String,
-    val icon: String,
 ) {
-    Plain("Script", ".kts", "script", "plain.kts", Icons.FILE_KTS.toString()),
-    ServerReload("Server Reload Script", ".reload.kts", "server", "server.reload.kts", Icons.FILE_KTS.toString()),
-    ClientReload("Client Reload Script", ".reload.kts", "client", "client.reload.kts", Icons.FILE_KTS.toString()),
-    Startup("Startup Script", ".startup.kts", "ruby", "startup.kts", Icons.FILE_KTS.toString()),
-    Node("Node Script", ".node.kts", "node", "node.kts", Icons.FILE_KTS.toString()),
-    Ui("UI Script", ".ui.kts", "menu", "ui.kts", Icons.FILE_KTS.toString()),
-    Mixin("Mixin Script", ".mixin.kts", "mixins", "mixin.kts", Icons.FILE_KTS.toString()),
-    Dialogue("Dialogue", ".story", "dialogue", "dialogue.story", Icons.DIALOGUE.toString());
+    Plain("Script", ".kts", "script", "plain.kts"),
+    ServerReload("Server Reload Script", ".reload.kts", "server", "server.reload.kts"),
+    ClientReload("Client Reload Script", ".reload.kts", "client", "client.reload.kts"),
+    Startup("Startup Script", ".startup.kts", "ruby", "startup.kts"),
+    Node("Node Script", ".node.kts", "node", "node.kts"),
+    Ui("UI Script", ".ui.kts", "menu", "ui.kts"),
+    Mixin("Mixin Script", ".mixin.kts", "mixins", "mixin.kts"),
+    Dialogue("Dialogue", ".story", "dialogue", "dialogue.story");
 
     val suggestedFileName: String get() = defaultName + extension
+
+    /** The icon the project tree gives files of this kind. */
+    val icon: String get() = IconHelper.forFile(suggestedFileName).toString()
 
     /** [input] as typed in the name dialog, completed with this template's extension when it lacks it. */
     fun fileName(input: String): String {

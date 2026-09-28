@@ -2,7 +2,6 @@ package ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene
 
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.ClientLevel
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.BlendMode
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ChannelColors
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ChannelSampling
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ChannelSpec
@@ -59,7 +58,6 @@ class TimeOfDayPropertyType : PropertyType<Float> {
             graphValueFormatter = TimeOfDayValueFormatter,
         ),
     )
-    override val blendModes = setOf(BlendMode.OVERRIDE, BlendMode.ADD, BlendMode.SUBTRACT)
 
     override fun decompose(value: Float, into: FloatArray) {
         into[0] = value
@@ -84,7 +82,6 @@ class WeatherPropertyType : PropertyType<CutsceneWeather> {
             },
         ),
     )
-    override val blendModes = setOf(BlendMode.OVERRIDE)
     override val isChannelSpaceLinear = false
 
     override fun decompose(value: CutsceneWeather, into: FloatArray) {

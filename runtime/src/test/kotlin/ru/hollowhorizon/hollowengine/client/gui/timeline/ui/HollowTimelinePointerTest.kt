@@ -85,7 +85,7 @@ class HollowTimelinePointerTest {
             AnimProperty("camera.fov", "FOV", FloatPropertyType("FOV"), 70f),
         )
         listOf(translation, fov).forEach { property ->
-            property.layers.first().channels.forEach { curve ->
+            property.curves.forEach { curve ->
                 listOf(0.5f, 1.5f, 2.5f).forEach { time -> curve.keyframes += Keyframe(time, time) }
             }
         }
@@ -121,7 +121,7 @@ class HollowTimelinePointerTest {
             listOf("Test"),
             AnimProperty("test.value", "Value", FloatPropertyType(), 0f),
         )
-        val curve = property.layers.first().channels.first()
+        val curve = property.curves.first()
         times.forEachIndexed { index, time -> curve.keyframes += Keyframe(time, index.toFloat()) }
         controller.selectedKeyframes.clear()
         return controller to curve

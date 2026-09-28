@@ -253,7 +253,7 @@ private fun withImageShadowTarget(bounds: UiRect, draw: () -> Unit) {
     } finally {
         GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, read)
         GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, write)
-        GL11.glViewport(viewport[0], viewport[1], viewport[2], viewport[3])
+        RenderSystem.viewport(viewport[0], viewport[1], viewport[2], viewport[3])
         GL11.glScissor(clip[0], clip[1], clip[2], clip[3])
         GL11.glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3])
         if (scissor) GL11.glEnable(GL11.GL_SCISSOR_TEST) else disableScissor()

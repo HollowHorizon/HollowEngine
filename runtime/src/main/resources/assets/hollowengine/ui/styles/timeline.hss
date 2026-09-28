@@ -1,0 +1,187 @@
+/*
+ * The timeline window: its bar, the track list and the ruler. Lanes, keys and curves are drawn in
+ * code, from the same palette (TimelineColors), because where they sit is data.
+ *
+ * Colors, sizes and the font come from theme.hss; TimelineColors mirrors the few the lanes need.
+ */
+
+@import "hollowengine:ui/styles/theme.hss";
+
+
+/* Rounded like every other panel; the gap at the bottom keeps the square lanes out of the corners. */
+.timeline-root {
+    padding: 0px 0px 5px 0px;
+    background: $bg-panel;
+    border-radius: $radius-large;
+    font-family: $font;
+}
+
+/* ---- bar ---- */
+
+.timeline-toolbar {
+    size: 100% 22px;
+    padding: 0px $panel-inset;
+    gap: 1px;
+    align-items: start center;
+}
+
+.timeline-button {
+    size: fit fit;
+    padding: 3px;
+    border-radius: $radius-small;
+    background: transparent;
+    hoverable: true;
+    clickable: true;
+    transition: background 110ms ease-out;
+}
+
+.timeline-button:hover { background: $bg-hover; }
+
+.timeline-button.active { background: $bg-selected; }
+
+.timeline-button-icon {
+    size: 12px 12px;
+    tint: $text-soft;
+    transition: tint 110ms ease-out;
+}
+
+.timeline-button:hover .timeline-button-icon { tint: $white; }
+
+.timeline-button.active .timeline-button-icon { tint: $accent; }
+
+.timeline-separator {
+    size: 1px 12px;
+    margin: 0px 4px;
+    background: $bg-hover;
+}
+
+.timeline-time {
+    size: 52px fit;
+    min-height: 16px;
+    padding: 1px 4px;
+    background: $bg-field;
+    border-radius: $radius-small;
+    border: 1px $bg-field;
+    foreground: $text-strong;
+    font-size: $font-size;
+    text-align: right;
+    caret-color: $caret;
+    selection-color: $selection;
+    text-shadow: none;
+    transition: border 110ms ease-out;
+}
+
+.timeline-time:hover { border: 1px $border; }
+
+.timeline-time:focus { border: 1px $accent; }
+
+.timeline-duration {
+    margin: 0px 4px 0px 3px;
+    foreground: $text-faint;
+    font-size: $font-size;
+    wrap: false;
+}
+
+
+/* The lanes and the track list scroll the way every IDE list does: a thin bar over the content. */
+.timeline-scroll {
+    @apply $thin-scroll;
+}
+
+/* ---- track list ---- */
+
+.timeline-corner {
+    background: $bg-panel;
+}
+
+.timeline-corner-label {
+    margin: 0px 0px 0px 8px;
+    foreground: $text-faint;
+    font-size: $font-size-small;
+}
+
+.timeline-row {
+    background: $bg-panel;
+    hoverable: true;
+    clickable: true;
+    transition: background 110ms ease-out;
+}
+
+.timeline-row:hover { background: $bg-raised; }
+
+.timeline-row.group { background: $bg-field; }
+
+.timeline-row.group:hover { background: $bg-raised; }
+
+.timeline-row.channel { background: $bg-panel; }
+
+.timeline-row.focused { background: alpha($accent, 0.16); }
+
+.timeline-row.locked { background: $bg-window; }
+
+.timeline-row-label {
+    foreground: $text;
+    font-size: $font-size;
+    wrap: false;
+    text-overflow: dots;
+}
+
+.timeline-row.group .timeline-row-label { foreground: $text-strong; }
+
+.timeline-row.channel .timeline-row-label {
+    foreground: $text-muted;
+    font-size: $font-size-small;
+}
+
+.timeline-row.muted .timeline-row-label { foreground: $text-faint; }
+
+.timeline-row-toggle {
+    size: fit fit;
+    padding: 2px;
+    border-radius: $radius-small;
+    background: transparent;
+    hoverable: true;
+    clickable: true;
+    transition: background 110ms ease-out;
+}
+
+.timeline-row-toggle:hover { background: $bg-hover; }
+
+.timeline-row-icon {
+    size: 10px 10px;
+    tint: $text-faint;
+    transition: tint 110ms ease-out;
+}
+
+.timeline-row-toggle:hover .timeline-row-icon { tint: $white; }
+
+.timeline-row-toggle.on .timeline-row-icon { tint: $text-soft; }
+
+.timeline-row-toggle.warn .timeline-row-icon { tint: $accent; }
+
+/* Taking a track off the list is rare; the cross only shows on the row the pointer is on. */
+.timeline-row-toggle.hide-track {
+    opacity: 0;
+    transition: opacity 110ms ease-out, background 110ms ease-out;
+}
+
+.timeline-row:hover .timeline-row-toggle.hide-track { opacity: 1; }
+
+.timeline-splitter {
+    background: $bg-window;
+    hoverable: true;
+    transition: background 110ms ease-out;
+}
+
+.timeline-splitter:hover { background: $accent; }
+
+/* ---- ruler ---- */
+
+.timeline-ruler {
+    background: $bg-panel;
+}
+
+.timeline-ruler-label {
+    foreground: $text-faint;
+    font-size: $font-size-small;
+}

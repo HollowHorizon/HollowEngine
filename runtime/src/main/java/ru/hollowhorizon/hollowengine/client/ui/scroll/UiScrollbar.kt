@@ -19,6 +19,33 @@ class ScrollbarNode(
 ) : BaseUiNode(UiScrollbarType, id = null, tags = listOf(orientation.tagName)) {
     val thumb: ScrollbarThumbNode = ScrollbarThumbNode(orientation)
 
+    /**
+     * Under the pointer or being dragged, set by the input controller.
+     */
+    internal var engaged: Boolean = false
+        set(value) {
+            if (field == value) return
+            val now = System.nanoTime()
+            progressAtChange = hoverProgress(now)
+            changedAtNanos = now
+            field = value
+            layoutState.invalidateLayout()
+        }
+
+    private var progressAtChange = 0f
+    private var changedAtNanos = 0L
+
+    /** How far into its hover look the scrollbar is at [nowNanos], eased, 0 at rest and 1 engaged. */
+    internal fun hoverProgress(nowNanos: Long): Float {
+        val target = if (engaged) 1f else 0f
+        val t = ((nowNanos - changedAtNanos) / HoverTransitionNanos).coerceIn(0f, 1f)
+        val eased = 1f - (1f - t) * (1f - t)
+        return progressAtChange + (target - progressAtChange) * eased
+    }
+
+    /** Whether [hoverProgress] is still on its way, so the next frame has to lay the bar out again. */
+    internal fun isEasing(nowNanos: Long): Boolean = nowNanos - changedAtNanos < HoverTransitionNanos
+
     private var appliedTrack: UiScrollbarPartStyle? = null
     private var appliedThumb: UiScrollbarPartStyle? = null
 
@@ -30,18 +57,28 @@ class ScrollbarNode(
     }
 
     /** Re-resolves the two part styles, skipping the work while the container's styling is unchanged. */
-    internal fun applyPartStyles(style: UiScrollbarStyle) {
+    internal fun applyPartStyles(style: UiScrollbarStyle, hover: Float) {
         if (appliedTrack != style.track) {
             appliedTrack = style.track
             resolvedSnapshot = ScrollbarDefaultStyles.resolvePart(style.track, ScrollbarDefaultStyles.TrackPaint, false)
         }
-        if (appliedThumb != style.thumb) {
-            appliedThumb = style.thumb
+        val hoverPaint = style.thumbHover.paint
+        val thumbPart = when {
+            hover <= 0f || hoverPaint == null -> style.thumb
+            hover >= 1f -> style.thumb.merge(style.thumbHover)
+            else -> style.thumb.copy(
+                paint = interpolatePaint(style.thumb.paint ?: ScrollbarDefaultStyles.ThumbPaint, hoverPaint, hover),
+            )
+        }
+        if (appliedThumb != thumbPart) {
+            appliedThumb = thumbPart
             thumb.resolvedSnapshot =
-                ScrollbarDefaultStyles.resolvePart(style.thumb, ScrollbarDefaultStyles.ThumbPaint, true)
+                ScrollbarDefaultStyles.resolvePart(thumbPart, ScrollbarDefaultStyles.ThumbPaint, true)
         }
     }
 }
+
+private const val HoverTransitionNanos = 90_000_000f
 
 class ScrollbarThumbNode(
     val orientation: ScrollbarOrientation,

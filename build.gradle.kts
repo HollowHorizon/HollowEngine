@@ -30,6 +30,7 @@ fun Project.configureHollowAddon() {
     plugins.apply("java-library")
     plugins.apply("org.jetbrains.kotlin.jvm")
     plugins.apply("org.jetbrains.kotlin.plugin.serialization")
+    plugins.apply("org.jetbrains.kotlin.plugin.compose")
     plugins.apply("architectury-plugin")
     plugins.apply("dev.architectury.loom")
 
@@ -40,6 +41,7 @@ fun Project.configureHollowAddon() {
     val fabricLoaderVersion = rootProject.property("fabricLoaderVersion") as String
     val kotlinVersion = rootProject.property("kotlinVersion") as String
     val serializationVersion = rootProject.property("serializationVersion") as String
+    val composeRuntimeVersion = rootProject.property("composeRuntimeVersion") as String
     val koinVersion = rootProject.property("koinVersion") as String
 
     group = "$modGroup.addons"
@@ -103,7 +105,9 @@ fun Project.configureHollowAddon() {
         add("compileOnly", "org.jetbrains.kotlinx:kotlinx-serialization-json:$serializationVersion")
         add("compileOnly", "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
         add("compileOnly", "io.insert-koin:koin-core:$koinVersion")
+        add("compileOnly", "androidx.compose.runtime:runtime:$composeRuntimeVersion")
         add("testImplementation", kotlin("test"))
+        add("testImplementation", "androidx.compose.runtime:runtime:$composeRuntimeVersion")
     }
 
     tasks.named<Jar>("jar") {
@@ -206,6 +210,7 @@ fun releaseTypeProvider(): Provider<ReleaseType> {
 }
 
 apply(from = rootProject.file("gradle/universal-jar.gradle.kts"))
+apply(from = rootProject.file("gradle/development-jar.gradle.kts"))
 
 publishMods {
     changelog.set(providers.gradleProperty("publish.changelog").orElse(providers.provider {
@@ -255,9 +260,13 @@ publishMods {
 }
 
 tasks.named<Sync>("buildAndCollect") {
+    dependsOn(buildAddons)
+
     val compilerJar = project(":addons:compiler").tasks.named<Jar>("addonJar")
-    dependsOn(compilerJar)
+    val mcpJar = project(":addons:mcp").tasks.named<Jar>("addonJar")
+
     from(compilerJar.flatMap { it.archiveFile })
+    from(mcpJar.flatMap { it.archiveFile })
 }
 
 val buildAddons = tasks.register<Sync>("buildAddons") {
@@ -282,8 +291,4 @@ gradle.projectsEvaluated {
         dependsOn(compilerJar)
         from(compilerJar.flatMap { it.archiveFile })
     }
-}
-
-tasks.named("buildAndCollect") {
-    dependsOn(buildAddons)
 }

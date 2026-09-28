@@ -6,7 +6,7 @@ import ru.hollowhorizon.hollowengine.common.utils.areStacksEqual
 import kotlin.math.max
 import kotlin.math.min
 
-enum class SlotIntentKind { CLICK, QUICK_MOVE, DROP, DROP_CARRIED, DISTRIBUTE }
+enum class SlotIntentKind { CLICK, QUICK_MOVE, DROP, DROP_CARRIED, DISTRIBUTE, COLLECT, CLONE }
 
 enum class SlotButton { LEFT, RIGHT }
 
@@ -45,6 +45,12 @@ class SlotIntent internal constructor(
 
         fun distribute(slots: List<Int>, mode: SlotDistributeMode) =
             SlotIntent(SlotIntentKind.DISTRIBUTE, slots = slots, distribute = mode)
+
+        /** Double click: gathers items like the carried stack from the other slots onto the cursor. */
+        fun collect(slot: Int) = SlotIntent(SlotIntentKind.COLLECT, slot = slot)
+
+        /** Middle click in creative: a full stack of what the slot holds, onto an empty cursor. */
+        fun clone(slot: Int) = SlotIntent(SlotIntentKind.CLONE, slot = slot)
     }
 }
 
@@ -72,6 +78,8 @@ fun SlotLayout.applyClick(state: SlotState, intent: SlotIntent): SlotClickResult
     SlotIntentKind.DROP -> dropFromSlot(state, intent.slot, intent.all)
     SlotIntentKind.DROP_CARRIED -> dropCarried(state, intent.all)
     SlotIntentKind.DISTRIBUTE -> SlotClickResult(distribute(state, intent.slots, intent.distribute))
+    SlotIntentKind.COLLECT -> SlotClickResult(collect(state, intent.slot))
+    SlotIntentKind.CLONE -> SlotClickResult(clone(state, intent.slot))
 }
 
 private fun SlotLayout.copyClick(state: SlotState, slot: Int, count: Int): Boolean {
@@ -118,6 +126,7 @@ private fun SlotLayout.leftClick(state: SlotState, slot: Int): Boolean {
     }
 
     if (current.areStacksEqual(carried)) {
+        if (!rules.canInsert.matches(carried)) return takeOntoCursor(state, slot, rules)
         val moved = min(carried.count, effectiveLimit(rules, current) - current.count)
         if (moved <= 0) return false
         state[slot] = current.copyWithCount(current.count + moved)
@@ -157,9 +166,65 @@ private fun SlotLayout.rightClick(state: SlotState, slot: Int): Boolean {
     }
 
     if (!current.areStacksEqual(carried)) return false
+    if (!rules.canInsert.matches(carried)) return takeOntoCursor(state, slot, rules)
     if (current.count >= effectiveLimit(rules, current)) return false
     state[slot] = current.copyWithCount(current.count + 1)
     state.carried = carried.without(1)
+    return true
+}
+
+/**
+ * Clicking a slot that refuses the carried item, while holding more of what it holds, takes from it onto
+ * the cursor instead: how vanilla's result slots behave. Only as much as the cursor stack has room for.
+ */
+private fun takeOntoCursor(state: SlotState, slot: Int, rules: SlotRules): Boolean {
+    val current = state[slot]
+    val carried = state.carried
+    if (!rules.canExtract.matches(current)) return false
+    val taken = min(current.count, carried.maxStackSize - carried.count)
+    if (taken <= 0) return false
+    state.carried = carried.copyWithCount(carried.count + taken)
+    state[slot] = current.without(taken)
+    return true
+}
+
+/**
+ * Gathers items like the carried stack onto the cursor, up to a full stack. Partial stacks go first so a
+ * double click tidies an inventory rather than breaking up full stacks. Zones whose server has a say the
+ * client cannot see (a result slot) are left alone, as are copy zones, which hold no real items.
+ */
+private fun SlotLayout.collect(state: SlotState, clicked: Int): Boolean {
+    val carried = state.carried
+    if (carried.isEmpty || clicked !in 0 until totalSize) return false
+    val limit = carried.maxStackSize
+    var gathered = carried.count
+
+    for (fullStacks in listOf(false, true)) {
+        for (zone in zones) {
+            if (zone.copyOnClick || !zone.isPredictable) continue
+            for (slot in zone.flatIndices) {
+                if (gathered >= limit) break
+                val stack = state[slot]
+                if (stack.isEmpty || !stack.areStacksEqual(carried)) continue
+                if ((stack.count >= stack.maxStackSize) != fullStacks) continue
+                if (!rulesAt(slot).canExtract.matches(stack)) continue
+                val taken = min(stack.count, limit - gathered)
+                state[slot] = stack.without(taken)
+                gathered += taken
+            }
+        }
+    }
+    if (gathered == carried.count) return false
+    state.carried = carried.copyWithCount(gathered)
+    return true
+}
+
+/** Creative's middle click. Makes items from nothing, so the server only honors it from a creative player. */
+private fun clone(state: SlotState, slot: Int): Boolean {
+    if (!state.carried.isEmpty || slot !in 0 until state.size) return false
+    val current = state[slot]
+    if (current.isEmpty) return false
+    state.carried = current.copyWithCount(current.maxStackSize)
     return true
 }
 
@@ -171,7 +236,7 @@ private fun SlotLayout.rightClick(state: SlotState, slot: Int): Boolean {
 private fun SlotLayout.quickMove(state: SlotState, slot: Int): Boolean {
     if (slot !in 0 until totalSize) return false
     val zone = zoneOf(slot) ?: return false
-    if (!zone.role.canSend) return false
+    if (!zone.role.canSend || zone.copyOnClick) return false
     val rules = rulesAt(slot)
     val stack = state[slot]
     if (stack.isEmpty || !rules.canExtract.matches(stack)) return false

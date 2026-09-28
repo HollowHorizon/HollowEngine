@@ -8,6 +8,7 @@ internal object HollowAddonLayout {
     const val CURRENT_FORMAT = "3"
 
     const val CLASSES_JAR = "META-INF/hollowengine/classes.jar"
+    const val EMBEDDED_MOD_DESCRIPTOR = "META-INF/hollowengine/mod-addon.properties"
     const val REMAP_TABLE = "META-INF/hollowengine/remap-fabric.tbl.gz"
     const val SOURCE_PREFIX = AddonScriptSource.SOURCE_PREFIX
     const val COMPILED_PREFIX = AddonScriptSource.COMPILED_PREFIX

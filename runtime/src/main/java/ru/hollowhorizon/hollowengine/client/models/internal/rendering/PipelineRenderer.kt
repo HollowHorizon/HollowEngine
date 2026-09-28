@@ -589,39 +589,7 @@ class PipelineRenderer(private val primitive: Primitive) : MeshRenderer {
     }
 
     private fun applyMaterial(shader: ShaderInstance, material: Material, colorLocation: Int = 1) {
-        if (colorLocation != -1) {
-            GL33.glVertexAttrib4f(colorLocation, material.color.r, material.color.g, material.color.b, material.color.a)
-        }
-
-        var normal = 0
-        var specular = 0
-
-        if (areShadersEnabled) {
-            GL33.glGetUniformLocation(shader.id, "normals").takeIf { it != -1 }?.let {
-                RenderSystem.activeTexture(COLOR_MAP_INDEX + GL33.glGetUniformi(shader.id, it))
-                normal = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D)
-                RenderSystem.bindTexture(material.normalTexture.toTexture().id)
-            }
-            GL33.glGetUniformLocation(shader.id, "specular").takeIf { it != -1 }?.let {
-                RenderSystem.activeTexture(COLOR_MAP_INDEX + GL33.glGetUniformi(shader.id, it))
-                specular = GL11.glGetInteger(GL11.GL_TEXTURE_BINDING_2D)
-                RenderSystem.bindTexture(material.specularTexture.toTexture().id)
-            }
-        }
-
-        RenderSystem.activeTexture(COLOR_MAP_INDEX)
-        RenderSystem.bindTexture(Minecraft.getInstance().textureManager.getTexture(material.texture).id)
-
-        if (material.doubleSided) RenderSystem.disableCull()
-        else RenderSystem.enableCull()
-
-        when (material.blend) {
-            Material.Blend.OPAQUE -> RenderSystem.disableBlend()
-            Material.Blend.BLEND -> {
-                RenderSystem.enableBlend()
-                RenderSystem.defaultBlendFunc()
-            }
-        }
+        material.bind(MaterialBindContext(shader, colorLocation))
     }
 
     override fun destroy() {

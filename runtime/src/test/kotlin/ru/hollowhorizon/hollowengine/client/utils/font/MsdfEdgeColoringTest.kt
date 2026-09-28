@@ -21,11 +21,11 @@ class MsdfEdgeColoringTest {
     }
 
     @Test
-    fun `a single corner splits the contour into three colour bands`() {
+    fun `a single corner splits the contour into three color bands`() {
         val shape = teardrop()
         shape.colorEdges()
         val colors = shape.contours.single().edges.map { it.color }
-        assertEquals(3, colors.toSet().size, "three bands, not one colour for the whole loop: $colors")
+        assertEquals(3, colors.toSet().size, "three bands, not one color for the whole loop: $colors")
     }
 
     @Test
@@ -49,7 +49,7 @@ class MsdfEdgeColoringTest {
     }
 
     @Test
-    fun `a square's four corners still alternate colours`() {
+    fun `a square's four corners still alternate colors`() {
         val shape = MsdfShape().apply { contours += squareContour(left = 0f, bottom = 0f, size = 10f) }
         shape.colorEdges()
         val colors = shape.contours.single().edges.map { it.color }
@@ -76,7 +76,7 @@ class MsdfEdgeColoringTest {
     }
 
     @Test
-    fun `a colouring that would drop a channel falls back to a plain field`() {
+    fun `a coloring that would drop a channel falls back to a plain field`() {
         val shape = MsdfShape()
         shape.contours += MsdfContour().apply {
             edges += MsdfEdge(floatArrayOf(0f, 0f, 10f, 0f)).also { it.color = MsdfChannel.CYAN }
@@ -86,7 +86,7 @@ class MsdfEdgeColoringTest {
         assertEquals(MsdfChannel.WHITE, shape.usedChannels())
     }
 
-    /** Corners as the colourer itself counts them, at the threshold it actually runs with. */
+    /** Corners as the colorer itself counts them, at the threshold it actually runs with. */
     private fun cornerCount(shape: MsdfShape): Int =
         findCorners(shape.contours.single().edges, sin(DefaultAngleThreshold)).size
 

@@ -19,9 +19,9 @@ import ru.hollowhorizon.hollowengine.common.slots.net.SlotIntentPacket
  * refuses and replies with the truth. Without this the cursor would visibly lag the mouse by a round
  * trip on any real connection.
  *
- * When the client cannot fully evaluate a layout (a server-only filter, a handler that may cancel) it
- * predicts nothing, and keeps one gesture in flight at a time: a second would quote a revision the server
- * has already left behind.
+ * A gesture that reaches a zone the client cannot fully evaluate (a server-only filter, a handler that may
+ * cancel) is not predicted, and while it is in flight nothing else is sent: a second gesture would quote a
+ * revision the server may already have left behind.
  */
 class ClientSlotSession internal constructor(
     val sessionId: Int,
@@ -55,14 +55,14 @@ class ClientSlotSession internal constructor(
      * started rather than stacked on the previous step's result.
      */
     fun beginPreview() {
-        if (layout.isPredictable) previewBase = state.copy()
+        previewBase = state.copy()
     }
 
     /** Shows what [intent] would do, from the state [beginPreview] captured. Sends nothing. */
     fun preview(intent: SlotIntent) {
         val base = previewBase ?: return
         state.restoreFrom(base)
-        layout.applyClick(state, intent)
+        if (layout.predicts(intent)) layout.applyClick(state, intent)
         publish()
     }
 
@@ -83,7 +83,8 @@ class ClientSlotSession internal constructor(
             state.restoreFrom(base)
         }
 
-        if (layout.isPredictable) {
+        if (awaitingAck) return
+        if (layout.predicts(intent)) {
             val result = layout.applyClick(state, intent)
             // A gesture that changes nothing locally would change nothing on the server either, so it is
             // not worth a packet, and sending it would desynchronize the revision.
@@ -94,7 +95,6 @@ class ClientSlotSession internal constructor(
             return
         }
 
-        if (awaitingAck) return
         awaitingAck = true
         SlotIntentPacket(sessionId, revision, intent).send()
     }

@@ -236,7 +236,7 @@ object UiVanillaFont {
         val glyphs = HashMap<Int, UiVanillaGlyph>()
         val coloredSheets = HashSet<ResourceLocation>()
 
-        /** Pixel size of each sheet, so the renderer can sample texel centres rather than cell seams. */
+        /** Pixel size of each sheet, so the renderer can sample texel centers rather than cell seams. */
         val sheetSizes = HashMap<ResourceLocation, UiSheetSize>()
     }
 

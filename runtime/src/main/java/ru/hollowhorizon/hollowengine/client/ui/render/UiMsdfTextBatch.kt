@@ -10,6 +10,7 @@ import org.lwjgl.opengl.GL30
 import ru.hollowhorizon.hollowengine.bridge.mixins.client.ShaderInstanceAccessor
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import ru.hollowhorizon.hollowengine.client.ui.UiVec3
+import ru.hollowhorizon.hollowengine.client.ui.text.GlyphEdgeSoftness
 import ru.hollowhorizon.hollowengine.client.ui.text.UiGlyphAtlasPage
 import ru.hollowhorizon.hollowengine.client.ui.text.UiGlyphSampling
 import ru.hollowhorizon.hollowengine.common.registry.ModShaders
@@ -83,7 +84,7 @@ internal class UiMsdfTextBatch : AutoCloseable {
             RenderSystem.setShader { shader }
             RenderSystem.setShaderTexture(0, current.texture)
             shader.safeGetUniform("DistanceRange")?.set(current.distanceRange)
-            shader.safeGetUniform("Softness")?.set(MsdfSoftness)
+            shader.safeGetUniform("Softness")?.set(GlyphEdgeSoftness - 1f)
             shader.safeGetUniform("AtlasSize")?.set(current.width, current.height)
             shader.safeGetUniform("GlyphMode")?.set(current.sampling.shaderMode.toFloat())
             shader.safeGetUniform("SdBias")?.set(current.sdBias)
@@ -160,8 +161,5 @@ internal class UiMsdfTextBatch : AutoCloseable {
     private companion object {
         const val VertexStride = 9
         const val VertexStrideBytes = VertexStride * Float.SIZE_BYTES
-
-        /** MSDF edge anti-aliasing softness (screen-space smoothing of the signed-distance edge). */
-        const val MsdfSoftness = 0.15f
     }
 }

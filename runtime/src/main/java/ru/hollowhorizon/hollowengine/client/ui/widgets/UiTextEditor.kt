@@ -169,7 +169,7 @@ sealed interface UiInlayContent {
 
     data class Icon(val source: String) : UiInlayContent
 
-    /** A solid colour chip in `0xAARRGGBB`, drawn over a checkerboard so alpha reads. */
+    /** A solid color chip in `0xAARRGGBB`, drawn over a checkerboard so alpha reads. */
     data class Swatch(val argb: Int) : UiInlayContent
 }
 

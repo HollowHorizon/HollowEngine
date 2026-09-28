@@ -36,9 +36,8 @@ class UiScriptScreen(
         sessionId?.let { UiScriptClient.send(it, payload) }
     }
 
-    override fun close() {
-        mc.setScreen(null)
-    }
+    /** The same exit Escape takes, so a script closing itself still plays its exit animation. */
+    override fun close() = onClose()
 
     @Composable
     override fun Content() {

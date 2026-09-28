@@ -1,18 +1,13 @@
 {
-  "layers": "Слои",
-  "layers_empty": "Пусто. Добавьте слой ниже.",
-  "add_layer": "+ Добавить",
+  "add_layer": "Добавить слой",
   "kind_controller": "Контроллер",
   "kind_clip": "Клип",
   "kind_procedural": "Процедурный",
-  "show_layers": "Показать слои",
-  "hide_layers": "Скрыть слои",
   "reset_view": "Сбросить вид",
   "parameters": "Параметры",
   "no_graph": "У этого слоя нет графа, его параметры в инспекторе.",
   "no_layers": "Слоёв нет",
   "nothing_selected": "Ничего не выбрано",
-  "pick_controller": "Выберите слой-контроллер",
   "layer_removed": "Слой удалён",
   "state_removed": "Состояние удалено",
   "transition_removed": "Переход удалён",
@@ -61,5 +56,7 @@
   "exit_time": "Время завершения",
   "condition": "Условие",
   "any_state": "любое состояние",
-  "always": "всегда"
+  "always": "всегда",
+  "delete_layer": "Удалить слой",
+  "no_layers_hint": "Слои находятся в окне «Сцена»: добавьте слой через правый клик там."
 }

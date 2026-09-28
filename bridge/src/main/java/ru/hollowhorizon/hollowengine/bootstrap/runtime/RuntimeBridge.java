@@ -180,8 +180,6 @@ public interface RuntimeBridge extends AutoCloseable {
 
     void onClientRenderTickPost(Minecraft client);
 
-    void onClientResized(Minecraft client);
-
     void onClientStopping(Minecraft client);
 
     void onLevelCreated(Level level);
@@ -248,6 +246,12 @@ public interface RuntimeBridge extends AutoCloseable {
     void onIrisShadowRenderEnd();
 
     /**
+     * The shader pack has written its final image into the main target. What should look the same
+     * with and without a pack is drawn from here, over the finished frame and its depth.
+     */
+    void onIrisLevelFinished();
+
+    /**
      * Fired around a HUD layer. The layer is identified by its resource-location string
      * (e.g. {@code "minecraft:crosshair"}) rather than a fixed enum, so NeoForge can pass every
      * named layer through {@code RenderGuiLayerEvent.getName()}. Returns whether the
@@ -277,13 +281,13 @@ public interface RuntimeBridge extends AutoCloseable {
 
     /**
      * Virtual framebuffer and GUI dimensions used while the editor embeds the game in a dock.
-     * GUI dimensions remain active for input and screen layout; framebuffer dimensions are only
-     * exposed while {@link #isGameViewportRendering()} is true, so the IDE itself still renders
-     * against the real window.
+     * GUI dimensions are always answered; framebuffer dimensions are answered everywhere except
+     * the window pass ({@link #isGameViewportWindowPass()}), where the finished frame and the
+     * editor are drawn onto the real window.
      */
     @Nullable GameViewportMetrics getGameViewportMetrics();
 
-    boolean isGameViewportRendering();
+    boolean isGameViewportWindowPass();
 
     void onRenderLevelStage(LevelRenderer renderer, PoseStack poseStack, Matrix4f projectionMatrix, int ticks, float partialTick, Camera camera, @Nullable Frustum frustum, RenderLevelStage stage);
 
@@ -307,6 +311,8 @@ public interface RuntimeBridge extends AutoCloseable {
     RegistryHelper getRegistryHelper();
 
     void initRegistryProvider(RegistryProvider<?> provider);
+
+    void onLevelFrameRendered(Minecraft minecraft);
 
     void onBeforeBlitScreen(Minecraft minecraft);
 

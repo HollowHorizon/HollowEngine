@@ -1,0 +1,24 @@
+/*
+ * The screen that covers the game while a tool drives it. It is opaque on purpose: whatever the tool
+ * does to the camera underneath should not be seen.
+ */
+
+@import "hollowengine:ui/styles/theme.hss";
+
+.wait-screen {
+    size: 100% 100%;
+    gap: 6px;
+    align-items: center center;
+    background: $bg-window;
+    font-family: $font;
+}
+
+.wait-heading {
+    font-size: $font-size-title;
+    foreground: $text-strong;
+}
+
+.wait-message {
+    font-size: $font-size;
+    foreground: $text-muted;
+}

@@ -1,0 +1,112 @@
+/*
+ * The engine's look in one place: every other stylesheet of the editor imports this one and takes
+ * its colors, sizes and fonts from these variables instead of writing its own literals.
+ *
+ *     @import "hollowengine:ui/styles/theme.hss";
+ *     .panel { background: $bg-panel; }
+ *
+ * A stylesheet that declares a variable of the same name after the import retunes it for itself.
+ */
+
+/* ---- surfaces, darkest to lightest ---- */
+
+/* The window itself: toolbars, tab bars, splitters, the status bar. */
+$bg-window: #141518;
+/* Tool windows and panels. */
+$bg-panel: #1C1E22;
+/* Editors, fields, section headings: what sits on a panel. */
+$bg-field: #212328;
+/* Popups, menus, dialogs and cards: what floats over the rest. */
+$bg-raised: #26282E;
+/* Whatever the pointer is over. */
+$bg-hover: #2B2E35;
+/* Pressed, or hovered on something already raised. */
+$bg-pressed: #353943;
+/* A selected row, a toggled button. */
+$bg-selected: #2E3544;
+
+/* ---- lines ---- */
+
+$divider: #2B2E35;
+$border: #3A3E48;
+/* A frame that has to be seen: a focused card, an emphasised outline. */
+$border-strong: #5F6677;
+
+/* ---- text, brightest to faintest ---- */
+
+$text-strong: #E4E9F4;
+$text: #C4CBDA;
+$text-soft: #AEB8CA;
+$text-muted: #8F9BAD;
+$text-faint: #6A7384;
+$white: #FFFFFF;
+$caret: #F0F6FF;
+
+/* ---- accent and state ---- */
+
+$accent: #6E9BDC;
+$accent-fill: #3E5F8F;
+$accent-fill-hover: #4A6FA5;
+$accent-soft: alpha($accent, 0.2);
+$selection: alpha(#5F8CCD, 0.46);
+$row-selected: alpha(#587BAE, 0.32);
+
+$danger: #E07A7A;
+$danger-soft: alpha(#C25757, 0.18);
+$warning: #F7C363;
+$success: #6FBF8A;
+
+$shadow: alpha(#000000, 0.45);
+$scrim: alpha(#000000, 0.5);
+
+/* ---- sizes ---- */
+
+/* How far a panel's content sits from its edge: headers, toolbars, lists and fields alike. */
+$panel-inset: 6px;
+
+/*
+ * The left rail of the window, the side stripe's column: the logo, the stripe buttons and the first
+ * icon of the status bar are all centered on it.
+ */
+$rail: 22px;
+
+$radius-small: 3px;
+$radius: 4px;
+$radius-large: 6px;
+
+$icon: 12px;
+$icon-small: 10px;
+
+/* ---- text ---- */
+
+$font: "ttf:hollowengine:fonts/jetbrains_mono_nl.ttf";
+$font-size: 9px;
+$font-size-small: 8px;
+$font-size-title: 11px;
+
+/* ---- scrollbars ---- */
+
+$scroll-thumb: alpha(#9BA9C2, 0.28);
+$scroll-thumb-hover: alpha(#AFBCD2, 0.6);
+
+/* ---- shared looks, taken in with `@apply $name;` ---- */
+
+/* The scrollbar of every list and panel: thin, over the content, wider under the pointer. */
+$thin-scroll {
+    scrollbar: 4px;
+    scrollbar-margin: 2px;
+    scrollbar-overlay: true;
+    scrollbar-track: none;
+    scrollbar-thumb: $scroll-thumb;
+    scrollbar-thumb-hover: $scroll-thumb-hover;
+    scrollbar-hover-thickness: 6px;
+    scrollbar-thumb-radius: 4px;
+}
+
+/* A text field of the editor: the code font, no vanilla drop shadow, the accent caret. */
+$field-text {
+    font-family: $font;
+    caret-color: $caret;
+    selection-color: $selection;
+    text-shadow: none;
+}

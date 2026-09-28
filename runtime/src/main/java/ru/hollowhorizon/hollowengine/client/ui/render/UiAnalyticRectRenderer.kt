@@ -10,6 +10,7 @@ import org.lwjgl.opengl.GL30
 import org.lwjgl.opengl.GL31
 import org.lwjgl.opengl.GL33
 import ru.hollowhorizon.hollowengine.HollowEngine
+import ru.hollowhorizon.hollowengine.client.ui.text.GlyphEdgeSoftness
 import java.nio.FloatBuffer
 
 internal class UiAnalyticRectRenderer : UiSdfRenderer(
@@ -29,6 +30,7 @@ internal class UiAnalyticRectRenderer : UiSdfRenderer(
     private val fontAtlasLocations = IntArray(UiAnalyticRectBatch.MaxGlyphPages) { -1 }
     private var glyphDistanceRangeLocation = -1
     private var glyphAtlasSizeLocation = -1
+    private var glyphEdgeSoftnessLocation = -1
 
     override val vertexStrideFloats get() = UiAnalyticRectBatch.InstanceStride
 
@@ -39,10 +41,11 @@ internal class UiAnalyticRectRenderer : UiSdfRenderer(
         }
         glyphDistanceRangeLocation = GL20.glGetUniformLocation(program, "GlyphDistanceRange")
         glyphAtlasSizeLocation = GL20.glGetUniformLocation(program, "GlyphAtlasSize")
-        assignGlyphSamplerUnits()
+        glyphEdgeSoftnessLocation = GL20.glGetUniformLocation(program, "GlyphEdgeSoftness")
+        assignConstantUniforms()
     }
 
-    private fun assignGlyphSamplerUnits() {
+    private fun assignConstantUniforms() {
         val missing = fontAtlasLocations.indexOfFirst { it < 0 }
         if (missing >= 0) {
             HollowEngine.LOGGER.error(
@@ -55,6 +58,7 @@ internal class UiAnalyticRectRenderer : UiSdfRenderer(
         for (page in fontAtlasLocations.indices) {
             GL20.glUniform1i(fontAtlasLocations[page], GlyphAtlasUnit + page)
         }
+        GL20.glUniform1f(glyphEdgeSoftnessLocation, GlyphEdgeSoftness)
         GL20.glUseProgram(previousProgram)
     }
 

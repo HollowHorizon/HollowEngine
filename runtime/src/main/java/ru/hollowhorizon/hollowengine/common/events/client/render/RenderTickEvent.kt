@@ -13,6 +13,11 @@ open class RenderTickEvent(val minecraft: Minecraft) : ClientEvent {
         companion object : EventHandler<Post>()
     }
 
+    /** The level is in the main target, finished, and the GUI has not been drawn over it yet. */
+    class LevelRendered(minecraft: Minecraft) : RenderTickEvent(minecraft) {
+        companion object : EventHandler<LevelRendered>()
+    }
+
     class Blit(minecraft: Minecraft) : RenderTickEvent(minecraft) {
         companion object : EventHandler<Blit>()
     }

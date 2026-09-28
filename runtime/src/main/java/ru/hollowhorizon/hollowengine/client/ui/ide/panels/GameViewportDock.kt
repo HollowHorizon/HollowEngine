@@ -2,11 +2,11 @@ package ru.hollowhorizon.hollowengine.client.ui.ide.panels
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.GameViewportNodeId
 import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeGameViewport
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.TimelineColors
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.utils.lang
 
@@ -23,15 +23,21 @@ internal object GameViewportLang {
  */
 @Composable
 fun GameViewportDock(active: Boolean = false, attached: Boolean = true) {
+    val placement = remember { PanelPlacement() }
     DisposableEffect(attached) {
-        if (!attached) HollowIdeGameViewport.report(null)
-        onDispose { HollowIdeGameViewport.report(null) }
+        val bounds = placement.bounds
+        if (attached && bounds != null) HollowIdeGameViewport.report(placement, bounds)
+        if (!attached) HollowIdeGameViewport.release(placement)
+        onDispose { HollowIdeGameViewport.release(placement) }
     }
     Box(
         id = GameViewportNodeId,
         tags = listOfNotNull("game-viewport", "active".takeIf { active && attached }),
-        modifier = Modifier.size(100.percent, 100.percent).input(hoverable = true, clickable = true)
-            .background(TimelineColors.Background).onPlaced { if (attached) HollowIdeGameViewport.report(it) }
+        modifier = Modifier.input(hoverable = true, clickable = true)
+            .onPlaced {
+                placement.bounds = it
+                if (attached) HollowIdeGameViewport.report(placement, it)
+            }
             .drawBehind(key = "game-viewport-$attached") {
                 if (!attached) return@drawBehind
                 val rect = HollowIdeGameViewport.imageRect(UiRect(0f, 0f, size.width, size.height)) ?: return@drawBehind
@@ -51,4 +57,8 @@ fun GameViewportDock(active: Boolean = false, attached: Boolean = true) {
             )
         }
     }
+}
+
+private class PanelPlacement {
+    var bounds: UiRect? = null
 }

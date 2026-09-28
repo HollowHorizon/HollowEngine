@@ -48,11 +48,11 @@ class GizmoDrag internal constructor(
 /**
  * Screen-to-world manipulation math for the gizmo.
  */
-object GizmoManipulator {
+class GizmoManipulator(private val projector: GizmoProjector) {
     fun begin(handle: GizmoHandle, values: GizmoTransformValues, pointerX: Float, pointerY: Float): GizmoDrag {
         val axis = handle.worldAxis?.normalize()
         val drag = GizmoDrag(handle.id, handle.worldOrigin, axis, values)
-        val ray = WorldToScreenProjector.screenRay(pointerX, pointerY)
+        val ray = projector.screenRay(pointerX, pointerY)
         when (handle.id) {
             GizmoHandleId.AXIS_X, GizmoHandleId.AXIS_Y, GizmoHandleId.AXIS_Z,
             GizmoHandleId.SCALE_X, GizmoHandleId.SCALE_Y, GizmoHandleId.SCALE_Z -> {
@@ -87,7 +87,7 @@ object GizmoManipulator {
             }
 
             GizmoHandleId.CENTER -> {
-                val toCamera = WorldToScreenProjector.cameraPosition.subtract(handle.worldOrigin)
+                val toCamera = projector.cameraPosition.subtract(handle.worldOrigin)
                 val length = toCamera.length()
                 if (ray != null && length > 1e-6) {
                     val normal = toCamera.scale(1.0 / length)
@@ -101,7 +101,7 @@ object GizmoManipulator {
             }
 
             GizmoHandleId.SCALE_UNIFORM -> {
-                val originScreen = WorldToScreenProjector.project(handle.worldOrigin)
+                val originScreen = projector.project(handle.worldOrigin)
                 if (originScreen != null) {
                     drag.referenceDistance = distance(originScreen.x, originScreen.y, pointerX, pointerY)
                     drag.valid = drag.referenceDistance > 1e-3f
@@ -147,7 +147,7 @@ object GizmoManipulator {
     private fun updateViewPlane(drag: GizmoDrag, x: Float, y: Float, speed: Double, snap: Boolean, fine: Boolean): GizmoTransformValues? {
         val normal = drag.planeNormal ?: return null
         val reference = drag.referenceHit ?: return null
-        val ray = WorldToScreenProjector.screenRay(x, y) ?: return null
+        val ray = projector.screenRay(x, y) ?: return null
         val hit = rayPlane(ray, drag.origin, normal) ?: return null
         var dx = (hit.x - reference.x) * speed
         var dy = (hit.y - reference.y) * speed
@@ -164,7 +164,7 @@ object GizmoManipulator {
 
     private fun updateAxis(drag: GizmoDrag, x: Float, y: Float, speed: Double, snap: Boolean, fine: Boolean): GizmoTransformValues? {
         val axis = drag.axis ?: return null
-        val ray = WorldToScreenProjector.screenRay(x, y) ?: return null
+        val ray = projector.screenRay(x, y) ?: return null
         val t = closestParamOnAxis(ray, drag.origin, axis) ?: return null
         var delta = (t - drag.referenceParam) * speed
         if (snap) delta = round(delta / translationTick(fine)) * translationTick(fine)
@@ -176,7 +176,7 @@ object GizmoManipulator {
     private fun updatePlane(drag: GizmoDrag, x: Float, y: Float, speed: Double, snap: Boolean, fine: Boolean): GizmoTransformValues? {
         val axis = drag.axis ?: return null
         val reference = drag.referenceHit ?: return null
-        val ray = WorldToScreenProjector.screenRay(x, y) ?: return null
+        val ray = projector.screenRay(x, y) ?: return null
         val hit = rayPlane(ray, drag.origin, axis) ?: return null
         var dx = (hit.x - reference.x) * speed
         var dy = (hit.y - reference.y) * speed
@@ -194,7 +194,7 @@ object GizmoManipulator {
 
     private fun updateRotate(drag: GizmoDrag, x: Float, y: Float, speed: Double, snap: Boolean, fine: Boolean): GizmoTransformValues? {
         val axis = drag.axis ?: return null
-        val ray = WorldToScreenProjector.screenRay(x, y) ?: return null
+        val ray = projector.screenRay(x, y) ?: return null
         val angle = anglePlane(ray, drag.origin, axis) ?: return null
         drag.currentAngle = drag.referenceAngle + shortestAngle(angle - drag.referenceAngle)
         var deltaDeg = Math.toDegrees(shortestAngle(angle - drag.referenceAngle)) * speed
@@ -207,7 +207,7 @@ object GizmoManipulator {
     }
 
     private fun updateScale(drag: GizmoDrag, x: Float, y: Float, speed: Double, snap: Boolean, fine: Boolean): GizmoTransformValues? {
-        val originScreen = WorldToScreenProjector.project(drag.origin) ?: return null
+        val originScreen = projector.project(drag.origin) ?: return null
         val current = distance(originScreen.x, originScreen.y, x, y)
         if (drag.referenceDistance <= 1e-3f) return null
         var factor = (current / drag.referenceDistance).toDouble()
@@ -226,7 +226,7 @@ object GizmoManipulator {
     private fun updateScaleAxis(drag: GizmoDrag, x: Float, y: Float, speed: Double, snap: Boolean, fine: Boolean): GizmoTransformValues? {
         val axis = drag.axis ?: return null
         if (abs(drag.referenceParam) < 1e-4) return null
-        val ray = WorldToScreenProjector.screenRay(x, y) ?: return null
+        val ray = projector.screenRay(x, y) ?: return null
         val t = closestParamOnAxis(ray, drag.origin, axis) ?: return null
         var factor = t / drag.referenceParam
         factor = 1.0 + (factor - 1.0) * speed
@@ -294,4 +294,9 @@ object GizmoManipulator {
     private fun translationTick(fine: Boolean) = if (fine) 0.1 else 1.0
     private fun rotationTick(fine: Boolean) = if (fine) 1.0 else 5.0
     private fun scaleTick(fine: Boolean) = if (fine) 0.01 else 0.1
+
+    companion object {
+        /** The one the world overlay uses. */
+        val World = GizmoManipulator(WorldToScreenProjector)
+    }
 }

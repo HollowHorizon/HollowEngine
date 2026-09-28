@@ -1,0 +1,241 @@
+{
+  "nodes": [
+    {
+      "type": "hollowengine:vfx/group",
+      "id": "figure",
+      "name": "Figure",
+      "children": [
+        {
+          "type": "hollowengine:vfx/model",
+          "id": "body",
+          "name": "Body",
+          "model": "hollowengine:models/entity/player_model.gltf"
+        },
+        {
+          "type": "hollowengine:vfx/emitter",
+          "id": "soul",
+          "name": "Soul",
+          "children": [
+            {
+              "type": "hollowengine:vfx/plane",
+              "id": "soul-plane",
+              "material": {
+                "blend": "ADDITIVE"
+              },
+              "particle": {
+                "size": {
+                  "x": {
+                    "type": "const",
+                    "value": 0.07
+                  },
+                  "y": {
+                    "type": "const",
+                    "value": 1.0
+                  },
+                  "z": {
+                    "type": "const",
+                    "value": 1.0
+                  }
+                },
+                "color": {
+                  "type": "gradient",
+                  "gradient": {
+                    "stops": [
+                      {
+                        "color": {
+                          "r": 0.6,
+                          "g": 0.9,
+                          "a": 0.0
+                        }
+                      },
+                      {
+                        "position": 0.2,
+                        "color": {
+                          "r": 0.6,
+                          "g": 0.9,
+                          "a": 0.9
+                        }
+                      },
+                      {
+                        "position": 1.0,
+                        "color": {
+                          "r": 0.3,
+                          "g": 0.5,
+                          "a": 0.0
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            {
+              "type": "hollowengine:vfx/trail",
+              "id": "soul-trail",
+              "tint": {
+                "type": "gradient",
+                "gradient": {
+                  "stops": [
+                    {
+                      "color": {
+                        "r": 0.6,
+                        "g": 0.9,
+                        "a": 0.5
+                      }
+                    },
+                    {
+                      "position": 1.0,
+                      "color": {
+                        "r": 0.6,
+                        "g": 0.9,
+                        "a": 0.0
+                      }
+                    }
+                  ]
+                }
+              },
+              "width": {
+                "type": "curve",
+                "curve": {
+                  "keys": [
+                    {
+                      "value": 0.03,
+                      "interpolation": "LINEAR"
+                    },
+                    {
+                      "time": 1.0,
+                      "interpolation": "LINEAR"
+                    }
+                  ]
+                }
+              },
+              "lifetime": 0.4,
+              "maxPoints": 16,
+              "particle": {
+                "color": {
+                  "type": "gradient",
+                  "gradient": {
+                    "stops": [
+                      {
+                        "color": {
+                          "r": 0.6,
+                          "g": 0.9,
+                          "a": 0.0
+                        }
+                      },
+                      {
+                        "position": 0.2,
+                        "color": {
+                          "r": 0.6,
+                          "g": 0.9,
+                          "a": 0.9
+                        }
+                      },
+                      {
+                        "position": 1.0,
+                        "color": {
+                          "r": 0.3,
+                          "g": 0.5,
+                          "a": 0.0
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ],
+          "emission": {
+            "rate": {
+              "type": "const",
+              "value": 60.0
+            },
+            "duration": 0.0
+          },
+          "shape": {
+            "kind": "MODEL",
+            "model": "hollowengine:models/entity/player_model.gltf"
+          },
+          "spawn": {
+            "lifetime": {
+              "type": "range",
+              "from": 1.0,
+              "to": 2.0
+            },
+            "speed": {
+              "type": "range",
+              "from": 0.1,
+              "to": 0.3
+            }
+          },
+          "motion": {
+            "gravity": {
+              "type": "const",
+              "value": -0.6
+            },
+            "drag": {
+              "type": "const",
+              "value": 0.5
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "hollowengine:vfx/post_effect",
+      "id": "grayscale",
+      "name": "Grayscale",
+      "uniforms": [
+        {
+          "name": "Strength"
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "duration": 4.0,
+    "tracks": [
+      {
+        "node": "figure",
+        "property": "transform.rotation",
+        "curves": [
+          {
+            "channel": 1,
+            "keys": [
+              {
+                "interpolation": "LINEAR"
+              },
+              {
+                "time": 4.0,
+                "value": 360.0,
+                "interpolation": "LINEAR"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "node": "grayscale",
+        "property": "uniforms.Strength",
+        "curves": [
+          {
+            "keys": [
+              {},
+              {
+                "time": 1.0,
+                "value": 1.0
+              },
+              {
+                "time": 3.0,
+                "value": 1.0
+              },
+              {
+                "time": 4.0
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

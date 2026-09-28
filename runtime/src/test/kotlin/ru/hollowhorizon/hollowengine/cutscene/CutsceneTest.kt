@@ -3,7 +3,6 @@ package ru.hollowhorizon.hollowengine.cutscene
 import org.junit.jupiter.api.Test
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.AnimProperty
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.BlendMode
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ChannelBounds
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ChannelCurve
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.FloatPropertyType
@@ -76,9 +75,9 @@ class CutsceneTest {
             listOf("Camera"),
             AnimProperty("camera.translation", "Translation", TranslationPropertyType(), Vec3f.ZERO),
         )
-        val layer = property.layers.first()
-        val x = layer.channels[0]
-        val y = layer.channels[1]
+        val layer = property
+        val x = layer.curves[0]
+        val y = layer.curves[1]
         x.keyframes += Keyframe(1f, 5f)
         y.keyframes += Keyframe(1f, 7f)
 
@@ -90,63 +89,17 @@ class CutsceneTest {
     }
 
     @Test
-    fun `a hidden layer stops contributing to the value`() {
-        val controller = TimelineController()
-        val property = controller.addProperty(
-            listOf("Camera"),
-            AnimProperty("camera.fov", "FOV", FloatPropertyType("FOV"), 70f),
-        )
-        property.layers.first().channels.first().keyframes += Keyframe(0f, 90f)
-        val shake = property.addLayer("Shake", BlendMode.ADD)
-        shake.channels.first().keyframes += Keyframe(0f, 10f)
-
-        assertEquals(100f, property.valueAt(0f), 0.001f)
-
-        shake.isVisible = false
-        assertEquals(90f, property.valueAt(0f), 0.001f)
-    }
-
-    @Test
-    fun `layer weight scales what a layer contributes`() {
-        val controller = TimelineController()
-        val property = controller.addProperty(
-            listOf("Camera"),
-            AnimProperty("camera.fov", "FOV", FloatPropertyType("FOV"), 70f),
-        )
-        property.layers.first().channels.first().keyframes += Keyframe(0f, 90f)
-        val shake = property.addLayer("Shake", BlendMode.ADD)
-        shake.channels.first().keyframes += Keyframe(0f, 10f)
-        shake.weight = 0.5f
-
-        assertEquals(95f, property.valueAt(0f), 0.001f)
-    }
-
-    @Test
-    fun `what layers add up to is still held to the bounds`() {
-        val controller = TimelineController()
-        val property = controller.addProperty(
-            listOf("Camera"),
-            AnimProperty("camera.fov", "FOV", FloatPropertyType("FOV", ChannelBounds(maximum = 110f)), 70f),
-        )
-        controller.setKey(property.layers.first().channels.first(), 0f, 100f)
-        val shake = property.addLayer("Shake", BlendMode.ADD)
-        controller.setKey(shake.channels.first(), 0f, 40f)
-
-        assertEquals(110f, property.valueAt(0f), 0.001f)
-    }
-
-    @Test
-    fun `a locked layer refuses new keys`() {
+    fun `a locked property refuses new keys`() {
         val controller = TimelineController().apply { workAreaEnd = 10f }
         val property = controller.addProperty(
             listOf("Camera"),
             AnimProperty("camera.fov", "FOV", FloatPropertyType("FOV"), 70f),
         )
-        val layer = property.layers.first()
+        val layer = property
         layer.isLocked = true
 
         assertTrue(controller.addKeyframes(layer, 1f).isEmpty())
-        assertTrue(layer.channels.first().keyframes.isEmpty())
+        assertTrue(layer.curves.first().keyframes.isEmpty())
     }
 
     @Test
@@ -167,14 +120,14 @@ class CutsceneTest {
             listOf("Camera"),
             AnimProperty("camera.translation", "Translation", TranslationPropertyType(), Vec3f.ZERO),
         )
-        val layer = property.layers.first()
-        layer.channels.forEach { it.keyframes += Keyframe(1f, 0f) }
-        controller.select(listOf(layer.channels[0].keyframes.first()), additive = false)
+        val layer = property
+        layer.curves.forEach { it.keyframes += Keyframe(1f, 0f) }
+        controller.select(listOf(layer.curves[0].keyframes.first()), additive = false)
 
         controller.deleteSelectedKeyframes()
 
-        assertTrue(layer.channels[0].keyframes.isEmpty())
-        assertFalse(layer.channels[1].keyframes.isEmpty())
+        assertTrue(layer.curves[0].keyframes.isEmpty())
+        assertFalse(layer.curves[1].keyframes.isEmpty())
     }
 
     @Test
@@ -189,7 +142,7 @@ class CutsceneTest {
                 CameraRig.DEFAULT_FOV,
             ),
         )
-        val key = controller.setKey(property.layers.first().channels.first(), 0f, -40f)
+        val key = controller.setKey(property.curves.first(), 0f, -40f)
 
         assertEquals(1f, key.value, 0.001f, "an FOV below one is not a shot")
         assertEquals(1f, property.valueAt(0f), 0.001f)
@@ -203,17 +156,17 @@ class CutsceneTest {
             listOf("Camera"),
             AnimProperty("camera.translation", "Translation", TranslationPropertyType(), Vec3f.ZERO),
         )
-        val layer = property.layers.first()
-        layer.channels[0].keyframes += Keyframe(1f, 3f)
-        layer.channels[1].keyframes += Keyframe(2f, 7f)
-        controller.select(layer.channels.flatMap { it.keyframes }, additive = false)
+        val layer = property
+        layer.curves[0].keyframes += Keyframe(1f, 3f)
+        layer.curves[1].keyframes += Keyframe(2f, 7f)
+        controller.select(layer.curves.flatMap { it.keyframes }, additive = false)
 
         controller.copySelectedKeyframes()
         controller.pasteKeyframes(5f)
 
-        assertEquals(listOf(1f, 5f), layer.channels[0].keyframes.map { it.time })
-        assertEquals(listOf(2f, 6f), layer.channels[1].keyframes.map { it.time }, "spacing survives the paste")
-        assertEquals(7f, layer.channels[1].keyframes.last().value, 0.001f)
+        assertEquals(listOf(1f, 5f), layer.curves[0].keyframes.map { it.time })
+        assertEquals(listOf(2f, 6f), layer.curves[1].keyframes.map { it.time }, "spacing survives the paste")
+        assertEquals(7f, layer.curves[1].keyframes.last().value, 0.001f)
         assertEquals(2, controller.selectedKeyframes.size, "the copies are what stays selected")
     }
 
@@ -261,13 +214,13 @@ class CutsceneTest {
             listOf("Camera"),
             AnimProperty("camera.translation", "Translation", TranslationPropertyType(), Vec3f.ZERO),
         )
-        val layer = property.layers.first()
-        val x = layer.channels[0]
+        val layer = property
+        val x = layer.curves[0]
         x.keyframes += Keyframe(0f, 5f)
 
         controller.focusCurves(listOf(x), additive = false)
         assertTrue(controller.isFocused(x))
-        assertFalse(controller.isFocused(layer.channels[1]))
+        assertFalse(controller.isFocused(layer.curves[1]))
         assertEquals(5f, property.valueAt(0f).x, 0.001f, "focus is about the graph, not the result")
 
         controller.focusCurves(listOf(x), additive = false)
@@ -281,7 +234,7 @@ class CutsceneTest {
             listOf("Camera"),
             AnimProperty("camera.translation", "Translation", TranslationPropertyType(), Vec3f.ZERO),
         )
-        val stack = property.layers.first().channels.map { curve ->
+        val stack = property.curves.map { curve ->
             Keyframe(1f, 0f).also { curve.keyframes += it }
         }
         val pressed = stack.first()
@@ -306,7 +259,7 @@ class CutsceneTest {
             listOf("Camera"),
             AnimProperty("camera.translation", "Translation", TranslationPropertyType(), Vec3f.ZERO),
         )
-        val stack = property.layers.first().channels.map { curve ->
+        val stack = property.curves.map { curve ->
             Keyframe(1f, 0f).also { curve.keyframes += it }
         }
         controller.select(stack, additive = false)
@@ -317,52 +270,9 @@ class CutsceneTest {
     }
 
     @Test
-    fun `undo brings a deleted layer back with its keys`() {
-        val controller = TimelineController().apply { workAreaEnd = 10f }
-        val property = controller.addProperty(
-            listOf("Camera"),
-            AnimProperty("camera.fov", "FOV", FloatPropertyType("FOV"), 70f),
-        )
-        val base = property.layers.first()
-        controller.setKey(base.channels.first(), 0f, 90f)
-        val shake = property.addLayer("Shake", BlendMode.ADD)
-        controller.setKey(shake.channels.first(), 0f, 10f)
-
-        controller.edit("Delete layer") { property.layers.remove(shake) }
-        assertEquals(1, property.layers.size)
-
-        controller.undo()
-
-        assertEquals(2, property.layers.size)
-        assertTrue(property.layers[1] === shake, "the layer comes back as itself, not as a copy")
-        assertEquals(10f, shake.channels.first().keyframes.first().value, 0.001f)
-        assertEquals(100f, property.valueAt(0f), 0.001f)
-    }
-
-    @Test
-    fun `deleting a middle layer leaves the others with their own keys`() {
-        val controller = TimelineController().apply { workAreaEnd = 10f }
-        val property = controller.addProperty(
-            listOf("Camera"),
-            AnimProperty("camera.fov", "FOV", FloatPropertyType("FOV"), 0f),
-        )
-        val first = property.layers.first()
-        controller.setKey(first.channels.first(), 0f, 1f)
-        val middle = property.addLayer("Middle", BlendMode.ADD)
-        controller.setKey(middle.channels.first(), 0f, 2f)
-        val last = property.addLayer("Last", BlendMode.ADD)
-        controller.setKey(last.channels.first(), 0f, 4f)
-
-        controller.edit("Delete layer") { property.layers.remove(middle) }
-
-        assertEquals(listOf(1f, 4f), property.layers.map { it.channels.first().keyframes.first().value })
-        assertEquals(5f, property.valueAt(0f), 0.001f, "the survivors keep their own keys")
-    }
-
-    @Test
     fun `weather keys are discrete even if serialized interpolation says bezier`() {
         val playback = CutscenePlaybackController()
-        val curve = playback.weather.layers.first().channels.first()
+        val curve = playback.weather.curves.first()
         val clear = playback.timeline.setKey(curve, 0f, CutsceneWeather.CLEAR.value)
         playback.timeline.setKey(curve, 10f, CutsceneWeather.THUNDER.value)
         clear.interpolation = KeyInterpolation.BEZIER
@@ -374,8 +284,8 @@ class CutsceneTest {
     @Test
     fun `environment tracks survive a cutscene round trip`() {
         val playback = CutscenePlaybackController()
-        val timeCurve = playback.timeOfDay.layers.first().channels.first()
-        val weatherCurve = playback.weather.layers.first().channels.first()
+        val timeCurve = playback.timeOfDay.curves.first()
+        val weatherCurve = playback.weather.curves.first()
         playback.timeline.setKey(timeCurve, 0f, 6_000f).interpolation = KeyInterpolation.LINEAR
         playback.timeline.setKey(timeCurve, 10f, 18_000f)
         playback.timeline.setKey(weatherCurve, 0f, CutsceneWeather.CLEAR.value)
@@ -421,6 +331,6 @@ class CutsceneTest {
             listOf("Test"),
             AnimProperty("test.value", "Value", FloatPropertyType(), 0f),
         )
-        return property.layers.first().channels.first()
+        return property.curves.first()
     }
 }

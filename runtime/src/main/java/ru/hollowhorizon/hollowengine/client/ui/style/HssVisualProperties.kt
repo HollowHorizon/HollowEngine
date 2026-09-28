@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.style
 
 import ru.hollowhorizon.hollowengine.client.ui.UiBorder
+import ru.hollowhorizon.hollowengine.client.ui.UiBorderDash
 import ru.hollowhorizon.hollowengine.client.ui.UiInsets
 import ru.hollowhorizon.hollowengine.client.ui.UiLength
 import ru.hollowhorizon.hollowengine.client.ui.UiTransform
@@ -14,7 +15,7 @@ private fun colorSlot(name: String = "color") = slot(name, HssValueKind.COLOR)
 internal fun visualHssProperties(): List<HssProperty> = hssProperties {
     property(
         "background",
-        summary = "Fill drawn behind the node: colour, image, shader or gradient.",
+        summary = "Fill drawn behind the node: color, image, shader or gradient.",
         syntax = syntax(paintSlot()),
         examples = listOf("#1E2128", "transparent", "image(\"\")", "linear-gradient(180deg, #000000, #FFFFFF)"),
     ) { set(UiProps.Background, parsePaint(value)) }
@@ -28,7 +29,7 @@ internal fun visualHssProperties(): List<HssProperty> = hssProperties {
 
     property(
         "foreground", "color",
-        summary = "Text and icon colour; inherited by children.",
+        summary = "Text and icon color; inherited by children.",
         syntax = syntax(colorSlot()),
         examples = listOf("#FFFFFF", "#cbd3df", "rgba(255, 255, 255, 0.7)"),
     ) { style { it.foreground = parseColor(value) } }
@@ -66,7 +67,7 @@ internal fun visualHssProperties(): List<HssProperty> = hssProperties {
 
     property(
         "border-color",
-        summary = "Border fill: a colour, or a gradient stroked around the node.",
+        summary = "Border fill: a color, or a gradient stroked around the node.",
         syntax = syntax(paintSlot("color")),
         examples = listOf("#5F6677", "linear-gradient(120deg, #9BF763, #70A832)"),
     ) { style { it.borderPaint = parsePaint(value) } }
@@ -81,6 +82,20 @@ internal fun visualHssProperties(): List<HssProperty> = hssProperties {
     borderEdge("border-right", "right") { insets, width -> insets.copy(right = width) }
     borderEdge("border-bottom", "bottom") { insets, width -> insets.copy(bottom = width) }
     borderEdge("border-left", "left") { insets, width -> insets.copy(left = width) }
+
+    property(
+        "border-dash",
+        summary = "Dashes the border: dash length, then the gap after it. A zero length draws it solid.",
+        syntax = syntax(
+            slot("dash", HssValueKind.PIXELS),
+            slot("gap", HssValueKind.PIXELS, optional = true),
+        ),
+        examples = listOf("4px 3px", "6px", "0px"),
+    ) {
+        val parts = value.trim().split(Regex("\\s+"))
+        val length = parseScalar(parts[0])
+        set(UiProps.BorderDash, UiBorderDash(length, parts.getOrNull(1)?.let(::parseScalar) ?: length))
+    }
 
     property(
         "border-radius",
@@ -112,7 +127,7 @@ internal fun visualHssProperties(): List<HssProperty> = hssProperties {
 
     property(
         "tint",
-        summary = "Colour multiplied into everything the node draws; stacks across states.",
+        summary = "Color multiplied into everything the node draws; stacks across states.",
         syntax = syntax(colorSlot("tint")),
         examples = listOf("#FFFFFF", "rgba(255, 255, 255, 0.75)"),
     ) { set(UiProps.Tint, parseColor(value)) }
@@ -318,8 +333,7 @@ private fun HssPropertyBuilder.axisProperty(
 }
 
 /**
- * Declares a single-edge border. The width is per edge, the colour is shared by the whole
- * border — the engine keeps one border colour — so the last declared colour wins.
+ * Declares a single-edge border. The width is per edge, the color is shared by the whole border.
  */
 private fun HssPropertyBuilder.borderEdge(
     name: String,

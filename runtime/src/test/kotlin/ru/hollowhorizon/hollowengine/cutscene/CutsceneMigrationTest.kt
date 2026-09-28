@@ -23,7 +23,7 @@ class CutsceneMigrationTest {
         val playback = CutscenePlaybackController().apply { setupTracks(migrated) }
 
         assertEquals(120f, migrated.origin.x, 0.001f)
-        assertEquals(0f, playback.translation.layers.first().channels[0].keyframes.first().value, 0.001f)
+        assertEquals(0f, playback.translation.curves[0].keyframes.first().value, 0.001f)
 
         playback.seek(0f)
         assertEquals(120f, playback.currentPose.position.x, 0.001f)
@@ -37,7 +37,7 @@ class CutsceneMigrationTest {
         val migrated = CutsceneMigrations.convert(legacyCutscene(Vec3f(1f, 2f, 3f)), version = 1)
         val playback = CutscenePlaybackController().apply { setupTracks(migrated) }
 
-        val channels = playback.translation.layers.first().channels
+        val channels = playback.translation.curves
         assertEquals(3, channels.size)
         assertTrue(channels.all { it.keyframes.size == 1 })
     }
@@ -48,7 +48,7 @@ class CutsceneMigrationTest {
 
         val migrated = CutsceneMigrations.convert(legacy, version = 1)
         val playback = CutscenePlaybackController().apply { setupTracks(migrated) }
-        val x = playback.translation.layers.first().channels[0]
+        val x = playback.translation.curves[0]
 
         assertEquals(5f, x.valueAt(1f, 0f), 0.2f)
         assertTrue(x.valueAt(0.4f, 0f) < 1.5f, "an ease-in should still be crawling at 20% of the way")
@@ -57,14 +57,14 @@ class CutsceneMigrationTest {
     @Test
     fun `a hidden channel is still hidden after a round trip`() {
         val playback = CutscenePlaybackController()
-        val channels = playback.translation.layers.first().channels
+        val channels = playback.translation.curves
         channels[0].keyframes += Keyframe(0f, 5f)
         channels[1].keyframes += Keyframe(0f, 7f)
         channels[1].isVisible = false
         val saved = playback.toData("Hidden")
 
         val reloaded = CutscenePlaybackController().apply { setupTracks(saved) }
-        val loaded = reloaded.translation.layers.first().channels
+        val loaded = reloaded.translation.curves
 
         assertTrue(loaded[0].isVisible)
         assertTrue(!loaded[1].isVisible, "the channel comes back hidden")

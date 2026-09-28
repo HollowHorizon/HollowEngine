@@ -60,7 +60,7 @@ private fun renderBlurPass(
     opaqueSource: Boolean = false,
 ) {
     target.bind()
-    GL11.glViewport(0, 0, width, height)
+    RenderSystem.viewport(0, 0, width, height)
     configureBlurProjection(width.toFloat(), height.toFloat())
     uiWriteAlpha(true)
     configureUiBlend()

@@ -96,7 +96,6 @@ class CutscenePlaybackController {
     fun setupTracks(data: CutsceneData, loop: Boolean = false, anchor: CutsceneAnchor = CutsceneAnchor.WHERE_RECORDED) {
         timeline.groups.clear()
         timeline.clearSelection()
-        timeline.activeLayer = null
         timeline.workAreaEnd = max(0.1f, data.duration)
         timeline.currentTime = 0f
         isLooping = loop
@@ -158,45 +157,40 @@ class CutscenePlaybackController {
     fun reanchor(position: Vec3f, yaw: Float) {
         val previous = origin.frame
         val next = origin.moved(position, yaw).frame
-        translation.layers.filter { it.blendMode == BlendMode.OVERRIDE }.forEach { layer ->
-            rebaseLayer(layer, translation) { local -> next.toLocal(previous.toWorld(local)) }
-        }
-        rotation.layers.filter { it.blendMode == BlendMode.OVERRIDE }.forEach { layer ->
-            rebaseLayer(layer, rotation) { local -> next.toLocalRotation(previous.toWorldRotation(local)) }
-        }
+        rebase(translation) { local -> next.toLocal(previous.toWorld(local)) }
+        rebase(rotation) { local -> next.toLocalRotation(previous.toWorldRotation(local)) }
         origin = origin.moved(position, yaw)
         updateProperties()
     }
 
     /**
-     * Resamples the keys of a single layer using [convert]
+     * Resamples the keys of a property using [convert]
      */
-    private fun <T> rebaseLayer(layer: AnimLayer, property: AnimProperty<T>, convert: (T) -> T) {
+    private fun <T> rebase(property: AnimProperty<T>, convert: (T) -> T) {
         val type = property.type
         val size = type.channels.size
-        val times = layer.channels.flatMap { curve -> curve.keyframes.map { it.time } }.distinct().sorted()
+        val times = property.curves.flatMap { curve -> curve.keyframes.map { it.time } }.distinct().sorted()
         if (times.isEmpty()) return
 
         val buffer = FloatArray(size)
         val converted = times.associateWith { time ->
             property.decomposeDefault(buffer)
-            layer.channels.forEachIndexed { index, curve -> buffer[index] = curve.valueAt(time, buffer[index]) }
+            property.curves.forEachIndexed { index, curve -> buffer[index] = curve.valueAt(time, buffer[index]) }
             val next = FloatArray(size)
             type.decompose(convert(type.compose(buffer)), next)
             next
         }
-        layer.channels.forEachIndexed { index, curve ->
+        property.curves.forEachIndexed { index, curve ->
             converted.forEach { (time, values) ->
                 val key = curve.keyAt(time) ?: Keyframe(time, 0f).also { curve.keyframes.add(it) }
                 key.value = values.getOrElse(index) { key.value }
             }
             curve.sort()
         }
-        rotateTangents(layer, property, convert, times)
+        rotateTangents(property, convert, times)
     }
 
     private fun <T> rotateTangents(
-        layer: AnimLayer,
         property: AnimProperty<T>,
         convert: (T) -> T,
         times: List<Float>,
@@ -209,7 +203,7 @@ class CutscenePlaybackController {
         val incoming = FloatArray(size)
         val outgoing = FloatArray(size)
         times.forEach { time ->
-            val keys = layer.channels.map { it.keyAt(time) }
+            val keys = property.curves.map { it.keyAt(time) }
             if (keys.all { it == null }) return@forEach
             keys.forEachIndexed { index, key ->
                 incoming[index] = key?.incoming?.value ?: 0f
@@ -274,7 +268,6 @@ class CutscenePlaybackController {
             WeatherPropertyType(),
             CutsceneWeather.CLEAR,
         ) { environmentWeather = it }
-        if (timeline.activeLayer == null) timeline.activeLayer = translation.layers.firstOrNull()
     }
 
     @Suppress("UNCHECKED_CAST")
@@ -289,9 +282,8 @@ class CutscenePlaybackController {
         val existing = timeline.allProperties().firstOrNull { it.id == id }
         if (existing != null && existing.type.id == type.id) {
             val bound = AnimProperty(id, existing.nameState, existing.type as PropertyType<T>, defaultValue, apply)
-            bound.layers.addAll(existing.layers)
+            bound.adoptCurves(existing)
             bound.isExpanded = existing.isExpanded
-            if (bound.layers.isEmpty()) bound.addLayer(BASE_LAYER_NAME)
             val group = timeline.groupOf(existing) ?: timeline.group(path)
             group.properties[group.properties.indexOf(existing)] = bound
             return bound
@@ -348,17 +340,13 @@ private fun createProperty(id: String, name: String, data: CutscenePropertyData)
 
         else -> AnimProperty(id, name, FloatPropertyType(name), 0f)
     }
-    data.layers.forEach { layerData ->
-        val layer = property.addLayer(layerData.name, CutsceneEnums.blendMode(layerData.blend))
-        layer.weight = layerData.weight
-        layer.isVisible = layerData.visible
-        layer.isLocked = layerData.locked
-        layerData.curves.forEach { curveData ->
-            val curve = layer.channels.firstOrNull { it.name == curveData.channel } ?: return@forEach
-            curve.isVisible = curveData.visible
-            curveData.keyframes.forEach { curve.keyframes.add(it.toKeyframe(curve.spec)) }
-            curve.sort()
-        }
+    property.isVisible = data.visible
+    property.isLocked = data.locked
+    data.curves.forEach { curveData ->
+        val curve = property.curves.firstOrNull { it.name == curveData.channel } ?: return@forEach
+        curve.isVisible = curveData.visible
+        curveData.keyframes.forEach { curve.keyframes.add(it.toKeyframe(curve.spec)) }
+        curve.sort()
     }
     return property
 }
@@ -376,11 +364,8 @@ private fun CutsceneKeyData.toKeyframe(spec: ChannelSpec) = Keyframe(
     outgoing = KeyTangent(outTime, outValue),
 )
 
-private fun AnimProperty<*>.hasVisibleKeys(): Boolean = layers.any { layer ->
-    layer.isVisible && layer.weight != 0f && layer.channels.any { curve ->
-        curve.isVisible && curve.keyframes.isNotEmpty()
-    }
-}
+private fun AnimProperty<*>.hasVisibleKeys(): Boolean =
+    curves.any { curve -> curve.isVisible && curve.keyframes.isNotEmpty() }
 
 private fun TrackGroup.toNode(): CutsceneNodeData = CutsceneNodeData(
     id = nameState,
@@ -396,17 +381,10 @@ private fun AnimProperty<*>.toNode(): CutsceneNodeData = CutsceneNodeData(
     property = CutscenePropertyData(
         type = type.id,
         rotationMode = CutsceneEnums.nameOf((type as? RotationPropertyType)?.mode ?: RotationMode.EULER),
-        layers = layers.map { it.toData() },
+        visible = isVisible,
+        locked = isLocked,
+        curves = curves.map { it.toData() },
     ),
-)
-
-private fun AnimLayer.toData() = CutsceneLayerData(
-    name = nameState,
-    blend = CutsceneEnums.nameOf(blendMode),
-    weight = weight,
-    visible = isVisible,
-    locked = isLocked,
-    curves = channels.map { it.toData() },
 )
 
 private fun ChannelCurve.toData() = CutsceneCurveData(

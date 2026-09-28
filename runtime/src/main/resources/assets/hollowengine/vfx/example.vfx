@@ -1,0 +1,283 @@
+{
+  "nodes": [
+    {
+      "type": "hollowengine:vfx/emitter",
+      "id": "flame",
+      "name": "Flame",
+      "transform": {
+        "position": [
+          0.0,
+          0.1,
+          0.0
+        ]
+      },
+      "children": [
+        {
+          "type": "hollowengine:vfx/plane",
+          "id": "flame-plane",
+          "material": {
+            "blend": "ADDITIVE"
+          },
+          "particle": {
+            "size": {
+              "x": {
+                "type": "curve",
+                "curve": {
+                  "keys": [
+                    {
+                      "value": 0.13
+                    },
+                    {
+                      "time": 0.25,
+                      "value": 0.22
+                    },
+                    {
+                      "time": 1.0
+                    }
+                  ]
+                }
+              },
+              "y": {
+                "type": "const",
+                "value": 1.0
+              },
+              "z": {
+                "type": "const",
+                "value": 1.0
+              }
+            },
+            "color": {
+              "type": "gradient",
+              "gradient": {
+                "stops": [
+                  {
+                    "color": {
+                      "g": 0.78,
+                      "b": 0.3
+                    }
+                  },
+                  {
+                    "position": 0.45,
+                    "color": {
+                      "g": 0.43,
+                      "b": 0.035,
+                      "a": 0.85
+                    }
+                  },
+                  {
+                    "position": 1.0,
+                    "color": {
+                      "r": 0.35,
+                      "g": 0.08,
+                      "b": 0.02,
+                      "a": 0.0
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "emission": {
+        "rate": {
+          "type": "const",
+          "value": 45.0
+        },
+        "duration": 0.0,
+        "maxParticles": 160
+      },
+      "shape": {
+        "kind": "CONE",
+        "radius": {
+          "type": "const",
+          "value": 0.08
+        },
+        "angle": {
+          "type": "const",
+          "value": 14.0
+        }
+      },
+      "spawn": {
+        "lifetime": {
+          "type": "range",
+          "from": 0.35,
+          "to": 0.75
+        },
+        "speed": {
+          "type": "range",
+          "from": 0.8,
+          "to": 1.6
+        }
+      },
+      "motion": {
+        "gravity": {
+          "type": "const",
+          "value": -1.2
+        },
+        "drag": {
+          "type": "const",
+          "value": 0.8
+        }
+      },
+      "modules": [
+        {
+          "type": "hollowengine:vfx/force",
+          "id": "updraft",
+          "kind": "VORTEX",
+          "strength": {
+            "type": "const",
+            "value": 1.5
+          },
+          "radius": {
+            "type": "const",
+            "value": 1.5
+          }
+        },
+        {
+          "type": "hollowengine:vfx/noise",
+          "strength": {
+            "type": "const",
+            "value": 0.7
+          },
+          "frequency": {
+            "type": "const",
+            "value": 1.5
+          },
+          "scrollSpeed": 0.8
+        }
+      ]
+    },
+    {
+      "type": "hollowengine:vfx/emitter",
+      "id": "smoke",
+      "name": "Smoke",
+      "transform": {
+        "position": [
+          0.0,
+          0.45,
+          0.0
+        ]
+      },
+      "children": [
+        {
+          "type": "hollowengine:vfx/plane",
+          "id": "smoke-plane",
+          "material": {
+            "lighting": "WORLD"
+          },
+          "particle": {
+            "size": {
+              "x": {
+                "type": "curve",
+                "curve": {
+                  "keys": [
+                    {
+                      "value": 0.18
+                    },
+                    {
+                      "time": 1.0,
+                      "value": 0.56
+                    }
+                  ]
+                }
+              },
+              "y": {
+                "type": "const",
+                "value": 1.0
+              },
+              "z": {
+                "type": "const",
+                "value": 1.0
+              }
+            },
+            "rotation": {
+              "z": {
+                "type": "expr",
+                "source": "p.random * 360 + p.age * 20"
+              }
+            },
+            "color": {
+              "type": "gradient",
+              "gradient": {
+                "stops": [
+                  {
+                    "color": {
+                      "r": 0.32,
+                      "g": 0.3,
+                      "b": 0.29,
+                      "a": 0.55
+                    }
+                  },
+                  {
+                    "position": 1.0,
+                    "color": {
+                      "r": 0.32,
+                      "g": 0.3,
+                      "b": 0.29,
+                      "a": 0.0
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "emission": {
+        "rate": {
+          "type": "const",
+          "value": 7.0
+        },
+        "duration": 0.0,
+        "maxParticles": 48
+      },
+      "shape": {
+        "kind": "SPHERE",
+        "radius": {
+          "type": "const",
+          "value": 0.06
+        }
+      },
+      "spawn": {
+        "lifetime": {
+          "type": "range",
+          "from": 1.2,
+          "to": 2.2
+        },
+        "speed": {
+          "type": "range",
+          "from": 0.2,
+          "to": 0.5
+        }
+      },
+      "motion": {
+        "gravity": {
+          "type": "const",
+          "value": -0.4
+        },
+        "drag": {
+          "type": "const",
+          "value": 0.4
+        }
+      },
+      "modules": [
+        {
+          "type": "hollowengine:vfx/noise",
+          "strength": {
+            "type": "const",
+            "value": 0.35
+          },
+          "frequency": {
+            "type": "const",
+            "value": 0.6
+          },
+          "scrollSpeed": 0.3
+        }
+      ]
+    }
+  ],
+  "timeline": {
+    "duration": 4.0
+  }
+}

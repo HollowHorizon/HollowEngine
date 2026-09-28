@@ -9,6 +9,37 @@ import ru.hollowhorizon.hollowengine.client.ui.hasEffectiveStates
 data class HssDocument(
     val rules: List<HssRule>,
     val keyframes: List<HssKeyframes> = emptyList(),
+    val imports: List<HssImport> = emptyList(),
+    val variables: List<HssVariable> = emptyList(),
+    val sets: List<HssDeclarationSet> = emptyList(),
+)
+
+/**
+ * `$name { declarations }` at the top of a stylesheet: declarations a rule takes in with
+ * `@apply $name;`, the way several rules share one look (a scrollbar, a popup frame).
+ */
+data class HssDeclarationSet(
+    val name: String,
+    val declarations: List<HssDeclaration>,
+    val nameStart: Int = -1,
+)
+
+/** `@import "namespace:path.hss";`: the variables and rules of another stylesheet, taken in first. */
+data class HssImport(
+    val location: String,
+    val start: Int = -1,
+    val end: Int = -1,
+)
+
+/**
+ * `$name: value;` at the top of a stylesheet. Any value, a variable's included, may name it as
+ * `$name`, and the name is replaced by the value before the declaration is compiled.
+ */
+data class HssVariable(
+    val name: String,
+    val value: String,
+    val nameStart: Int = -1,
+    val valueStart: Int = -1,
 )
 
 data class HssRule(
@@ -33,6 +64,12 @@ data class HssDeclaration(
 
     private fun rangeAt(start: Int, length: Int): IntRange? =
         if (start < 0) null else start until (start + length).coerceAtLeast(start + 1)
+
+    val isApply: Boolean get() = property == APPLY
+
+    companion object {
+        const val APPLY = "@apply"
+    }
 }
 
 data class HssKeyframes(

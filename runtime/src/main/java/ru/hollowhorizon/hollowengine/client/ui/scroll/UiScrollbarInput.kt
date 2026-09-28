@@ -12,6 +12,7 @@ import ru.hollowhorizon.hollowengine.client.ui.scrollHandle
  */
 internal data class UiScrollbarDragState(
     val node: UiNode,
+    val scrollbar: ScrollbarNode,
     val handle: UiScrollHandle,
     val orientation: ScrollbarOrientation,
     val track: UiRect,
@@ -55,7 +56,7 @@ internal fun scrollbarThumbDragState(
     }
 }
 
-/** Pressing the track centres the thumb on the pointer, then tracks it like a thumb drag would. */
+/** Pressing the track centers the thumb on the pointer, then tracks it like a thumb drag would. */
 internal fun scrollbarTrackDragState(
     layouts: Map<UiNode, UiLayoutNode>,
     scrollbar: ScrollbarNode,
@@ -86,6 +87,7 @@ private inline fun scrollbarDragState(
     val local = inverse.transform(mouseX, mouseY, 0f)
     return UiScrollbarDragState(
         node = container,
+        scrollbar = scrollbar,
         handle = handle,
         orientation = scrollbar.orientation,
         track = trackRel,

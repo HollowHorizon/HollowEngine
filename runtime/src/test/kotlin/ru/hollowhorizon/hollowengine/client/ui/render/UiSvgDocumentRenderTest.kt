@@ -125,7 +125,7 @@ class UiSvgDocumentRenderTest {
         val shadow = assertIs<UiSvgFilterEffect.DropShadow>(effects.first { it is UiSvgFilterEffect.DropShadow })
         assertEquals(1.6f, shadow.offsetX)
         assertEquals(1.6f, shadow.offsetY)
-        assertTrue(shadow.color.red > 0.9f && shadow.color.blue < 0.3f, "shadow lost its colour: ${shadow.color}")
+        assertTrue(shadow.color.red > 0.9f && shadow.color.blue < 0.3f, "shadow lost its color: ${shadow.color}")
 
         assertEquals(1, effects.count { it is UiSvgFilterEffect.GaussianBlur })
     }

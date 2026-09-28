@@ -367,7 +367,7 @@ private fun addJoin(
     }
 }
 
-/** Round/square/butt cap centred on [end], the outer terminal of a segment coming from [inner]. */
+/** Round/square/butt cap centered on [end], the outer terminal of a segment coming from [inner]. */
 private fun addCap(
     inner: UiPathPoint,
     end: UiPathPoint,

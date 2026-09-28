@@ -26,7 +26,7 @@ Runtime diagnostics and lifecycle controls are available to operators:
 /he addons reload <addon-id>
 ```
 
-Disabled ids are persisted in `hollowengine/addons/.disabled-addons`. The `debug-command` example has no bootstrap libraries and can therefore be copied and loaded while Minecraft is running. It directly handles `RegisterCommandsEvent` and adds `/he addon-text <text>`.
+Disabled ids are persisted in `hollowengine/addons/.disabled-addons`. An addon without bootstrap libraries can be copied and loaded while Minecraft is running.
 
 Command addons use Brigadier directly from `@SubscribeEvent`. `RegisterCommandsEvent` fires on every datapack load, and enabling, disabling or reloading an addon reloads the datapacks of every running server, so the command tree is rebuilt with the addon's commands added or gone. The video addon demonstrates the same mechanism with `/he video <local-path-or-url>`.
 
@@ -63,6 +63,10 @@ icon=assets/my-addon/icon.png
 
 `entry` may be left out by an addon made only of scripts and resources. `description`, `authors`, `license` and `icon` go into the `fabric.mod.json` and `neoforge.mods.toml` the build generates, which is what mod lists show.
 
+## Addons inside a mod
+
+An integration between a mod and the engine can live in that mod's own jar instead of a separate one. It is declared in `META-INF/hollowengine/mod-addon.properties` with a `hostModId`, compiled against the development jar (`./gradlew developmentJar`), and loaded from the mod's own jar. The package of its entrypoint is defined next to the engine, because the mod loader cannot see the engine's classes; everything else, the mod's own classes included, still comes from the mod loader, so the addon may call into the mod but the mod must not reference the addon. It follows the mod's lifecycle: it cannot be disabled or reloaded at runtime and has no bundled libraries. [`template`](template/README.md) is a ready-made starting point.
+
 ## Assets and data
 
 An addon carries `assets/` and `data/` in `src/main/resources` exactly like a mod, and the build adds the `pack.mcmeta` both loaders need. From `mods` the loader serves them. From `hollowengine/addons` the engine does, below the `hollowengine` folder's own resources, so the project can still override anything an addon ships. Enabling, disabling or reloading such an addon reloads the datapacks and, when it has assets, the client's resources.
@@ -86,7 +90,7 @@ class MyAddon : HollowAddonEntrypoint {
 
 ## Scripts
 
-An addon can ship `.kts` scripts of its own in `src/main/resources/scripts`. The build compiles them with the same compiler the game uses and packs both the sources and the compiled artifacts into the addon jar; the remap table covers the compiled scripts too, so they run in a modpack that never installs the compiler addon. A compilation error fails the build. `debug-command` carries one as an example.
+An addon can ship `.kts` scripts of its own in `src/main/resources/scripts`. The build compiles them with the same compiler the game uses and packs both the sources and the compiled artifacts into the addon jar; the remap table covers the compiled scripts too, so they run in a modpack that never installs the compiler addon. A compilation error fails the build.
 
 Scripts belong to the namespace named by the addon's `id`, and are addressed with it everywhere a script path is accepted:
 

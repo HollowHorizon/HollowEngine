@@ -190,23 +190,32 @@ data class UiScrollbarStyle(
     val margin: UiLength? = null,
     val minThumbSize: UiLength? = null,
     val overlay: Boolean? = null,
+    val atStart: Boolean? = null,
     val track: UiScrollbarPartStyle = UiScrollbarPartStyle(),
     val thumb: UiScrollbarPartStyle = UiScrollbarPartStyle(),
+    val thumbHover: UiScrollbarPartStyle = UiScrollbarPartStyle(),
+    val hoverThickness: UiLength? = null,
 ) {
     fun merge(other: UiScrollbarStyle): UiScrollbarStyle = UiScrollbarStyle(
         thickness = other.thickness ?: thickness,
         margin = other.margin ?: margin,
         minThumbSize = other.minThumbSize ?: minThumbSize,
         overlay = other.overlay ?: overlay,
+        atStart = other.atStart ?: atStart,
         track = track.merge(other.track),
         thumb = thumb.merge(other.thumb),
+        thumbHover = thumbHover.merge(other.thumbHover),
+        hoverThickness = other.hoverThickness ?: hoverThickness,
     )
 
-    fun resolved(reference: Float): ResolvedUiScrollbarStyle {
-        val resolvedThickness = (thickness ?: DefaultThickness).resolve(reference).coerceAtLeast(0f)
-        if (resolvedThickness <= 0f) return HiddenScrollbar
+    fun resolved(reference: Float, hover: Float = 0f): ResolvedUiScrollbarStyle {
+        val base = (thickness ?: DefaultThickness).resolve(reference).coerceAtLeast(0f)
+        if (base <= 0f) return HiddenScrollbar
+        val full = hoverThickness?.takeIf { hover > 0f && overlay == true }?.resolve(reference)?.coerceAtLeast(base)
+        val resolvedThickness = full?.let { base + (it - base) * hover.coerceIn(0f, 1f) } ?: base
         return ResolvedUiScrollbarStyle(
             overlay = overlay == true,
+            atStart = overlay == true && atStart == true,
             thickness = resolvedThickness,
             margin = (margin ?: DefaultMargin).resolve(reference).coerceAtLeast(0f),
             minThumbSize = (minThumbSize ?: DefaultMinThumbSize).resolve(reference).coerceAtLeast(1f),
@@ -222,6 +231,7 @@ data class UiScrollbarStyle(
 
         private val HiddenScrollbar = ResolvedUiScrollbarStyle(
             overlay = false,
+            atStart = false,
             thickness = 0f,
             margin = 0f,
             minThumbSize = 1f,
@@ -249,6 +259,7 @@ data class UiScrollbarPartStyle(
 
 data class ResolvedUiScrollbarStyle(
     val overlay: Boolean,
+    val atStart: Boolean,
     val thickness: Float,
     val margin: Float,
     val minThumbSize: Float,
