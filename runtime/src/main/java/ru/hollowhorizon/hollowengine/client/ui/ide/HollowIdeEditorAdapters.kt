@@ -6,6 +6,7 @@ import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.EditorLanguageService
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeLanguageService
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.PlainEditorLanguageService
+import ru.hollowhorizon.hollowengine.client.ui.ide.files.pathExtension
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
 import ru.hollowhorizon.hollowengine.client.utils.lang
@@ -562,8 +563,7 @@ internal fun shiftDiagnosticsForEditedText(
 }
 
 internal fun languageServiceForPath(path: String): EditorLanguageService {
-    ensureBuiltinIdeLanguagesRegistered()
-    val contributed = HollowIdeExtensionPoints.LANGUAGES.extensions().firstOrNull { extension ->
+    val contributed = HollowIdeExtensionPoints.LANGUAGES.registrations.firstOrNull { extension ->
         runCatching { extension.invoke { language -> language.matches(path) } }
             .onFailure { failure ->
                 HollowEngine.LOGGER.error("IDE language extension '{}' failed while matching '{}'", extension.qualifiedId, path, failure)
@@ -571,7 +571,7 @@ internal fun languageServiceForPath(path: String): EditorLanguageService {
             .getOrDefault(false)
     }
     if (contributed != null) return ExtensionEditorLanguageService(contributed)
-    return PlainEditorLanguageService
+    return runCatching { EditorLanguageService(pathExtension(path)) }.getOrNull() ?: PlainEditorLanguageService
 }
 
 private class ExtensionEditorLanguageService(

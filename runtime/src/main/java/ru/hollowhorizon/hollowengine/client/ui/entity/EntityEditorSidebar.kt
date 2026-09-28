@@ -86,7 +86,7 @@ private fun SidebarSearch(session: EntityEditorSession) {
             fontSize = 9f,
             onChange = { session.query = it },
             tags = listOf("insp-input", "flat"),
-            modifier = Modifier.grow(1f),
+            modifier = Modifier.size(0.px, UiLength.Fit).grow(1f),
         )
         if (session.query.isNotEmpty()) {
             InspectorIconButton(EntityEditorIcons.CLOSE, EntityEditorLang.search) { session.query = "" }

@@ -2,7 +2,6 @@ package ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui
 
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.AnimLayer
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.AnimProperty
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ChannelCurve
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.Keyframe
@@ -22,17 +21,17 @@ import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.round
 
-internal const val TimelineRulerHeight = 28f
-internal const val TimelineGroupRowHeight = 22f
-internal const val TimelinePropertyRowHeight = 24f
-internal const val TimelineLayerRowHeight = 22f
-internal const val TimelineChannelRowHeight = 20f
-internal const val TimelineLeftPadding = 58f
-internal const val CurveValueGutter = 46f
+internal const val TimelineRulerHeight = 18f
+
+internal const val TimelineGroupRowHeight = 17f
+internal const val TimelinePropertyRowHeight = 16f
+internal const val TimelineChannelRowHeight = 14f
+internal const val TimelineLeftPadding = 40f
+internal const val CurveValueGutter = 40f
 internal const val TimelineMinContentWidth = 600f
 internal const val TimelineMaxZoom = 500f
 internal const val TimelineMinZoom = 10f
-internal const val TimelineMinHeaderWidth = 150f
+internal const val TimelineMinHeaderWidth = 120f
 internal const val TimelineMaxHeaderWidth = 480f
 private const val TimelineAutoPanEdge = 48f
 internal const val TimelineScrollbarClearance = 12f
@@ -58,7 +57,6 @@ internal val PlayheadHeadShape: Shape = GenericShape { size ->
 internal enum class TimelineRowKind {
     GROUP,
     PROPERTY,
-    LAYER,
     CHANNEL,
 }
 
@@ -71,7 +69,6 @@ internal data class TimelineRow(
     val kind: TimelineRowKind,
     val group: TrackGroup? = null,
     val property: AnimProperty<*>? = null,
-    val layer: AnimLayer? = null,
     val curve: ChannelCurve? = null,
     val locked: Boolean = false,
     val visible: Boolean = true,
@@ -80,9 +77,8 @@ internal data class TimelineRow(
     val curves: List<ChannelCurve>
         get() = when {
             curve != null -> listOf(curve)
-            layer != null -> layer.channels
-            property != null -> property.layers.flatMap { it.channels }
-            group != null -> group.allProperties().flatMap { owner -> owner.layers.flatMap { it.channels } }
+            property != null -> property.curves
+            group != null -> group.allProperties().flatMap { it.curves }
             else -> emptyList()
         }
 }
@@ -92,6 +88,7 @@ internal fun timelineRows(controller: TimelineController, curveEditorOnly: Boole
     var y = TimelineRulerHeight
 
     fun appendGroup(group: TrackGroup, depth: Int, parentLocked: Boolean, parentVisible: Boolean) {
+        if (!group.hasListedContent) return
         if (curveEditorOnly && group.allProperties().none { property ->
                 property.channels.any { it.supportsCurveEditor }
             }) return
@@ -113,7 +110,12 @@ internal fun timelineRows(controller: TimelineController, curveEditorOnly: Boole
 
         group.children.forEach { appendGroup(it, depth + 1, locked, visible) }
         group.properties.forEach { property ->
+            if (!property.isListed) return@forEach
             if (curveEditorOnly && property.channels.none { it.supportsCurveEditor }) return@forEach
+            val propertyVisible = visible && property.isVisible
+            val propertyLocked = locked || property.isLocked
+
+            val singleCurve = property.curves.singleOrNull()
             rows += TimelineRow(
                 id = "timeline-property-${System.identityHashCode(property)}",
                 label = property.nameState,
@@ -122,46 +124,31 @@ internal fun timelineRows(controller: TimelineController, curveEditorOnly: Boole
                 height = TimelinePropertyRowHeight,
                 kind = TimelineRowKind.PROPERTY,
                 property = property,
-                locked = locked,
-                visible = visible && property.layers.any { it.isVisible },
+                curve = singleCurve,
+                locked = propertyLocked,
+                visible = propertyVisible && (singleCurve?.isVisible ?: true),
+                color = singleCurve?.color,
             )
             y += TimelinePropertyRowHeight
             if (!property.isExpanded) return@forEach
 
-            property.layers.forEach { layer ->
-                val layerVisible = visible && layer.isVisible
+            if (property.curves.size <= 1) return@forEach
+
+            property.curves.filter { !curveEditorOnly || it.spec.supportsCurveEditor }.forEach { curve ->
                 rows += TimelineRow(
-                    id = "timeline-layer-${System.identityHashCode(layer)}",
-                    label = layer.nameState,
+                    id = "timeline-channel-${System.identityHashCode(curve)}",
+                    label = curve.name,
                     depth = depth + 2,
                     y = y,
-                    height = TimelineLayerRowHeight,
-                    kind = TimelineRowKind.LAYER,
+                    height = TimelineChannelRowHeight,
+                    kind = TimelineRowKind.CHANNEL,
                     property = property,
-                    layer = layer,
-                    locked = locked || layer.isLocked,
-                    visible = layerVisible,
+                    curve = curve,
+                    locked = propertyLocked,
+                    visible = propertyVisible && curve.isVisible,
+                    color = curve.color,
                 )
-                y += TimelineLayerRowHeight
-                if (!layer.isExpanded) return@forEach
-
-                layer.channels.filter { !curveEditorOnly || it.spec.supportsCurveEditor }.forEach { curve ->
-                    rows += TimelineRow(
-                        id = "timeline-channel-${System.identityHashCode(curve)}",
-                        label = curve.name,
-                        depth = depth + 3,
-                        y = y,
-                        height = TimelineChannelRowHeight,
-                        kind = TimelineRowKind.CHANNEL,
-                        property = property,
-                        layer = layer,
-                        curve = curve,
-                        locked = locked || layer.isLocked,
-                        visible = layerVisible && curve.isVisible,
-                        color = curve.color,
-                    )
-                    y += TimelineChannelRowHeight
-                }
+                y += TimelineChannelRowHeight
             }
         }
     }
@@ -267,18 +254,22 @@ internal fun Color.toUiColor(alphaMultiplier: Float = 1f): UiColor {
 internal fun UiColor.withAlpha(multiplier: Float) =
     UiColor(red, green, blue, (alpha * multiplier).coerceIn(0f, 1f))
 
+/**
+ * What the lanes, keys and curves are drawn with: the IDE palette of docking.hss, so the timeline
+ * reads as part of the IDE. The chrome around them takes the same colors from timeline.hss.
+ */
 internal object TimelineColors {
-    val Background = UiColor(0.07f, 0.08f, 0.1f, 1f)
-    val Panel = UiColor(0.1f, 0.11f, 0.14f, 1f)
-    val PanelAlt = UiColor(0.13f, 0.14f, 0.17f, 1f)
-    val Row = UiColor(0.11f, 0.12f, 0.14f, 1f)
-    val Group = UiColor(0.14f, 0.15f, 0.18f, 1f)
-    val Muted = UiColor(0.58f, 0.62f, 0.7f, 1f)
-    val Text = UiColor(0.88f, 0.9f, 0.94f, 1f)
-    val Accent = UiColor(1f, 0.54f, 0.18f, 1f)
-    val Blue = UiColor(0.34f, 0.58f, 0.88f, 1f)
-    val Border = UiColor(0.24f, 0.26f, 0.3f, 1f)
+    val Background = UiColor(0.110f, 0.118f, 0.133f, 1f)
+    val Panel = UiColor(0.110f, 0.118f, 0.133f, 1f)
+    val PanelAlt = UiColor(0.169f, 0.180f, 0.208f, 1f)
+    val Row = UiColor(0.118f, 0.125f, 0.141f, 1f)
+    val Group = UiColor(0.129f, 0.137f, 0.157f, 1f)
+    val Muted = UiColor(0.561f, 0.608f, 0.678f, 1f)
+    val Text = UiColor(0.769f, 0.796f, 0.855f, 1f)
+    val Accent = UiColor(0.431f, 0.608f, 0.863f, 1f)
+    val Blue = UiColor(0.682f, 0.722f, 0.792f, 1f)
+    val Border = UiColor(0.149f, 0.157f, 0.180f, 1f)
     val Danger = UiColor(0.76f, 0.23f, 0.23f, 1f)
-    val Grid = UiColor(0.18f, 0.19f, 0.23f, 1f)
+    val Grid = UiColor(0.176f, 0.188f, 0.216f, 1f)
     val Handle = UiColor(0.72f, 0.74f, 0.8f, 1f)
 }

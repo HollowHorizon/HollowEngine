@@ -1,48 +1,48 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide.files.animator
 
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
-import org.lwjgl.glfw.GLFW
-import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.Column
+import ru.hollowhorizon.hollowengine.client.ui.Modifier
+import ru.hollowhorizon.hollowengine.client.ui.Text
+import ru.hollowhorizon.hollowengine.client.ui.focusScope
+import ru.hollowhorizon.hollowengine.client.ui.gap
+import ru.hollowhorizon.hollowengine.client.ui.graph.GraphViewState
 import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOpenFile
+import ru.hollowhorizon.hollowengine.client.ui.ide.PublishScene
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeAnimatorDocument
 import ru.hollowhorizon.hollowengine.client.ui.inspector.PublishInspector
-import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
-import ru.hollowhorizon.hollowengine.client.ui.style.UiTextOverflow
-import ru.hollowhorizon.hollowengine.client.ui.widgets.ContextMenu
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
-import ru.hollowhorizon.hollowengine.common.models.*
-import kotlin.time.Duration.Companion.milliseconds
+import ru.hollowhorizon.hollowengine.client.ui.padding
+import ru.hollowhorizon.hollowengine.client.ui.percent
+import ru.hollowhorizon.hollowengine.client.ui.px
+import ru.hollowhorizon.hollowengine.client.ui.size
+import ru.hollowhorizon.hollowengine.client.ui.style
+import ru.hollowhorizon.hollowengine.common.models.Animator
+import ru.hollowhorizon.hollowengine.common.models.controller
 
 private const val AutoSaveDelayMillis = 900L
-private const val LayerListWidth = 190f
-
-private const val MinPanelWidth = 150f
-private const val MaxPanelWidth = 420f
 
 /**
  * The editor for a `.animator` file.
  *
- * The stack of layers on the left, and what the selected layer is: a graph for a controller, nothing but
- * parameters for a clip. A layer with no states has no graph to show, so it does not get an empty one.
+ * The stack of layers lives in the scene window, with the states of each controller under it; the
+ * editor itself is the graph of the layer being worked on. A clip layer has no states, so it has no
+ * graph, and the inspector is all there is to it.
  */
 @Composable
 internal fun HollowIdeAnimatorEditor(file: HollowIdeOpenFile) {
     val document = file.document as HollowIdeAnimatorDocument
-    val view = remember(document) { AnimatorCanvasState() }
+    val view = remember(document) { document.editorState { GraphViewState() } }
     var selection by remember(document) { mutableStateOf<AnimatorSelection>(AnimatorSelection.None) }
     var openLayer by remember(document) { mutableStateOf(document.animator.layers.firstOrNull()?.id) }
-    var layersFolded by remember(document) { mutableStateOf(false) }
-
-    var layersSize by remember(document) { mutableStateOf(LayerListWidth) }
-    val layersWidth = remember(document) { SpringFloat(LayerListWidth) }
-    layersWidth.target = if (layersFolded) 0f else layersSize
-
-    LaunchedEffect(document) {
-        while (true) {
-            withFrameNanos { frame -> layersWidth.advance(frame) }
-        }
-    }
+    val expanded = remember(document) { mutableStateListOf<String>().apply { addAll(document.animator.layers.map { it.id }) } }
 
     LaunchedEffect(document.revision) {
         file.updateDirty(document.isModified)
@@ -53,11 +53,15 @@ internal fun HollowIdeAnimatorEditor(file: HollowIdeOpenFile) {
 
     val layers = document.animator.layers
     val current = openLayer?.takeIf { id -> layers.any { it.id == id } } ?: layers.firstOrNull()?.id
-    val graphed = current?.let { document.animator.controller(it) } != null
 
     fun retarget(next: AnimatorSelection) {
         selection = next
-        (next as? AnimatorSelection.Layer)?.let { openLayer = it.layerId }
+        when (next) {
+            is AnimatorSelection.Layer -> openLayer = next.layerId
+            is AnimatorSelection.State -> openLayer = next.layerId
+            is AnimatorSelection.Transition -> openLayer = next.layerId
+            AnimatorSelection.None -> Unit
+        }
     }
 
     val shown = if (selection != AnimatorSelection.None) selection
@@ -65,194 +69,35 @@ internal fun HollowIdeAnimatorEditor(file: HollowIdeOpenFile) {
     PublishInspector(source = "animator-${file.path}", key = shown) {
         animatorInspectorTarget(document, shown, ::retarget)
     }
-
-    val foldButton: @Composable () -> Unit = {
-        AnimatorIconButton(
-            icon = if (layersFolded) MaximizeIcon else MinimizeIcon,
-            tooltip = if (layersFolded) animatorText("show_layers") else animatorText("hide_layers"),
-            size = 11f,
-        ) { layersFolded = !layersFolded }
+    PublishScene(source = "animator-${file.path}", key = SceneKey(document.revision, shown, expanded.toList())) {
+        animatorSceneTarget(document, shown, expanded, { layerId -> if (!expanded.remove(layerId)) expanded += layerId }, ::retarget)
     }
 
-    Row(
-        modifier = Modifier.size(100.percent, 100.percent)
-            .style(AnimatorStylesheet)
-            .background(AnimatorColors.Canvas)
-            .focusScope(),
+    val controller = current?.let { document.animator.controller(it) }
+    Column(
+        modifier = Modifier.size(100.percent, 100.percent).style(AnimatorStylesheet).focusScope(),
     ) {
-        Box(mode = UiBoxMode.STACK, modifier = Modifier.size(layersWidth.value.px, 100.percent).clip(true)) {
-            LayerList(
-                document = document,
-                openLayer = current,
-                selection = selection,
-                onOpen = { id ->
-                    openLayer = id
-                    selection = AnimatorSelection.Layer(id)
-                },
-                modifier = Modifier.size(layersSize.px, 100.percent),
-            )
-        }
-
-        if (!layersFolded) {
-            Splitter(layersSize) { next ->
-                layersSize = next.coerceIn(MinPanelWidth, MaxPanelWidth)
-                layersWidth.snapTo(layersSize)
-            }
-        }
-
-        if (graphed) {
+        if (current != null && controller != null) {
             AnimatorGraphCanvas(
                 document = document,
                 layerId = current,
+                controller = controller,
                 selection = selection,
                 view = view,
-                chrome = CanvasChrome(layersFolded = layersFolded, foldLayers = foldButton),
                 onSelect = ::retarget,
-                modifier = Modifier.size(0.px, 100.percent).grow(1f),
+                modifier = Modifier.size(100.percent, 100.percent),
             )
         } else {
-            Column(modifier = Modifier.size(0.px, 100.percent).grow(1f).padding(10.px).gap(6.px)) {
-                Row(modifier = Modifier.size(100.percent).gap(6.px).alignItems(vertical = UiAlign.CENTER)) {
-                    foldButton()
-                    Text(
-                        current ?: animatorText("no_layers"),
-                        modifier = Modifier.fontSize(11f).foreground(AnimatorColors.Text),
-                    )
-                }
-                Text(
-                    animatorText("no_graph"),
-                    modifier = Modifier.fontSize(9f).foreground(AnimatorColors.Muted),
-                )
+            Column(tags = listOf("animator-empty"), modifier = Modifier.padding(10.px).gap(6.px)) {
+                Text(current ?: animatorText("no_layers"), tags = listOf("animator-empty-title"))
+                Text(animatorText(if (current == null) "no_layers_hint" else "no_graph"), tags = listOf("animator-empty-hint"))
             }
         }
     }
 }
 
-/**
- * Drag to give a panel more or less room.
- */
-@Composable
-private fun Splitter(width: Float, onResize: (Float) -> Unit) {
-    val start = remember { floatArrayOf(width) }
-    Box(
-        tags = listOf("animator-splitter"),
-        modifier = Modifier
-            .input(hoverable = true, draggable = true)
-            .onPress { start[0] = width }
-            .onDrag { event ->
-                onResize(start[0] + event.dragTotalX)
-                event.consume()
-            },
-    )
-}
-
-@Composable
-private fun LayerList(
-    document: HollowIdeAnimatorDocument,
-    openLayer: String?,
-    selection: AnimatorSelection,
-    onOpen: (String) -> Unit,
-    modifier: Modifier,
-) {
-    var addButton by remember { mutableStateOf(UiRect.Zero) }
-    var addMenuOpen by remember { mutableStateOf(false) }
-
-    Column(
-        modifier = modifier
-            .background(AnimatorColors.Panel)
-            .border(1.px, AnimatorColors.Border)
-            .padding(8.px)
-            .gap(4.px),
-    ) {
-        Text(animatorText("layers"), modifier = Modifier.fontSize(11f).foreground(AnimatorColors.Muted))
-
-        Column(modifier = Modifier.size(100.percent, 0.px).grow(1f).gap(3.px).scrollable(horizontal = false)) {
-            document.animator.layers.forEach { layer ->
-                LayerRow(
-                    layer = layer,
-                    open = layer.id == openLayer,
-                    selected = selection == AnimatorSelection.Layer(layer.id),
-                    onOpen = { onOpen(layer.id) },
-                    onDelete = { document.edit { it.withoutLayer(layer.id) } },
-                )
-            }
-
-            AnimatorButton(
-                animatorText("add_layer"),
-                modifier = Modifier.size(100.percent, 24.px).onPlaced { addButton = it },
-            ) {
-                addMenuOpen = true
-            }
-        }
-    }
-
-    if (addMenuOpen) {
-        ContextMenu(
-            id = "animator-add-layer",
-            anchorBounds = addButton,
-            items = AnimatorLayerTypes.all.mapNotNull { type ->
-                val createDefault = type.createDefault ?: return@mapNotNull null
-                UiDropdownItem(type.title()) {
-                    val id = freeLayerId(document.animator, type.id.substringAfterLast('/'))
-                    document.edit { it.withLayer(createDefault().withCommon(id = id)) }
-                    onOpen(id)
-                }
-            },
-            onExpandedChange = { if (!it) addMenuOpen = false },
-        )
-    }
-}
-
-@Composable
-private fun LayerRow(
-    layer: AnimatorLayerSpec,
-    open: Boolean,
-    selected: Boolean,
-    onOpen: () -> Unit,
-    onDelete: () -> Unit,
-) {
-    Row(
-        tags = listOf("animator-layer-row") +
-                (if (open) listOf("open") else emptyList()) +
-                (if (selected) listOf("selected") else emptyList()),
-        modifier = Modifier
-            .input(hoverable = true, clickable = true)
-            .onPress { event ->
-                if (event.button == GLFW.GLFW_MOUSE_BUTTON_LEFT) onOpen()
-                event.consume()
-            },
-    ) {
-        Column(modifier = Modifier.size(0.px, 100.percent).grow(1f).clip(true)) {
-            Text(
-                layer.id,
-                modifier = Modifier.size(100.percent).fontSize(9f).foreground(AnimatorColors.Text)
-                    .textWrap(false).textOverflow(UiTextOverflow.DOTS),
-            )
-            Text(
-                "${layer.kindName()} · ${layer.priority}",
-                modifier = Modifier.size(100.percent).fontSize(8f).foreground(AnimatorColors.Muted)
-                    .textWrap(false).textOverflow(UiTextOverflow.DOTS),
-            )
-        }
-        DeleteHandle(onDelete)
-    }
-}
-
-@Composable
-private fun DeleteHandle(onDelete: () -> Unit) {
-    Box(
-        mode = UiBoxMode.STACK,
-        tags = listOf("animator-delete"),
-        modifier = Modifier
-            .input(hoverable = true, clickable = true)
-            .onPress { event ->
-                if (event.button == GLFW.GLFW_MOUSE_BUTTON_LEFT) onDelete()
-                event.consume()
-            },
-    ) {
-        Text("×", tags = listOf("animator-delete-label"))
-    }
-}
+/** What the scene tree is built from; a new one of these rebuilds it. */
+private data class SceneKey(val revision: Int, val selection: AnimatorSelection, val expanded: List<String>)
 
 internal fun freeLayerId(animator: Animator, prefix: String): String {
     val taken = animator.layers.map { it.id }.toSet()

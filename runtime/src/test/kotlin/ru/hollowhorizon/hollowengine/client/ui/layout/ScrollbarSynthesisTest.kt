@@ -161,7 +161,7 @@ class ScrollbarSynthesisTest {
     }
 
     @Test
-    fun `a horizontal scrollbar keeps the container height and re-centres content in what is left`() {
+    fun `a horizontal scrollbar keeps the container height and re-centers content in what is left`() {
         fun horizontalLayout(childWidth: Float): Triple<UiLayoutResult, BoxNode, BoxNode> {
             val child = BoxNode(
                 id = "content",
@@ -188,7 +188,7 @@ class ScrollbarSynthesisTest {
             viewport.content.y + (viewport.content.height - child.rect.height) / 2f,
             child.rect.y,
             0.01f,
-            "centred content re-centres inside what the bar left over",
+            "centered content re-centers inside what the bar left over",
         )
         assertTrue(overflowLayout.scrollbars[overflowViewport].orEmpty().isNotEmpty())
     }

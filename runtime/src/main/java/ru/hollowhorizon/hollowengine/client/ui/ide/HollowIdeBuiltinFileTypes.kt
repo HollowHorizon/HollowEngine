@@ -3,19 +3,37 @@ package ru.hollowhorizon.hollowengine.client.ui.ide
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeAnimatorDocument
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeImageDocument
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeRigDocument
-import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeSoundsDocument
-
-internal const val SoundsFileName = "sounds.json"
+import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeShaderGraphDocument
+import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeVfxDocument
 
 internal fun HollowIdeFileTypeRegistry.registerBuiltinFileTypes(
     modelEditor: HollowIdeFileEditor,
     imageEditor: HollowIdeFileEditor,
     videoEditor: HollowIdeFileEditor,
-    soundsEditor: HollowIdeFileEditor,
     animatorEditor: HollowIdeFileEditor,
     rigEditor: HollowIdeFileEditor,
+    vfxEditor: HollowIdeFileEditor,
+    shaderGraphEditor: HollowIdeFileEditor,
     textEditor: HollowIdeFileEditor,
 ) {
+    register(
+        HollowIdeFileType.extensions(
+            id = "material",
+            extensions = listOf(".material"),
+            priority = 285,
+            loader = { _, bytes -> HollowIdeShaderGraphDocument(bytes) },
+            editor = shaderGraphEditor,
+        ),
+    )
+    register(
+        HollowIdeFileType.extensions(
+            id = "vfx",
+            extensions = listOf(".vfx"),
+            priority = 280,
+            loader = { _, bytes -> HollowIdeVfxDocument(bytes) },
+            editor = vfxEditor,
+        ),
+    )
     register(
         HollowIdeFileType.extensions(
             id = "rig",
@@ -32,16 +50,6 @@ internal fun HollowIdeFileTypeRegistry.registerBuiltinFileTypes(
             priority = 260,
             loader = { _, bytes -> HollowIdeAnimatorDocument(bytes) },
             editor = animatorEditor,
-        ),
-    )
-    register(
-        HollowIdeFileType(
-            id = "sounds",
-            priority = 250,
-            matcher = { path, _ -> path.isSoundsFile() },
-            pathMatcher = { path -> path.isSoundsFile() },
-            loader = { _, bytes -> HollowIdeSoundsDocument(bytes) },
-            editor = soundsEditor,
         ),
     )
     register(
@@ -82,6 +90,3 @@ internal fun HollowIdeFileTypeRegistry.registerBuiltinFileTypes(
         ),
     )
 }
-
-private fun String.isSoundsFile(): Boolean =
-    substringAfterLast('/').equals(SoundsFileName, ignoreCase = true)

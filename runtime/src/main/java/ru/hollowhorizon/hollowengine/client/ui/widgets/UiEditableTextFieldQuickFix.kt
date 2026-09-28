@@ -162,8 +162,9 @@ internal fun EditableFieldQuickFixPopup(
     val y = (caret.y - scrollState.offsetY + fontSize + QuickFixAnchorGap)
         .coerceAtMost((viewport.height - QuickFixViewportMargin).coerceAtLeast(0f))
 
+    val at = scrollState.toScreen(x, y)
     Popup(
-        anchorBounds = UiRect(viewport.x + x, viewport.y + y, 0f, 0f),
+        anchorBounds = UiRect(at.x, at.y, 0f, 0f),
         alignment = UiPopupAlignment(anchorVertical = UiAlign.START),
         id = "editable-text-field-quick-fix",
         tags = listOf("editable-text-field-quick-fix-popup", "ide-quick-fix-popup"),

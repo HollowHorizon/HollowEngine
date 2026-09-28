@@ -116,6 +116,8 @@ private class WordPiece(
     val sourceStart: Int = 0,
     /** Resolved font family the word was measured with (needed to re-measure when splitting). */
     val fontFamily: String? = null,
+    /** The size it was measured at; [height] is the font's line, which is taller. */
+    val fontSize: Float = height,
 ) : Piece()
 
 private class SpacePiece(
@@ -192,7 +194,7 @@ internal fun UiLayoutPipeline.computeInlineFlow(
     )
     val lines = breakIntoLines(pieces, availableWidth, wrap)
     // Alignment still uses the container width even with wrap off, so a single line can sit
-    // centred/right/justified when the container is wider than the text (a fit container just
+    // centered/right/justified when the container is wider than the text (a fit container just
     // hugs the text, making alignment a natural no-op).
     positionLines(lines, availableWidth, align, lineSpacing)
 
@@ -297,6 +299,7 @@ private fun tokenizeSpanWords(span: SpanNode, style: UiComputedStyle, group: Gro
     val effects = style.textEffects
     val inlineStyle = UiInlineStyle(effects = effects)
     val spaceWidth = style.spaceWidth ?: UiTextLayouter.measureStyledTextWidth(" ", fontSize, fontFamily, inlineStyle)
+    val height = UiTextFonts.resolve(fontFamily).lineHeight(fontSize)
     val preserve = style.whitespace == UiWhitespace.PRESERVE
     val text = span.text
     var wordStart = -1
@@ -304,7 +307,10 @@ private fun tokenizeSpanWords(span: SpanNode, style: UiComputedStyle, group: Gro
         if (wordStart < 0) return
         val wordText = text.substring(wordStart, end)
         val width = UiTextLayouter.measureStyledTextWidth(wordText, fontSize, fontFamily, inlineStyle)
-        out += WordPiece(wordText, inlineStyle, width, fontSize, group, sourceStart = wordStart, fontFamily = fontFamily)
+        out += WordPiece(
+            wordText, inlineStyle, width, height, group,
+            sourceStart = wordStart, fontFamily = fontFamily, fontSize = fontSize,
+        )
         wordStart = -1
     }
     for (index in text.indices) {
@@ -318,9 +324,9 @@ private fun tokenizeSpanWords(span: SpanNode, style: UiComputedStyle, group: Gro
             ch.isInlineWhitespace() -> {
                 flush(index)
                 if (preserve) {
-                    out += SpacePiece(spaceWidth, fontSize, group, preserve = true, sourceStart = index)
+                    out += SpacePiece(spaceWidth, height, group, preserve = true, sourceStart = index)
                 } else if (out.lastOrNull() !is SpacePiece) {
-                    out += SpacePiece(spaceWidth, fontSize, group, sourceStart = index)
+                    out += SpacePiece(spaceWidth, height, group, sourceStart = index)
                 }
             }
 
@@ -447,14 +453,16 @@ private fun breakIntoLines(pieces: List<Piece>, wrapWidth: Float, wrap: Boolean)
 
 /** Splits a word wider than [width] into glyph-boundary chunks, keeping source offsets intact. */
 private fun splitOversizedWordPiece(word: WordPiece, width: Float): List<WordPiece> {
-    fun measure(text: String) = UiTextLayouter.measureStyledTextWidth(text, word.height, word.fontFamily, word.style)
+    fun measure(text: String) = UiTextLayouter.measureStyledTextWidth(text, word.fontSize, word.fontFamily, word.style)
     val chunks = mutableListOf<WordPiece>()
     val buffer = StringBuilder()
     var chunkStart = word.sourceStart
     fun flush() {
         if (buffer.isEmpty()) return
         val text = buffer.toString()
-        chunks += WordPiece(text, word.style, measure(text), word.height, word.group, chunkStart, word.fontFamily)
+        chunks += WordPiece(
+            text, word.style, measure(text), word.height, word.group, chunkStart, word.fontFamily, word.fontSize,
+        )
         chunkStart += text.length
         buffer.setLength(0)
     }

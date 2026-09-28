@@ -1,13 +1,18 @@
 {
   "add": "Add",
+  "asset_missing": "No such file in the loaded packs: %s",
+  "asset_use": "Use %s",
   "bone.clear": "Leave it unset",
   "bone.no_matches": "No bone by that name.",
   "bone.none": "not set",
   "bone.search": "Find a bone",
+  "close": "Close",
   "empty_list": "Empty",
   "not_set": "Not set",
+  "nothing_found": "Nothing found",
   "nothing_selected": "Select something to see its parameters",
   "pick": "Pick from loaded assets",
   "remove": "Remove",
+  "search": "Search",
   "unsupported": "%s cannot be edited here"
 }

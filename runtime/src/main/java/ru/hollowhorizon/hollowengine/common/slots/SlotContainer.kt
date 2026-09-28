@@ -67,6 +67,7 @@ class SlotContainer internal constructor(
         // taking items that are no longer there.
         syncExternalChanges()
         if (clientRevision != revision) return sendFullSnapshot()
+        if (intent.kind == SlotIntentKind.CLONE && !player.abilities.instabuild) return sendFullSnapshot()
 
         val working = state.copy()
         val result = layout.applyClick(working, intent)

@@ -16,7 +16,7 @@ public class WindowMixin {
     @Inject(method = "getWidth", at = @At("HEAD"), cancellable = true)
     private void hollowengine$getWidth(CallbackInfoReturnable<Integer> cir) {
         RuntimeBridge.GameViewportMetrics metrics = BootstrapRuntimeManager.bridge().getGameViewportMetrics();
-        if (metrics != null && BootstrapRuntimeManager.bridge().isGameViewportRendering()) {
+        if (metrics != null && !BootstrapRuntimeManager.bridge().isGameViewportWindowPass()) {
             cir.setReturnValue(metrics.framebufferWidth());
         }
     }
@@ -24,7 +24,7 @@ public class WindowMixin {
     @Inject(method = "getHeight", at = @At("HEAD"), cancellable = true)
     private void hollowengine$getHeight(CallbackInfoReturnable<Integer> cir) {
         RuntimeBridge.GameViewportMetrics metrics = BootstrapRuntimeManager.bridge().getGameViewportMetrics();
-        if (metrics != null && BootstrapRuntimeManager.bridge().isGameViewportRendering()) {
+        if (metrics != null && !BootstrapRuntimeManager.bridge().isGameViewportWindowPass()) {
             cir.setReturnValue(metrics.framebufferHeight());
         }
     }

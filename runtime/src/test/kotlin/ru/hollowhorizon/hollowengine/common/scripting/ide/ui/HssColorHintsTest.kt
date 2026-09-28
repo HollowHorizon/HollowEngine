@@ -10,14 +10,14 @@ import kotlin.test.assertTrue
 
 class HssColorHintsTest {
     @Test
-    fun `hex and function colours are both found`() {
+    fun `hex and function colors are both found`() {
         val literals = hssColorLiterals("1px #FF8800 rgba(10, 20, 30, 0.5)")
         assertEquals(listOf("#FF8800", "rgba(10, 20, 30, 0.5)"), literals.map { it.text })
         assertEquals(0xFFFF8800.toInt(), literals.first().argb)
     }
 
     @Test
-    fun `values that only look like colours are skipped`() {
+    fun `values that only look like colors are skipped`() {
         assertTrue(hssColorLiterals("#GGHHII").isEmpty())
         assertTrue(hssColorLiterals("hollowengine:textures/gui/icons/link.svg").isEmpty())
     }
@@ -31,7 +31,7 @@ class HssColorHintsTest {
     }
 
     @Test
-    fun `a declaration colour gets a clickable swatch anchored on the literal`() {
+    fun `a declaration color gets a clickable swatch anchored on the literal`() {
         val source = ".panel {\n    background: #123456;\n}"
         val hints = hssInlayHints(HssDocumentModel(source))
         val swatch = hints.single { it.content.any { part -> part is InlayContent.Swatch } }

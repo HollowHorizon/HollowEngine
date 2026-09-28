@@ -308,6 +308,129 @@ class SlotClickTest {
     }
 
     @Test
+    fun `the same item on a slot that refuses it is taken onto the cursor, never merged in`() {
+        val layout = layout(
+            Triple("result", 1, SlotZoneRole.SOURCE),
+            rules = mapOf("result" to SlotRules(canInsert = SlotFilter.None)),
+        )
+        for (button in SlotButton.entries) {
+            val state = layout.state {
+                this[0] = ItemStack(Items.BREAD, 2)
+                carried = ItemStack(Items.BREAD, 5)
+            }
+
+            assertTrue(layout.applyClick(state, SlotIntent.click(0, button)).changed)
+            assertEquals(7, state.carried.count)
+            assertTrue(state[0].isEmpty)
+        }
+    }
+
+    @Test
+    fun `taking onto a cursor without room leaves both stacks untouched`() {
+        val layout = layout(
+            Triple("result", 1, SlotZoneRole.SOURCE),
+            rules = mapOf("result" to SlotRules(canInsert = SlotFilter.None)),
+        )
+        val state = layout.state {
+            this[0] = ItemStack(Items.BREAD, 4)
+            carried = ItemStack(Items.BREAD, 64)
+        }
+
+        assertFalse(layout.applyClick(state, SlotIntent.click(0, SlotButton.LEFT)).changed)
+        assertEquals(4, state[0].count)
+        assertEquals(64, state.carried.count)
+    }
+
+    @Test
+    fun `a double click gathers partial stacks first and stops at a full stack`() {
+        val layout = layout(Triple("a", 4, SlotZoneRole.BOTH))
+        val state = layout.state {
+            this[0] = ItemStack(Items.APPLE, 64)
+            this[1] = ItemStack(Items.APPLE, 20)
+            this[2] = ItemStack(Items.BREAD, 5)
+            carried = ItemStack(Items.APPLE, 30)
+        }
+
+        assertTrue(layout.applyClick(state, SlotIntent.collect(3)).changed)
+
+        assertEquals(64, state.carried.count)
+        assertEquals(50, state[0].count)
+        assertTrue(state[1].isEmpty)
+        assertEquals(5, state[2].count)
+    }
+
+    @Test
+    fun `a double click leaves copy zones and server-guarded zones alone`() {
+        var offset = 0
+        val zones = listOf(
+            SlotZoneLayout("player", offset, 1).also { offset += 1 },
+            SlotZoneLayout("draft", offset, 1, copyOnClick = true).also { offset += 1 },
+            SlotZoneLayout("result", offset, 1, predictable = false),
+        )
+        val layout = SlotLayout(zones, zones.map { it.name })
+        val state = layout.state {
+            this[1] = ItemStack(Items.APPLE, 10)
+            this[2] = ItemStack(Items.APPLE, 10)
+            carried = ItemStack(Items.APPLE, 1)
+        }
+
+        assertFalse(layout.applyClick(state, SlotIntent.collect(0)).changed)
+        assertEquals(10, state[1].count)
+        assertEquals(10, state[2].count)
+    }
+
+    @Test
+    fun `a middle click clones a full stack onto an empty cursor only`() {
+        val layout = layout(Triple("a", 1, SlotZoneRole.BOTH))
+        val state = layout.state { this[0] = ItemStack(Items.APPLE, 3) }
+
+        assertTrue(layout.applyClick(state, SlotIntent.clone(0)).changed)
+        assertEquals(64, state.carried.count)
+        assertEquals(3, state[0].count)
+
+        assertFalse(layout.applyClick(state, SlotIntent.clone(0)).changed)
+    }
+
+    @Test
+    fun `a copy zone never sends or receives a shift click`() {
+        var offset = 0
+        val zones = listOf(
+            SlotZoneLayout("draft", offset, 1, copyOnClick = true).also { offset += 1 },
+            SlotZoneLayout("player", offset, 1),
+        )
+        val layout = SlotLayout(zones, zones.map { it.name })
+        val state = layout.state {
+            this[0] = ItemStack(Items.APPLE, 5)
+            this[1] = ItemStack(Items.BREAD, 5)
+        }
+
+        assertFalse(layout.applyClick(state, SlotIntent.quickMove(0)).changed)
+        assertFalse(layout.applyClick(state, SlotIntent.quickMove(1)).changed)
+        assertEquals(5, state[0].count)
+        assertEquals(5, state[1].count)
+    }
+
+    @Test
+    fun `only gestures that reach an unpredictable zone wait for the server`() {
+        var offset = 0
+        val zones = listOf(
+            SlotZoneLayout("inputs", offset, 2).also { offset += 2 },
+            SlotZoneLayout("result", offset, 1, SlotZoneRole.SOURCE, predictable = false).also { offset += 1 },
+            SlotZoneLayout("player", offset, 2),
+        )
+        val layout = SlotLayout(zones, zones.map { it.name }, mapOf("player" to "inputs"))
+
+        assertTrue(layout.predicts(SlotIntent.click(0, SlotButton.LEFT)))
+        assertTrue(layout.predicts(SlotIntent.quickMove(3)))
+        assertTrue(layout.predicts(SlotIntent.distribute(listOf(0, 3), SlotDistributeMode.EVEN)))
+        assertFalse(layout.predicts(SlotIntent.click(2, SlotButton.LEFT)))
+        assertFalse(layout.predicts(SlotIntent.quickMove(2)))
+        assertFalse(layout.predicts(SlotIntent.distribute(listOf(0, 2), SlotDistributeMode.EVEN)))
+        // Out of the inputs, the ring runs through the result zone; it only sends, so it is not a target.
+        assertTrue(layout.predicts(SlotIntent.quickMove(0)))
+    }
+
+    @Test
     fun `an out of range slot is ignored rather than throwing`() {
         val layout = layout(Triple("a", 1, SlotZoneRole.BOTH))
         val state = layout.state { carried = ItemStack(Items.APPLE, 1) }

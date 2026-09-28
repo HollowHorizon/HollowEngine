@@ -40,7 +40,10 @@ internal object UiTextOverflowResolver {
         private var ellipsisStyle = UiInlineStyle.Empty
         private var ellipsisHeight = command.fontSize
 
+        private var originalEnd = Float.NaN
+
         fun append(fragment: UiTextFragment): Boolean {
+            keepGapBefore(fragment)
             return when (fragment) {
                 is UiTextRun -> appendText(fragment)
                 is UiTextSpaceRun -> appendFixed(fragment, fragment.width) { it.copy(x = cursorX) }.also {
@@ -50,6 +53,17 @@ internal object UiTextOverflowResolver {
                 is UiInlineImageRun -> appendFixed(fragment, fragment.width) { it.copy(x = cursorX) }
                 is UiInlineWidgetRun -> appendFixed(fragment, fragment.width) { it.copy(x = cursorX) }
             }
+        }
+
+        private fun keepGapBefore(fragment: UiTextFragment) {
+            if (!originalEnd.isNaN()) {
+                val gap = fragment.x - originalEnd
+                if (gap > 0.01f) {
+                    cursorX += gap
+                    if (text.isNotEmpty() && text.last() != ' ') text.append(' ')
+                }
+            }
+            originalEnd = fragment.x + fragment.width
         }
 
         fun appendEllipsis() {

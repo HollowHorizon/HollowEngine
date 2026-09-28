@@ -4,6 +4,7 @@ import androidx.compose.runtime.*
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.PoseStack
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.isActive
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.LightTexture
 import net.minecraft.client.renderer.texture.OverlayTexture
@@ -53,7 +54,8 @@ class ModelViewerState(model: String) {
 
     var yaw by mutableStateOf(0f)
     var pitch by mutableStateOf(0f)
-    var zoom by mutableStateOf(1f)
+    private val zoomSpring = SpringZoom(1f, min = 0.1f, max = 10f, perNotch = ModelZoomPerNotch)
+    val zoom: Float get() = zoomSpring.value
     var offsetX by mutableStateOf(0f)
     var offsetY by mutableStateOf(0f)
 
@@ -77,6 +79,11 @@ class ModelViewerState(model: String) {
     private var lastRect = UiRect.Zero
 
     val modelFlow: StateFlow<Model> get() = attachment.flow
+
+    /** One wheel notch; the scale springs to where it sends it. */
+    fun zoomBy(scrollY: Float) = zoomSpring.scroll(scrollY)
+
+    internal fun advanceZoom(frameNanos: Long) = zoomSpring.advance(frameNanos)
 
     /** The model's runtime node hierarchy (roots), for inspection UIs. */
     val nodes: List<RuntimeNode>
@@ -324,6 +331,9 @@ fun Model(
     modifier: Modifier? = null,
     onDrag: ((UiEvent) -> Boolean)? = null,
 ) {
+    LaunchedEffect(state) {
+        while (isActive) withFrameNanos(state::advanceZoom)
+    }
     Box(
         id = id,
         tags = tags,
@@ -340,8 +350,7 @@ fun Model(
                 }
                 event.consume()
             }.onScroll { event ->
-                val factor = if (event.scrollY > 0f) 0.9f else 1.1f
-                state.zoom = (state.zoom * factor).coerceIn(0.1f, 10f)
+                state.zoomBy(event.scrollY)
                 event.consume()
             }.drawBehind(key = state) {
                 if (state.showGrid) drawGrid(state)

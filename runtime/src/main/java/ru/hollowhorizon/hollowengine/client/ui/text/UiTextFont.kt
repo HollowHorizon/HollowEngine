@@ -11,6 +11,8 @@ internal sealed interface UiTextFont {
 
     fun lineHeight(fontSize: Float): Float
 
+    fun underlineY(fontSize: Float): Float
+
     fun width(text: String, fontSize: Float, style: UiInlineStyle): Float
 }
 
@@ -45,12 +47,15 @@ internal object UiTextFonts {
 
         override fun lineHeight(fontSize: Float): Float = fontSize
 
+        override fun underlineY(fontSize: Float): Float = fontSize * EstimatedUnderlineShare
+
         override fun width(text: String, fontSize: Float, style: UiInlineStyle): Float {
             val scale = fontSize / EstimateBaselineFontSize
             return text.length * (EstimatedGlyphWidth * scale + style.boldWeight * fontSize)
         }
 
         private const val EstimateBaselineFontSize = 10f
+        private const val EstimatedUnderlineShare = 0.9f
     }
 
     private data class MsdfTextFont(
@@ -60,6 +65,9 @@ internal object UiTextFonts {
         override val signature: Int = 31 * family.hashCode() + System.identityHashCode(metrics)
 
         override fun lineHeight(fontSize: Float): Float = metrics.lineHeight(fontSize)
+
+        override fun underlineY(fontSize: Float): Float =
+            (metrics.meta.metrics.ascender - metrics.meta.metrics.underlineY) * fontSize
 
         override fun width(text: String, fontSize: Float, style: UiInlineStyle): Float {
             val boldOffset = style.boldWeight * fontSize
@@ -75,6 +83,9 @@ internal object UiTextFonts {
         override val signature: Int = 31 * family.hashCode() + System.identityHashCode(face)
 
         override fun lineHeight(fontSize: Float): Float = face.lineHeight(fontSize)
+
+        override fun underlineY(fontSize: Float): Float =
+            (UiVanillaFont.ascenderEm - UiVanillaFont.underlineYEm) * fontSize
 
         override fun width(text: String, fontSize: Float, style: UiInlineStyle): Float =
             face.width(text, fontSize) + text.length * style.boldWeight * fontSize

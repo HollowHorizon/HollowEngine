@@ -20,7 +20,6 @@ class FloatPropertyType(
 ) : PropertyType<Float> {
     override val id = ID
     override val channels = listOf(ChannelSpec(name, ChannelColors.SCALAR))
-    override val blendModes = setOf(BlendMode.OVERRIDE, BlendMode.ADD, BlendMode.SUBTRACT, BlendMode.MULTIPLY)
 
     override fun bounds(channel: Int) = bounds
 
@@ -43,7 +42,6 @@ class TranslationPropertyType : PropertyType<Vec3f> {
         ChannelSpec("Y", ChannelColors.Y),
         ChannelSpec("Z", ChannelColors.Z),
     )
-    override val blendModes = setOf(BlendMode.OVERRIDE, BlendMode.ADD, BlendMode.SUBTRACT, BlendMode.MULTIPLY)
 
     override fun decompose(value: Vec3f, into: FloatArray) {
         into[0] = value.x
@@ -80,7 +78,6 @@ class RotationPropertyType(val mode: RotationMode = RotationMode.EULER) : Proper
         )
     }
 
-    override val blendModes = setOf(BlendMode.OVERRIDE, BlendMode.ADD, BlendMode.SUBTRACT)
 
     override val isChannelSpaceLinear = mode == RotationMode.EULER
 

@@ -90,9 +90,10 @@ class HollowIdeFileTypeRegistryTest {
                 modelEditor = {},
                 imageEditor = {},
                 videoEditor = {},
-                soundsEditor = {},
                 animatorEditor = {},
                 rigEditor = {},
+                vfxEditor = {},
+                shaderGraphEditor = {},
                 textEditor = {},
             )
         }
@@ -100,9 +101,11 @@ class HollowIdeFileTypeRegistryTest {
         assertEquals("model", registry.find("assets/demo/models/entity.geo.json", "{}".toByteArray())?.id)
         assertEquals("video", registry.find("assets/demo/videos/intro.MP4", byteArrayOf())?.id)
         assertEquals("image", registry.find("assets/demo/textures/icon.PNG", byteArrayOf(0, 1, 2))?.id)
-        assertEquals("sounds", registry.find("assets/demo/sounds.json", "{}".toByteArray())?.id)
+        assertEquals("text", registry.find("assets/demo/sounds.json", "{}".toByteArray())?.id)
         assertEquals("animator", registry.find("assets/demo/models/player.animator", byteArrayOf())?.id)
         assertEquals("rig", registry.find("assets/demo/models/player.glb.rig", byteArrayOf())?.id)
+        assertEquals("vfx", registry.find("assets/demo/vfx/flame.vfx", byteArrayOf())?.id)
+        assertEquals("material", registry.find("assets/demo/materials/fire.material", byteArrayOf())?.id)
         assertEquals("text", registry.find("assets/demo/other.json", "{}".toByteArray())?.id)
         assertEquals("text", registry.find("scripts/example.kts", "println(1)".toByteArray())?.id)
         assertNull(registry.find("unknown.bin", ByteArray(64) { 0 }))

@@ -9,6 +9,7 @@ import ru.hollowhorizon.hollowengine.api.extensions.ExtensionHandle
 import ru.hollowhorizon.hollowengine.api.extensions.ExtensionPoints
 import ru.hollowhorizon.hollowengine.common.utils.nbt.TagModuleRevision
 import ru.hollowhorizon.hollowengine.common.utils.rl
+import ru.hollowhorizon.hollowengine.common.vfx.VfxBoneAttachmentSpec
 import kotlin.reflect.KClass
 
 /**
@@ -37,6 +38,15 @@ object RigAttachmentTypes {
                 serializer = ItemSlotAttachmentSpec.serializer(),
                 titleKey = "hollowengine.gui.rig_editor.kind_item",
                 createDefault = { id -> ItemSlotAttachmentSpec(id = id) },
+            )
+        )
+        register(
+            RigAttachmentType(
+                id = "hollowengine:rig/vfx",
+                specClass = VfxBoneAttachmentSpec::class,
+                serializer = VfxBoneAttachmentSpec.serializer(),
+                titleKey = "hollowengine.gui.rig_editor.kind_vfx",
+                createDefault = { id -> VfxBoneAttachmentSpec(id = id) },
             )
         )
     }

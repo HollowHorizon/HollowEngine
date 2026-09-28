@@ -1,3 +1,0 @@
-base {
-    archivesName.set("HollowEngineIdeExample")
-}

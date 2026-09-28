@@ -320,7 +320,7 @@ private val namedSvgColors = mapOf(
     "cyan" to UiColor(0f, 1f, 1f, 1f),
     "magenta" to UiColor(1f, 0f, 1f, 1f),
     "gray" to UiColor(0.5f, 0.5f, 0.5f, 1f),
-    "grey" to UiColor(0.5f, 0.5f, 0.5f, 1f),
+    "gray" to UiColor(0.5f, 0.5f, 0.5f, 1f),
     "orange" to UiColor(1f, 0.647f, 0f, 1f),
     "purple" to UiColor(0.5f, 0f, 0.5f, 1f),
 )

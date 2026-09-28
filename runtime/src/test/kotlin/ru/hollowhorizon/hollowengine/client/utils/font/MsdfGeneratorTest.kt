@@ -21,7 +21,7 @@ class MsdfGeneratorTest {
     @Test
     fun `distance is positive inside the shape and negative outside`() {
         val field = squareField()
-        assertTrue(field.median(16, 16) > 0.5f, "the centre is inside: ${field.median(16, 16)}")
+        assertTrue(field.median(16, 16) > 0.5f, "the center is inside: ${field.median(16, 16)}")
         assertTrue(field.median(2, 2) < 0.5f, "the far corner is outside: ${field.median(2, 2)}")
         assertTrue(field.median(16, 2) < 0.5f, "below the square is outside: ${field.median(16, 2)}")
     }
@@ -29,7 +29,7 @@ class MsdfGeneratorTest {
     @Test
     fun `the encoded distance crosses one half exactly on the edge`() {
         val field = squareField()
-        // Pixel centres sit at x + 0.5, so columns 7 and 8 straddle the edge at x = 8 by half a
+        // Pixel centers sit at x + 0.5, so columns 7 and 8 straddle the edge at x = 8 by half a
         // unit each way; with a range of 8 that is 1/16 of the encoded scale.
         assertEquals(0.5f - 0.5f / 8f, field.median(7, 16), Tolerance)
         assertEquals(0.5f + 0.5f / 8f, field.median(8, 16), Tolerance)

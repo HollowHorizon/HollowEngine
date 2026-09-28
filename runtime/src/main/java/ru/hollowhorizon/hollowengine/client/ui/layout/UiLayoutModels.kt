@@ -33,6 +33,7 @@ data class UiLayoutNode(
     val content: UiRect,
     val clip: UiRect?,
     val outerClip: UiRect? = null,
+    val overflowClip: UiRect = content,
     val worldTransform: UiMatrix4,
     val inputTransform: UiMatrix4,
     val needsFramebuffer: Boolean,

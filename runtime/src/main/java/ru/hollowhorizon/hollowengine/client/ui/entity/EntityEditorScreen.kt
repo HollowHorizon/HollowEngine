@@ -52,7 +52,7 @@ internal class EntityEditorScreen(
                 EntitySidebar(session, sidebarWidth)
             }
 
-            session.pendingPicker?.let { picker -> AssetPickerDialog(picker) }
+            session.pendingPicker?.let { picker -> AssetPickerDialog(picker) { session.pendingPicker = null } }
             if (session.slotSessionId != null) InventoryDialog(session)
         }
     }

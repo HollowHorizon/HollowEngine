@@ -16,6 +16,7 @@ uniform sampler2D FontAtlas6;
 uniform sampler2D FontAtlas7;
 uniform float GlyphDistanceRange[MAX_GLYPH_PAGES];
 uniform vec2 GlyphAtlasSize[MAX_GLYPH_PAGES];
+uniform float GlyphEdgeSoftness;
 
 in vec2 localPosition;
 in vec2 clipPosition;
@@ -56,13 +57,43 @@ float roundedRectDistance(vec2 point, vec2 size, float radius) {
     return length(max(offset, 0.0)) + min(max(offset.x, offset.y), 0.0) - resolvedRadius;
 }
 
-float sdfCoverage(float distance) {
-    float width = max(fwidth(distance), 0.0001);
-    return clamp(0.5 - distance / width, 0.0, 1.0);
+float outlinePosition(vec2 point, vec2 size, float radius, float inset) {
+    const float QUARTER = 1.5707963;
+    vec2 halfSize = size * 0.5 - inset;
+    float r = clamp(radius - inset, 0.0, min(halfSize.x, halfSize.y));
+    vec2 c = halfSize - r;
+    vec2 q = point - size * 0.5;
+    float top = 2.0 * c.x;
+    float side = 2.0 * c.y;
+    float arc = r * QUARTER;
+    if (q.x > c.x && q.y < -c.y) return top + r * (atan(q.y + c.y, q.x - c.x) + QUARTER);
+    if (q.x > c.x && q.y > c.y) return top + arc + side + r * atan(q.y - c.y, q.x - c.x);
+    if (q.x < -c.x && q.y > c.y) return 2.0 * top + 2.0 * arc + side + r * (atan(q.y - c.y, q.x + c.x) - QUARTER);
+    if (q.x < -c.x && q.y < -c.y) return 2.0 * top + 3.0 * arc + 2.0 * side + r * (atan(q.y + c.y, q.x + c.x) + 2.0 * QUARTER);
+    if (halfSize.y - abs(q.y) < halfSize.x - abs(q.x)) {
+        return q.y < 0.0 ? q.x + c.x : top + 2.0 * arc + side + (c.x - q.x);
+    }
+    return q.x > 0.0 ? top + arc + (q.y + c.y) : 2.0 * top + 3.0 * arc + side + (c.y - q.y);
 }
 
-float softenedCoverage(float edge, float blurRadius) {
-    float aa = max(fwidth(edge), 0.0001);
+float localPixelSize() {
+    vec2 dx = dFdx(localPosition);
+    vec2 dy = dFdy(localPosition);
+    return max(sqrt(0.5 * (dot(dx, dx) + dot(dy, dy))), 0.0001);
+}
+
+float dashCoverage(float position, float period, float dashLength, float pixelSize) {
+    float phase = mod(position, period);
+    float edge = min(phase, dashLength - phase);
+    return clamp(edge / min(pixelSize, 2.0) + 0.5, 0.0, 1.0);
+}
+
+float sdfCoverage(float distance, float pixelSize) {
+    return clamp(0.5 - distance / pixelSize, 0.0, 1.0);
+}
+
+float softenedCoverage(float edge, float blurRadius, float pixelSize) {
+    float aa = pixelSize;
     if (blurRadius <= 0.0001) return clamp(0.5 - edge / aa, 0.0, 1.0);
     float extent = max(blurRadius * 2.0, aa);
     return 1.0 - smoothstep(-extent, extent, edge);
@@ -125,6 +156,7 @@ void main() {
     int base = recordIndex * 4;
     vec4 geometry = texelFetch(RecordBuffer, base);
     vec2 glyphFootprint = fwidth(glyphUv);
+    float pixelSize = localPixelSize();
 
     vec4 clip = texelFetch(RecordBuffer, base + 3);
     if (clipPosition.x < clip.x || clipPosition.y < clip.y ||
@@ -154,7 +186,7 @@ void main() {
             vec2 unitRange = vec2(GlyphDistanceRange[glyphPage]) / GlyphAtlasSize[glyphPage];
             vec2 screenTexSize = vec2(1.0) / max(glyphFootprint, vec2(1e-8));
             float pxRange = max(0.5 * dot(unitRange, screenTexSize), 2.0);
-            float edgeSoftness = 1.15; // 1.0 + MsdfSoftness (0.15)
+            float edgeSoftness = GlyphEdgeSoftness;
             float bias = min(geometry.y, max(0.5 - 0.5 * edgeSoftness / pxRange, 0.0));
             float sdPx = median3(texel.r, texel.g, texel.b) - 0.5 + bias;
             coverage = clamp(sdPx * pxRange / edgeSoftness + 0.5, 0.0, 1.0);
@@ -187,14 +219,14 @@ void main() {
 
     float distance = roundedRectDistance(localPosition, size, radius);
     if (effect.w > 0.5) {
-        float shadowCoverage = softenedCoverage(distance - effect.z, effect.y);
+        float shadowCoverage = softenedCoverage(distance - effect.z, effect.y, pixelSize);
         vec4 shadowColor = samplePaint(paintIndex);
         shadowColor.a *= shadowCoverage;
         if (shadowColor.a <= 0.0) discard;
         fragColor = shadowColor;
         return;
     }
-    float outerCoverage = sdfCoverage(distance);
+    float outerCoverage = sdfCoverage(distance, pixelSize);
     if (outerCoverage <= 0.0) discard;
 
     float borderCoverage = 0.0;
@@ -202,8 +234,12 @@ void main() {
         vec2 innerSize = max(size - borderWidth * 2.0, vec2(0.0));
         float innerRadius = max(radius - borderWidth, 0.0);
         float innerDistance = roundedRectDistance(localPosition - borderWidth, innerSize, innerRadius);
-        float innerCoverage = sdfCoverage(innerDistance);
+        float innerCoverage = sdfCoverage(innerDistance, pixelSize);
         borderCoverage = clamp(outerCoverage - innerCoverage, 0.0, 1.0);
+        if (effect.z > 0.0) {
+            float position = outlinePosition(localPosition, size, radius, borderWidth * 0.5);
+            borderCoverage *= dashCoverage(position, effect.z, -effect.w, pixelSize);
+        }
     }
 
     vec4 fillColor = samplePaint(paintIndex);

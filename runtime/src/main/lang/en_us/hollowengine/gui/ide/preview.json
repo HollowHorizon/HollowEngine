@@ -1,0 +1,6 @@
+{
+  "mode.text": "Editor Only",
+  "mode.split": "Editor and Preview",
+  "mode.preview": "Preview Only",
+  "unreadable": "The file cannot be read, so the preview is off until the text is fixed"
+}

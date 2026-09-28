@@ -33,13 +33,12 @@ class ExtensionPoint<T : Any> internal constructor(
     var generation: Int = 0
         private set
 
-    val revision: Long get() = generation.toLong()
     val extensions: List<T> get() = valuesSnapshot
 
     override fun iterator(): Iterator<T> = valuesSnapshot.iterator()
 
-    fun extensions(): List<HollowAddonExtension<T>> = entries
-    fun values(): List<T> = valuesSnapshot
+    /** The same contributions with who registered them, for callers that must run them under their classloader. */
+    val registrations: List<HollowAddonExtension<T>> get() = entries
 
     /**
      * Engine registrations keep their historical replace-by-key behavior.
@@ -155,6 +154,10 @@ class ExtensionPoint<T : Any> internal constructor(
     }
 }
 
+/**
+ * Undoes one registration. Addons close their handles when unloading; the engine's own registrations
+ * live as long as the game works.
+ */
 fun interface ExtensionHandle : AutoCloseable {
     override fun close()
 }
@@ -164,6 +167,9 @@ fun ExtensionHandle.closeWith(scope: CoroutineScope): ExtensionHandle {
     return this
 }
 
+/**
+ * Every extension point known to the engine, by id.
+ */
 object ExtensionPoints {
     private val points = HashMap<ResourceLocation, ExtensionPoint<*>>()
 

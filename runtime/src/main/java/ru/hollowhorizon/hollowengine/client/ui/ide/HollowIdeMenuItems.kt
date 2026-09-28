@@ -1,114 +1,170 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide
 
-import net.minecraft.client.Minecraft
+import ru.hollowhorizon.hollowengine.client.editor.EditorMode
 import ru.hollowhorizon.hollowengine.client.editor.GizmoEditMode
 import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
-import ru.hollowhorizon.hollowengine.client.ui.HollowUiResourceAccess
-import ru.hollowhorizon.hollowengine.client.ui.UiProfiler
+import ru.hollowhorizon.hollowengine.client.ui.docking.DockLang
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockingState
+import ru.hollowhorizon.hollowengine.client.ui.docking.isOnScreen
+import ru.hollowhorizon.hollowengine.client.ui.docking.toggleOnScreen
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownMark
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownSlider
 import ru.hollowhorizon.hollowengine.client.utils.lang
+import ru.hollowhorizon.hollowengine.common.addons.ClientResources
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.network.ReloadServerResourcesPacket
 import ru.hollowhorizon.hollowengine.common.utils.DesktopUtil
+import ru.hollowhorizon.hollowengine.common.utils.isProduction
 import ru.hollowhorizon.hollowengine.common.utils.openUrl
 
 private const val ReloadIcon = "hollowengine:textures/gui/icons/reload.svg"
 private const val ReformatIcon = "hollowengine:textures/gui/icons/code_editor.svg"
 private const val SaveIcon = "hollowengine:textures/gui/icons/save.svg"
+private const val SaveAllIcon = "hollowengine:textures/gui/icons/save_all.svg"
+private const val TelegramIcon = "hollowengine:textures/gui/icons/telegram.svg"
+private const val DiscordIcon = "hollowengine:textures/gui/icons/discord.svg"
+private const val ModFolderIcon = "hollowengine:textures/gui/icons/actions/reveal.svg"
 private const val DocsIcon = "hollowengine:textures/gui/icons/docs.svg"
+private const val GitHubIcon = "hollowengine:textures/gui/icons/github.svg"
+private const val KeyboardIcon = "hollowengine:textures/gui/icons/keyboard.svg"
+private const val ImportIcon = "hollowengine:textures/gui/icons/load.svg"
+private const val ExportIcon = "hollowengine:textures/gui/icons/export.svg"
+
+internal const val MenuLang = "hollowengine.gui.ide.menu"
+private const val DocsUrl = "https://0mods.team/docs/hollowengine"
+private const val RepositoryUrl = "https://github.com/HollowHorizon/HollowEngine"
 
 internal fun hollowIdeFileMenuItems(
     model: HollowIdeModel,
     dock: DockingState,
+    packaging: HollowIdeProjectPackaging,
     focusedFile: () -> HollowIdeOpenFile?,
     canReformat: (HollowIdeOpenFile) -> Boolean,
     onReformat: (HollowIdeOpenFile) -> Unit,
+    onSearch: () -> Unit,
+    operator: Boolean,
 ): List<UiDropdownItem> {
     val focused = focusedFile()
-    val focusedPath = focused?.path
-    return listOf(
-        UiDropdownItem("hollowengine.gui.ide.file.reload_client_resources".lang, ReloadIcon) {
-            HollowUiResourceAccess.clearCache()
-            Minecraft.getInstance().reloadResourcePacks()
+    return listOfNotNull(
+        UiDropdownItem("$MenuLang.search".lang, SearchIcon, shortcut = "Ctrl+N", onClick = onSearch),
+        UiDropdownItem("$MenuLang.save".lang, SaveIcon, enabled = focused != null, shortcut = "Ctrl+S", separatorBefore = true) {
+            focused?.let { file ->
+                model.save(file.path)
+                dock.updateItem(file.dockItem())
+            }
         },
-        UiDropdownItem("hollowengine.gui.ide.file.reload_server_resources".lang, ReloadIcon) {
-            ReloadServerResourcesPacket().send()
-        },
-        UiDropdownItem("hollowengine.gui.ide.file.open_mod_folder".lang, LogoIcon) {
-            DesktopUtil.openInExplorer(DirectoryManager.HOLLOW_ENGINE.toFile())
-        },
-        UiDropdownItem("Save", SaveIcon, enabled = focusedPath != null) {
-            focusedPath?.let(model::save)
-            focusedFile()?.let { dock.updateItem(it.dockItem()) }
-        },
-        UiDropdownItem("Save All", SaveIcon, enabled = model.files.values.any { it.dirty }) {
+        UiDropdownItem("$MenuLang.save_all".lang, SaveAllIcon, enabled = model.files.values.any { it.dirty }) {
             model.saveAll()
             model.files.values.forEach { dock.updateItem(it.dockItem()) }
         },
         UiDropdownItem(
-            label = "Reformat Code",
+            label = "$MenuLang.reformat".lang,
             icon = ReformatIcon,
             enabled = focused != null && canReformat(focused),
+            shortcut = "Ctrl+Alt+L",
         ) {
             focused?.let(onReformat)
+        },
+        UiDropdownItem("hollowengine.gui.ide.project.settings".lang, OptionsIcon, separatorBefore = true) {
+            packaging.openSettings()
+        },
+        UiDropdownItem("hollowengine.gui.ide.project.import".lang, ImportIcon) { packaging.startImport() },
+        UiDropdownItem("hollowengine.gui.ide.project.export".lang, ExportIcon) { packaging.openExport() },
+        UiDropdownItem(
+            "hollowengine.gui.ide.file.reload_client_resources".lang,
+            ReloadIcon,
+            shortcut = "F3+T",
+            separatorBefore = true,
+        ) {
+            ClientResources.reload()
+        },
+        // The server refuses the reload without operator rights anyway.
+        UiDropdownItem("hollowengine.gui.ide.file.reload_server_resources".lang, ReloadIcon) {
+            ReloadServerResourcesPacket().send()
+        }.takeIf { operator },
+        UiDropdownItem("hollowengine.gui.ide.file.open_mod_folder".lang, ModFolderIcon) {
+            DesktopUtil.openInExplorer(DirectoryManager.HOLLOW_ENGINE.toFile())
         },
     )
 }
 
-internal fun hollowIdeToolMenuItems(
-    context: HollowIdeContext,
+/** Every tool window, ticked while it is on screen; picking one opens it or brings it to the front. */
+internal fun hollowIdeWindowMenuItems(
+    model: HollowIdeModel,
     dock: DockingState,
-    profiler: UiProfiler,
+    contributed: List<HollowIdeToolWindow>,
+    onResetLayout: () -> Unit,
 ): List<UiDropdownItem> {
-    return listOf(
+    var separate = false
+    val entries = if (contributed.isEmpty()) HollowIdeToolWindows.menu else HollowIdeToolWindows.menu + listOf(null) + contributed
+    val windows = entries.mapNotNull { window ->
+        if (window == null) {
+            separate = true
+            return@mapNotNull null
+        }
         UiDropdownItem(
-            label = "UI Profiler",
+            label = window.title,
+            checked = dock.isOnScreen(window.id),
+            mark = UiDropdownMark.CHECKBOX,
+            separatorBefore = separate,
+        ) {
+            if (!dock.toggleOnScreen(window.id)) dock.openToolWindow(window, model)
+        }.also { separate = false }
+    }
+    return windows + UiDropdownItem(
+        label = DockLang.ShowStripes,
+        checked = dock.stripesVisible,
+        mark = UiDropdownMark.CHECKBOX,
+        separatorBefore = true,
+        closeOnClick = false,
+    ) {
+        dock.stripesVisible = !dock.stripesVisible
+    } + UiDropdownItem(
+        label = "$MenuLang.reset_layout".lang,
+        onClick = onResetLayout,
+    )
+}
+
+internal fun hollowIdeToolMenuItems(
+    model: HollowIdeModel,
+    dock: DockingState,
+    operator: Boolean,
+): List<UiDropdownItem> {
+    fun gizmoMode(labelKey: String, mode: GizmoEditMode) = UiDropdownItem(
+        label = labelKey.lang,
+        checked = TransformGizmoEditor.isModeShown(mode),
+        mark = UiDropdownMark.CHECKBOX,
+        closeOnClick = false,
+    ) {
+        TransformGizmoEditor.toggleMode(mode)
+    }
+
+    val editor = if (!operator) emptyList() else listOf(
+        UiDropdownItem(
+            label = "hollowengine.gui.ide.editor_mode".lang,
+            checked = EditorMode.isEnabled,
+            mark = UiDropdownMark.CHECKBOX,
+            closeOnClick = false,
+        ) {
+            EditorMode.toggle()
+        },
+    )
+
+    val gizmo = if (!operator || isProduction) emptyList() else listOf(
+        gizmoMode("hollowengine.gui.ide.gizmo.translate", GizmoEditMode.TRANSLATE),
+        gizmoMode("hollowengine.gui.ide.gizmo.rotate", GizmoEditMode.ROTATE),
+        gizmoMode("hollowengine.gui.ide.gizmo.scale", GizmoEditMode.SCALE),
+    )
+    return editor + gizmo + listOf(
+        UiDropdownItem(
+            label = HollowIdeToolWindows.UiProfiler.title,
             checked = dock.contains(UiProfilerId),
             mark = UiDropdownMark.CHECKBOX,
             closeOnClick = false,
+            separatorBefore = true,
         ) {
-            if (dock.contains(UiProfilerId)) {
-                context.closePanel(UiProfilerId)
-                profiler.enabled = false
-            } else {
-                context.openPanel(UiProfilerId)
-                profiler.enabled = true
-            }
-        },
-        UiDropdownItem(
-            label = "hollowengine.gui.ide.gizmo".lang,
-            checked = TransformGizmoEditor.isEnabled,
-            mark = UiDropdownMark.CHECKBOX,
-            closeOnClick = false,
-        ) {
-            TransformGizmoEditor.setEnabled(!TransformGizmoEditor.isEnabled)
-        },
-        UiDropdownItem(
-            label = "Translate",
-            checked = TransformGizmoEditor.isModeShown(GizmoEditMode.TRANSLATE),
-            mark = UiDropdownMark.CHECKBOX,
-            closeOnClick = false,
-        ) {
-            TransformGizmoEditor.toggleMode(GizmoEditMode.TRANSLATE)
-        },
-        UiDropdownItem(
-            label = "Rotate",
-            checked = TransformGizmoEditor.isModeShown(GizmoEditMode.ROTATE),
-            mark = UiDropdownMark.CHECKBOX,
-            closeOnClick = false,
-        ) {
-            TransformGizmoEditor.toggleMode(GizmoEditMode.ROTATE)
-        },
-        UiDropdownItem(
-            label = "Scale",
-            checked = TransformGizmoEditor.isModeShown(GizmoEditMode.SCALE),
-            mark = UiDropdownMark.CHECKBOX,
-            closeOnClick = false,
-        ) {
-            TransformGizmoEditor.toggleMode(GizmoEditMode.SCALE)
+            if (!dock.close(UiProfilerId)) dock.openToolWindow(HollowIdeToolWindows.UiProfiler, model)
         },
         UiDropdownItem(
             label = "hollowengine.gui.ide.gui_scale".lang,
@@ -121,13 +177,17 @@ internal fun hollowIdeToolMenuItems(
                 onCommit = { HollowIdeScale.guiScale = it },
             ),
             closeOnClick = false,
+            separatorBefore = true,
         ),
     )
 }
 
-internal fun hollowIdeHelpMenuItems(): List<UiDropdownItem> {
+internal fun hollowIdeHelpMenuItems(onShowShortcuts: () -> Unit): List<UiDropdownItem> {
     return listOf(
-        UiDropdownItem("Telegram", DocsIcon) { openUrl("https://t.me/hollowengine") },
-        UiDropdownItem("Discord", DocsIcon) { openUrl("https://discord.gg/qKpPhkwGCY") },
+        UiDropdownItem("hollowengine.gui.ide.docs".lang, DocsIcon) { openUrl(DocsUrl) },
+        UiDropdownItem("$MenuLang.shortcuts".lang, KeyboardIcon, onClick = onShowShortcuts),
+        UiDropdownItem("GitHub", GitHubIcon, separatorBefore = true) { openUrl(RepositoryUrl) },
+        UiDropdownItem("Telegram", TelegramIcon) { openUrl("https://t.me/hollowengine") },
+        UiDropdownItem("Discord", DiscordIcon) { openUrl("https://discord.gg/qKpPhkwGCY") },
     )
 }

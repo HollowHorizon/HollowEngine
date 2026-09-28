@@ -11,9 +11,16 @@ import ru.hollowhorizon.hollowengine.client.utils.lang
 
 private const val DockTabMinWidth = 72f
 private const val DockTabMaxWidth = 180f
-private const val DockTabHeight = 18f
+
+private const val DockTabBarHeight = 24f
+private const val DockTabTopGap = 3f
+private const val DockTabHeight = DockTabBarHeight - DockTabTopGap
+private const val DockTabOverhang = 6f
+private const val DockTabIndicatorHeight = 2f
 private const val DockTabMargin = 2f
 private const val DockTabCloseWidth = 22f
+private const val DockTabCloseSize = 16f
+private const val DockCloseIcon = "hollowengine:textures/gui/icons/cross.svg"
 
 /** A dragged tab lifts slightly off the bar, and forward, so it draws over its neighbours. */
 private const val DockTabDragLift = -2f
@@ -38,23 +45,31 @@ fun DockSpace(
     Box(
         id = id,
         tags = listOf(DockTags.Space),
-        modifier = modifier.style("hollowengine:ui/styles/docking.hss").clip(),
+        modifier = modifier.style("hollowengine:ui/styles/docking.hss").clip()
+            .onPlaced { state.updateSpaceSize(it.width, it.height) },
     ) {
         Row(id = "$id-body", modifier = Modifier.size(100.percent, 100.percent)) {
-            DockSideEdge(DockSide.LEFT, state, tabBarActions, content)
-            Box(
-                id = "$id-root",
-                mode = UiBoxMode.STACK,
-                tags = listOf(DockTags.Root),
-                modifier = Modifier.size(0.px, 100.percent).grow(1f),
-            ) {
-                state.root?.let { root ->
-                    key(root.id) {
-                        DockNodeView(root, state, tabContent, tabBarActions, content)
+            DockStripe(DockSide.LEFT, state)
+            Column(id = "$id-center", modifier = Modifier.size(0.px, 100.percent).grow(1f)) {
+                Row(id = "$id-upper", modifier = Modifier.size(100.percent, 0.px).grow(1f)) {
+                    DockSidePanel(DockSide.LEFT, state, tabBarActions, content)
+                    Box(
+                        id = "$id-root",
+                        mode = UiBoxMode.STACK,
+                        tags = listOf(DockTags.Root),
+                        modifier = Modifier.size(0.px, 100.percent).grow(1f),
+                    ) {
+                        state.root?.let { root ->
+                            key(root.id) {
+                                DockNodeView(root, state, tabContent, tabBarActions, content)
+                            }
+                        }
                     }
+                    DockSidePanel(DockSide.RIGHT, state, tabBarActions, content)
                 }
+                DockBottomArea(state, tabBarActions, content)
             }
-            DockSideEdge(DockSide.RIGHT, state, tabBarActions, content)
+            DockStripe(DockSide.RIGHT, state)
         }
 
         state.floatingWindows.forEachIndexed { index, window ->
@@ -64,7 +79,13 @@ fun DockSpace(
         }
 
         if (state.draggedWindowId != null) {
-            DockDropOverlay(state, state.edgeWidth(DockSide.LEFT), state.edgeWidth(DockSide.RIGHT))
+            DockDropOverlay(
+                state,
+                state.edgeWidth(DockSide.LEFT),
+                state.edgeWidth(DockSide.RIGHT),
+                state.bottomAreaHeight(),
+            )
+            if (state.canPinDraggedWindow()) DockStripeDropZones(state)
         }
     }
 }
@@ -157,19 +178,6 @@ private fun DockStackView(
     content: DockItemContent,
 ) {
     val selected = stack.selectedItem ?: return
-    if (stack.items.size == 1 && selected.singleTabPresentation == DockSingleTabPresentation.OVERLAY) {
-        Box(
-            id = stack.id,
-            mode = UiBoxMode.STACK,
-            tags = listOf(DockTags.Stack),
-            modifier = Modifier.size(100.percent, 100.percent),
-        ) {
-            DockSelectedContent(stack.id, selected, content, Modifier.size(100.percent, 100.percent))
-            DockSingleTabBadge(stack, state, tabContent, tabBarActions)
-        }
-        return
-    }
-
     Column(
         id = stack.id,
         tags = listOf(DockTags.Stack),
@@ -210,27 +218,6 @@ internal fun DockContentBody(content: @Composable () -> Unit) {
         modifier = Modifier.size(100.percent, 100.percent),
     ) {
         content()
-    }
-}
-
-@Composable
-private fun DockSingleTabBadge(
-    stack: DockNode.Stack,
-    state: DockingState,
-    tabContent: DockHeaderContent,
-    tabBarActions: DockTabBarActions,
-) {
-    val item = stack.selectedItem ?: return
-    Row(
-        id = "${stack.id}-tab-badge",
-        tags = listOf(DockTags.TabBar, DockTags.CompactTabBar),
-        modifier = Modifier.position(DockTabMargin.px, DockTabMargin.px)
-            .size(UiLength.Auto, 24.px)
-            .alignItems(vertical = UiAlign.CENTER)
-            .layer(20),
-    ) {
-        DockTab(stack.id, 0, item, true, state, tabContent, allowUndock = true) { 0f }
-        tabBarActions(item)
     }
 }
 
@@ -318,7 +305,7 @@ private fun DockTabBar(
     }
     Row(
         id = "${stack.id}-tab-row",
-        modifier = Modifier.size(100.percent, 24.px).alignItems(vertical = UiAlign.CENTER),
+        modifier = Modifier.size(100.percent, DockTabBarHeight.px).alignItems(vertical = UiAlign.CENTER),
     ) {
         Layout(
             content = {
@@ -339,7 +326,7 @@ private fun DockTabBar(
             },
             id = "${stack.id}-tabs",
             tags = listOf(DockTags.TabBar),
-            modifier = Modifier.size(0.px, 24.px).grow(1f).clip()
+            modifier = Modifier.size(0.px, DockTabBarHeight.px).grow(1f).clip()
                 .scrollable(
                     vertical = false,
                     horizontal = true,
@@ -387,15 +374,16 @@ private fun DockTab(
 
     var menuAt by remember { mutableStateOf<UiRect?>(null) }
 
-    Row(
+    Column(
         id = tabNodeId(item.id),
         tags = buildList {
             add(DockTags.Tab)
             if (selected) add(DockTags.Selected)
             if (item.dirty) add(DockTags.Dirty)
         },
-        modifier = Modifier.size(width = UiLength.Auto, height = DockTabHeight.px).minSize(width = DockTabMinWidth.px)
-            .maxSize(width = DockTabMaxWidth.px).alignItems(vertical = UiAlign.CENTER).layer(layerIndex).clip()
+        modifier = Modifier.size(width = UiLength.Auto, height = (DockTabHeight + DockTabOverhang).px)
+            .minSize(width = DockTabMinWidth.px).maxSize(width = DockTabMaxWidth.px)
+            .alignItems(horizontal = UiAlign.STRETCH).layer(layerIndex).clip()
             .tabTransform(dragOffset, DockTabOffset.DRAG).tabTransform(swap?.offset, DockTabOffset.SWAP)
             .cursor(if (dragOffset != null) UiCursorShape.MOVE else UiCursorShape.HAND)
             .input(hoverable = true, clickable = true, draggable = true)
@@ -404,9 +392,14 @@ private fun DockTab(
                 else state.onTabContextMenu?.invoke(item, event)
             }
     ) {
-        TabContentWrapper(item, tabContent)
-
-        CloseButton(item, state)
+        Row(
+            modifier = Modifier.size(UiLength.Auto, (DockTabHeight - DockTabIndicatorHeight).px)
+                .alignItems(vertical = UiAlign.CENTER),
+        ) {
+            TabContentWrapper(item, tabContent)
+            CloseButton(item, state)
+        }
+        Box(tags = listOf(DockTags.TabIndicator), modifier = Modifier.size(UiLength.Auto, DockTabIndicatorHeight.px))
     }
 
     menuAt?.let { anchor ->
@@ -423,6 +416,10 @@ private fun DockTab(
 private fun tabMenuItems(item: DockItem, state: DockingState): List<UiDropdownItem> = buildList {
     add(UiDropdownItem(label = DockLang.PinLeft) { state.pin(item.id, DockSide.LEFT) })
     add(UiDropdownItem(label = DockLang.PinRight) { state.pin(item.id, DockSide.RIGHT) })
+    add(UiDropdownItem(label = DockLang.PinLeftSplit) { state.pin(item.id, DockSide.LEFT, DockStripeGroup.SPLIT) })
+    add(UiDropdownItem(label = DockLang.PinRightSplit) { state.pin(item.id, DockSide.RIGHT, DockStripeGroup.SPLIT) })
+    add(UiDropdownItem(label = DockLang.PinLeftBottom) { state.pin(item.id, DockSide.LEFT, DockStripeGroup.BOTTOM) })
+    add(UiDropdownItem(label = DockLang.PinRightBottom) { state.pin(item.id, DockSide.RIGHT, DockStripeGroup.BOTTOM) })
     if (item.closable) {
         add(UiDropdownItem(label = DockLang.Close, separatorBefore = true) { state.close(item.id) })
     }
@@ -535,7 +532,7 @@ private fun dockTabBarMeasurePolicy(
         val placeable = measurable.measure(
             UiConstraints(
                 maxWidth = constraints.maxWidth,
-                maxHeight = DockTabHeight,
+                maxHeight = DockTabHeight + DockTabOverhang,
             )
         )
         val itemId = itemIds.getOrNull(index) ?: measurable.node.id.orEmpty()
@@ -551,10 +548,10 @@ private fun dockTabBarMeasurePolicy(
     }
     state.updateTabLayouts(stackId, layouts)
     val width = constraints.maxWidth.takeIf { it.isFinite() } ?: x
-    layout(width, DockTabHeight + DockTabMargin * 2f) {
+    layout(width, DockTabBarHeight) {
         var childX = 0f
         placeables.forEach { placeable ->
-            placeable.place(childX + DockTabMargin, DockTabMargin)
+            placeable.place(childX + DockTabMargin, DockTabTopGap)
             childX += placeable.width + DockTabMargin * 2f
         }
     }
@@ -576,12 +573,13 @@ private fun CloseButton(item: DockItem, state: DockingState) {
     Box(
         id = "dock-close-${item.id}",
         tags = listOf(DockTags.CloseButton),
-        modifier = Modifier.size(DockTabCloseWidth.px, 100.percent).input(hoverable = true, clickable = true)
+        mode = UiBoxMode.STACK,
+        modifier = Modifier.size(DockTabCloseSize.px, DockTabCloseSize.px).input(hoverable = true, clickable = true)
             .cursor(UiCursorShape.HAND).onClick { event ->
                 state.close(item.id)
                 event.consume()
             }) {
-        Text("x", modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER))
+        Image(DockCloseIcon, tags = listOf(DockTags.CloseIcon), modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER))
     }
 }
 
@@ -629,14 +627,16 @@ object DockTags {
     const val Splitter = "dock-splitter"
     const val Stack = "dock-stack"
     const val TabBar = "dock-tab-bar"
-    const val CompactTabBar = "compact"
     const val Tab = "dock-tab"
     const val TabIcon = "dock-tab-icon"
     const val TabLabel = "dock-tab-label"
     const val Selected = "selected"
+    const val Dragging = "dragging"
     const val Stripe = "dock-stripe"
     const val StripeButton = "dock-stripe-button"
     const val StripeIcon = "dock-stripe-icon"
+    const val StripeDivider = "dock-stripe-divider"
+    const val DropPreview = "dock-drop-preview"
     const val PinnedPanel = "dock-pinned-panel"
     const val Sliding = "sliding"
     const val PinnedHeader = "dock-pinned-header"
@@ -649,13 +649,11 @@ object DockTags {
     const val ContentBody = "dock-content-body"
     const val ResizeHandle = "dock-resize-handle"
     const val CloseButton = "dock-close-button"
+    const val CloseIcon = "dock-close-icon"
+    const val TabIndicator = "dock-tab-indicator"
+    const val PinnedIsland = "dock-pinned-island"
     const val DropOverlay = "dock-drop-overlay"
     const val DropZone = "dock-drop-zone"
-}
-
-object DockColors {
-    val DropZone = UiColor(0.18f, 0.42f, 0.75f, 0.1f)
-    val DropZoneActive = UiColor(0.25f, 0.58f, 0.95f, 0.42f)
-    val DropZoneBorder = UiColor(0.44f, 0.68f, 0.95f, 0.28f)
-    val DropZoneBorderActive = UiColor(0.7f, 0.86f, 1f, 0.95f)
+    const val DropZoneGlyph = "dock-drop-zone-glyph"
+    const val Active = "active"
 }

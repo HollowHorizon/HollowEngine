@@ -73,11 +73,15 @@ import ru.hollowhorizon.hollowengine.client.models.internal.rendering.InstanceBa
 import ru.hollowhorizon.hollowengine.client.render.CameraFovEvent
 import ru.hollowhorizon.hollowengine.client.render.CameraSetupEvent
 import ru.hollowhorizon.hollowengine.client.render.RenderManager
-import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOverlay
 import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeGameViewport
+import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOverlay
+import ru.hollowhorizon.hollowengine.client.ui.ide.HollowIdeOverlayPoint
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneCameraSystem
 import ru.hollowhorizon.hollowengine.client.ui.script.UiScriptHudHost
 import ru.hollowhorizon.hollowengine.common.ui.HudPlacement
+import ru.hollowhorizon.hollowengine.client.editor.WorldInspector
+import ru.hollowhorizon.hollowengine.client.ui.notification.NotificationOverlay
+import ru.hollowhorizon.hollowengine.client.vfx.render.VfxWorldRenderer
 import ru.hollowhorizon.hollowengine.common.ui.hud.HudLayerRegistry
 import ru.hollowhorizon.hollowengine.common.ui.hud.VanillaHudLayers
 import ru.hollowhorizon.hollowengine.client.utils.HollowCoreLoader
@@ -113,6 +117,7 @@ import ru.hollowhorizon.hollowengine.common.attachments.components.PlayerArmsCom
 import ru.hollowhorizon.hollowengine.client.models.internal.manager.MaterialSources
 import ru.hollowhorizon.hollowengine.common.registry.CommonRegistryHelper
 import ru.hollowhorizon.hollowengine.common.registry.CommonRegistryProvider
+import ru.hollowhorizon.hollowengine.common.scripting.reload.ServerReloadScripts
 import ru.hollowhorizon.hollowengine.common.runtime.EmptyRuntimeAnnotationIndex
 import ru.hollowhorizon.hollowengine.common.runtime.RuntimeAnnotationEnvironment
 import ru.hollowhorizon.hollowengine.common.utils.*
@@ -139,11 +144,11 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun setProduction(production: Boolean) {
-        isProduction = production
+        RuntimeFlags.production = production
     }
 
     override fun setClient(physicalClient: Boolean) {
-        isPhysicalClient = physicalClient
+        RuntimeFlags.physicalClient = physicalClient
     }
 
     override fun events(): EventBridge = EventBridgeImpl
@@ -495,13 +500,21 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun shouldForceAutoGuiScale(screen: Screen?): Boolean = screen is AutoScaled
 
+    override fun onLevelFrameRendered(minecraft: Minecraft) {
+        RenderTickEvent.LevelRendered.post(RenderTickEvent.LevelRendered(minecraft))
+    }
+
     override fun onBeforeBlitScreen(minecraft: Minecraft) {
-        HollowIdeGameViewport.endRender()
+        HollowIdeGameViewport.beginWindowPass()
     }
 
     override fun onBlitScreen(minecraft: Minecraft) {
         HollowIdeGameViewport.restoreWindowViewport()
-        RenderTickEvent.Blit.post(RenderTickEvent.Blit(minecraft))
+        try {
+            RenderTickEvent.Blit.post(RenderTickEvent.Blit(minecraft))
+        } finally {
+            HollowIdeGameViewport.endWindowPass()
+        }
     }
 
     override fun onServerCreated(server: MinecraftServer, serverThread: Thread, levelRoot: Path) {
@@ -530,6 +543,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onServerStopped(server: MinecraftServer) {
+        ServerReloadScripts.stop()
         RuntimeDispatcherState.stopServer(server)
         ServerRuntimeState.remove(server)
         clearCurrentServer(server)
@@ -540,11 +554,11 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     }
 
     override fun onClientTick(client: Minecraft) {
+        HollowIdeGameViewport.beginFrame(client)
         RuntimeDispatcherState.runClientTasks(client)
     }
 
     override fun onClientRenderTickPre(client: Minecraft) {
-        HollowIdeGameViewport.beginRender(client)
         CutsceneCameraSystem.update(client)
         RenderTickEvent.Pre.post(RenderTickEvent.Pre(client))
     }
@@ -552,16 +566,6 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
     override fun onClientRenderTickPost(client: Minecraft) {
         RenderTickEvent.Post.post(RenderTickEvent.Post(client))
     }
-
-    override fun onClientResized(client: Minecraft) {
-        HollowIdeGameViewport.invalidateWindowMetrics()
-    }
-
-    override fun allowMouseGrab(): Boolean = !HollowIdeOverlay.expanded
-
-    override fun getGameViewportMetrics(): RuntimeBridge.GameViewportMetrics? = HollowIdeGameViewport.metrics()
-
-    override fun isGameViewportRendering(): Boolean = HollowIdeGameViewport.isRendering()
 
     override fun onClientStopping(client: Minecraft) {
         RuntimeDispatcherState.stopClient(client)
@@ -795,6 +799,10 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         IrisHelper.invalidateInstancingPrograms()
     }
 
+    override fun onIrisLevelFinished() {
+        VfxWorldRenderer.onShaderPackFrameFinished()
+    }
+
     override fun onIrisShadowRenderStart() {
         InstanceBatchManager.clear()
     }
@@ -821,9 +829,7 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         UiScriptHudHost.render(layer, HudPlacement.BEFORE, nowNanos)
 
         val skip = event.isCanceled || HudLayerRegistry.isHidden(layer)
-        if (skip) {
-            UiScriptHudHost.render(layer, HudPlacement.AFTER, nowNanos)
-        }
+        if (skip) UiScriptHudHost.render(layer, HudPlacement.AFTER, nowNanos)
         return skip
     }
 
@@ -863,28 +869,47 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         xPos: Double,
         yPos: Double,
     ): RuntimeBridge.MouseMoveResult {
-        val window = minecraft.window
-        val scaleFactor = HollowIdeGameViewport.windowWidth().toDouble() / window.screenWidth
-        val convertedX = (xPos * scaleFactor).toFloat()
-        val convertedY = (yPos * scaleFactor).toFloat()
+        val pointer = mainTargetPointer(minecraft, xPos, yPos)
+        val convertedX = pointer.x
+        val convertedY = pointer.y
 
+        val isNotificationCaptured = NotificationOverlay.handleMouseMove(convertedX, convertedY)
         val isOverlayInputCaptured = HollowIdeOverlay.handleMouseMove(convertedX, convertedY)
-        val isGizmoInputCaptured = TransformGizmoEditor.handleMouseMove(convertedX, convertedY)
-        val (guiX, guiY) = guiScaledPointer(minecraft, xPos, yPos)
-        val isScriptOverlayCaptured = UiScriptHudHost.handleMouseMove(guiX, guiY)
+
+        val world = HollowIdeOverlay.worldPointer(convertedX, convertedY)
+        var isGizmoInputCaptured = false
+        var isScriptOverlayCaptured = false
+        var isGizmoBlocking = false
+        if (world != null) {
+            WorldInspector.handleMouseMove(world.x, world.y)
+            isGizmoInputCaptured = TransformGizmoEditor.handleMouseMove(world.x, world.y)
+            val (guiX, guiY) = hudPointer(minecraft, world.x, world.y)
+            isScriptOverlayCaptured = UiScriptHudHost.handleMouseMove(guiX, guiY)
+            isGizmoBlocking = TransformGizmoEditor.shouldBlockScreenInput(world.x, world.y)
+        } else {
+            TransformGizmoEditor.releasePointer()
+        }
+
         val isScreenOpen = minecraft.screen != null
-        val isGizmoBlocking = TransformGizmoEditor.shouldBlockScreenInput(convertedX, convertedY)
-        val shouldCancel = isOverlayInputCaptured || isGizmoInputCaptured || isScriptOverlayCaptured || isGizmoBlocking && isScreenOpen
+        val shouldCancel = isNotificationCaptured || isOverlayInputCaptured ||
+                isGizmoInputCaptured || isScriptOverlayCaptured || isGizmoBlocking && isScreenOpen
         val shouldResetMousePosition = isGizmoBlocking && isScreenOpen
-        return RuntimeBridge.MouseMoveResult(shouldCancel, shouldResetMousePosition, false, xPos, yPos)
+        val redirect = if (shouldCancel) null else HollowIdeOverlay.gameWindowPointer(convertedX, convertedY)
+        return RuntimeBridge.MouseMoveResult(
+            shouldCancel,
+            shouldResetMousePosition,
+            redirect != null,
+            redirect?.x?.toDouble() ?: 0.0,
+            redirect?.y?.toDouble() ?: 0.0,
+        )
     }
 
-    /** Converts a raw window cursor position to the GUI-scaled coordinate space overlays render in. */
-    private fun guiScaledPointer(minecraft: Minecraft, xPos: Double, yPos: Double): Pair<Float, Float> {
+    /** Converts a main render target position to the GUI-scaled space script overlays render in. */
+    private fun hudPointer(minecraft: Minecraft, x: Float, y: Float): Pair<Float, Float> {
         val window = minecraft.window
-        val guiX = xPos * window.guiScaledWidth / window.screenWidth
-        val guiY = yPos * window.guiScaledHeight / window.screenHeight
-        return guiX.toFloat() to guiY.toFloat()
+        val target = minecraft.mainRenderTarget
+        if (target == null || target.width <= 0 || target.height <= 0) return x to y
+        return x * window.guiScaledWidth / target.width to y * window.guiScaledHeight / target.height
     }
 
     override fun onMousePress(
@@ -896,14 +921,15 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         action: Int,
         modifiers: Int,
     ): Boolean {
-        val scale = HollowIdeGameViewport.windowWidth().toDouble() / minecraft.window.screenWidth
-        val x = (windowX * scale).toFloat()
-        val y = (windowY * scale).toFloat()
-        val (guiX, guiY) = guiScaledPointer(minecraft, windowX, windowY)
-        return HollowIdeOverlay.handleMouseButton(x, y, button, action) ||
-                TransformGizmoEditor.handleMouseButton(x, y, button, action) ||
+        val (x, y) = mainTargetPointer(minecraft, windowX, windowY)
+        if (NotificationOverlay.handleMouseButton(x, y, button, action)) return true
+        if (HollowIdeOverlay.handleMouseButton(x, y, button, action)) return true
+        val world = HollowIdeOverlay.worldPointer(x, y) ?: return true
+        val (guiX, guiY) = hudPointer(minecraft, world.x, world.y)
+        return TransformGizmoEditor.handleMouseButton(world.x, world.y, button, action) ||
+                WorldInspector.pickAt(world.x, world.y, button, action) ||
                 UiScriptHudHost.handleMouseButton(guiX, guiY, button, action) ||
-                TransformGizmoEditor.shouldBlockScreenInput(x, y)
+                TransformGizmoEditor.shouldBlockScreenInput(world.x, world.y)
     }
 
     override fun onMouseScroll(
@@ -914,15 +940,33 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         xOffset: Double,
         yOffset: Double,
     ): Boolean {
-        val scale = HollowIdeGameViewport.windowWidth().toDouble() / minecraft.window.screenWidth
-        val x = (windowX * scale).toFloat()
-        val y = (windowY * scale).toFloat()
-        val (guiX, guiY) = guiScaledPointer(minecraft, windowX, windowY)
-        return HollowIdeOverlay.handleMouseScroll(x, y, xOffset, yOffset) ||
-                TransformGizmoEditor.handleMouseScroll(x, y, xOffset, yOffset) ||
+        val (x, y) = mainTargetPointer(minecraft, windowX, windowY)
+        if (NotificationOverlay.handleMouseScroll(x, y, xOffset, yOffset)) return true
+        if (HollowIdeOverlay.handleMouseScroll(x, y, xOffset, yOffset)) return true
+        val world = HollowIdeOverlay.worldPointer(x, y) ?: return true
+        val (guiX, guiY) = hudPointer(minecraft, world.x, world.y)
+        return TransformGizmoEditor.handleMouseScroll(world.x, world.y, xOffset, yOffset) ||
                 UiScriptHudHost.handleMouseScroll(guiX, guiY, xOffset, yOffset) ||
-                TransformGizmoEditor.shouldBlockScreenInput(x, y)
+                TransformGizmoEditor.shouldBlockScreenInput(world.x, world.y)
     }
+
+    override fun allowMouseGrab(): Boolean = HollowIdeOverlay.allowMouseGrab()
+
+    /**
+     * A cursor position in the window's own framebuffer pixels. The main target follows the
+     * editor's game panel when there is one, so the window is what the pointer is measured in.
+     */
+    private fun mainTargetPointer(minecraft: Minecraft, windowX: Double, windowY: Double): HollowIdeOverlayPoint {
+        val window = minecraft.window
+        return HollowIdeOverlayPoint(
+            (windowX * HollowIdeGameViewport.windowWidth() / window.screenWidth.coerceAtLeast(1)).toFloat(),
+            (windowY * HollowIdeGameViewport.windowHeight() / window.screenHeight.coerceAtLeast(1)).toFloat(),
+        )
+    }
+
+    override fun getGameViewportMetrics(): RuntimeBridge.GameViewportMetrics? = HollowIdeGameViewport.metrics()
+
+    override fun isGameViewportWindowPass(): Boolean = HollowIdeGameViewport.isWindowPass()
 
     override fun onRenderLevelStage(
         renderer: LevelRenderer,

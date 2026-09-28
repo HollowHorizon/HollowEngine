@@ -37,6 +37,9 @@ internal fun applyScrollRanges(
 internal class ScrollbarCache {
     private val byContainer = WeakHashMap<UiNode, MutableMap<ScrollbarOrientation, ScrollbarNode>>()
 
+    fun hoverProgress(container: UiNode, orientation: ScrollbarOrientation, nowNanos: Long): Float =
+        byContainer[container]?.get(orientation)?.hoverProgress(nowNanos) ?: 0f
+
     fun scrollbar(container: UiNode, orientation: ScrollbarOrientation): ScrollbarNode {
         val map = byContainer.getOrPut(container) { mutableMapOf() }
         return map.getOrPut(orientation) {
@@ -52,23 +55,27 @@ internal fun placeScrollbarNodes(
 ): Map<UiNode, List<ScrollbarNode>> {
     var scrollbars: HashMap<UiNode, List<ScrollbarNode>>? = null
     var additions: ArrayList<UiLayoutNode>? = null
+    var easing: ArrayList<ScrollbarNode>? = null
+    val now = System.nanoTime()
     for ((container, containerLayout) in layouts) {
         val spec = container.scrollSpec() ?: continue
         val style = container.resolvedSnapshot
-        val geometry = scrollbarGeometry(spec, style, containerLayout)
+        val geometry = scrollbarGeometry(spec, style, containerLayout) { cache.hoverProgress(container, it, now) }
         if (geometry.isEmpty()) continue
         val bars = ArrayList<ScrollbarNode>(geometry.size)
         val pending = additions ?: ArrayList<UiLayoutNode>().also { additions = it }
         for (geom in geometry) {
             val bar = cache.scrollbar(container, geom.orientation)
-            bar.applyPartStyles(style.scrollbar)
+            bar.applyPartStyles(style.scrollbar, bar.hoverProgress(now))
             pending += scrollbarPartLayout(bar, geom.track, containerLayout)
             pending += scrollbarPartLayout(bar.thumb, geom.thumb, containerLayout)
             bars += bar
+            if (bar.isEasing(now)) (easing ?: ArrayList<ScrollbarNode>().also { easing = it }) += bar
         }
         (scrollbars ?: HashMap<UiNode, List<ScrollbarNode>>().also { scrollbars = it })[container] = bars
     }
     additions?.forEach { layouts[it.node] = it }
+    easing?.forEach { it.layoutState.invalidateLayout() }
     return scrollbars ?: emptyMap()
 }
 
@@ -96,11 +103,12 @@ private fun scrollbarGeometry(
     spec: UiScrollSpec,
     style: UiComputedStyle,
     layoutNode: UiLayoutNode,
+    hover: (ScrollbarOrientation) -> Float,
 ): List<UiScrollbarGeometry> {
     val rect = layoutNode.rect
     val scrollArea = layoutNode.scrollArea
-    val vertical = style.scrollbar.resolved(scrollArea.width)
-    val horizontal = style.scrollbar.resolved(scrollArea.height)
+    val vertical = style.scrollbar.resolved(scrollArea.width, hover(ScrollbarOrientation.VERTICAL))
+    val horizontal = style.scrollbar.resolved(scrollArea.height, hover(ScrollbarOrientation.HORIZONTAL))
     val hasVertical = spec.verticalScrollbar && vertical.isVisible &&
             layoutNode.scrollRange.y > ScrollOverflowEpsilon && scrollArea.height > vertical.thickness
     val hasHorizontal = spec.horizontalScrollbar && horizontal.isVisible &&
@@ -112,7 +120,8 @@ private fun scrollbarGeometry(
         val trackLength = scrollArea.height - vertical.margin * 2f - if (hasHorizontal) horizontal.gutter else 0f
         if (trackLength > 0f) {
             val track = UiRect(
-                x = rect.width - vertical.thickness - vertical.margin,
+                x = if (vertical.atStart) scrollArea.x - rect.x + vertical.margin
+                else rect.width - vertical.thickness - vertical.margin,
                 y = scrollArea.y - rect.y + vertical.margin,
                 width = vertical.thickness,
                 height = trackLength,
@@ -131,7 +140,8 @@ private fun scrollbarGeometry(
         if (trackLength > 0f) {
             val track = UiRect(
                 x = scrollArea.x - rect.x + horizontal.margin,
-                y = rect.height - horizontal.thickness - horizontal.margin,
+                y = if (horizontal.atStart) scrollArea.y - rect.y + horizontal.margin
+                else rect.height - horizontal.thickness - horizontal.margin,
                 width = trackLength,
                 height = horizontal.thickness,
             )

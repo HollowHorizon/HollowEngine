@@ -56,9 +56,17 @@ sealed interface UiStylesheetReference {
 object MinecraftHssResourceLoader : HssResourceLoader {
     private val locations = ConcurrentHashMap<String, ResourceLocation>()
     private val stylesheets = ConcurrentHashMap<String, UiStylesheetReference.Resource>()
+
+    /** What each stylesheet imported when it was last compiled, so editing an import reloads it too. */
+    private val imports = ConcurrentHashMap<String, List<String>>()
+
     private val source = object : HssResourceLoader {
-        override fun load(location: String): CompiledHss =
-            compileHss(HollowUiResourceAccess.readText(resourceLocation(location)))
+        override fun load(location: String): CompiledHss {
+            val document = parseHss(HollowUiResourceAccess.readText(resourceLocation(location)))
+            val scope = HssScope.of(document)
+            imports[location] = scope.imported
+            return compileHss(document, scope = scope)
+        }
 
         override fun version(location: String): Long = MinecraftHssResourceLoader.version(location)
     }
@@ -68,7 +76,11 @@ object MinecraftHssResourceLoader : HssResourceLoader {
     }
 
     override fun version(location: String): Long {
-        return HollowUiResourceAccess.version(resourceLocation(location))
+        var version = HollowUiResourceAccess.version(resourceLocation(location))
+        imports[location]?.forEach { imported ->
+            version = version * 31L + HollowUiResourceAccess.version(resourceLocation(imported))
+        }
+        return version
     }
 
     private fun resourceLocation(location: String): ResourceLocation =

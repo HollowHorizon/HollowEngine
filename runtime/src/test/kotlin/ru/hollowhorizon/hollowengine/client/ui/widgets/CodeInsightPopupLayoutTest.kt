@@ -9,6 +9,7 @@ import ru.hollowhorizon.hollowengine.client.ui.Modifier
 import ru.hollowhorizon.hollowengine.client.ui.px
 import ru.hollowhorizon.hollowengine.client.ui.size
 import ru.hollowhorizon.hollowengine.client.ui.style.scrollable
+import ru.hollowhorizon.hollowengine.client.ui.text.UiTextFonts
 import ru.hollowhorizon.hollowengine.client.ui.text.UiTextLayouter
 import ru.hollowhorizon.hollowengine.common.scripting.ide.TokenType
 import kotlin.test.Test
@@ -50,7 +51,7 @@ class CodeInsightPopupLayoutTest {
     fun `signature popup grows for wrapped lines without scrolling inside a short editor`() {
         val state = TextFieldState("call(", multiline = true).apply { focus() }
         val label = "(screen: ResourceLocation, kind: UiSurfaceKind, charDelay: Int, " +
-                "choiceRevealDelay: Long)"
+                "choiceRevealDelay: Long, skipDelay: Int, portrait: ResourceLocation, voice: SoundEvent)"
         val provider = UiSignatureHelpProvider {
             UiTextSignatureHelp(
                 anchor = state.text.length,
@@ -75,7 +76,11 @@ class CodeInsightPopupLayoutTest {
             val popup = assertNotNull(current.nodeByIdentifier("editable-text-field-signature-help"))
             val popupLayout = current.layout[popup]
 
-            assertTrue(popupLayout.rect.height > state.fontSize + 16f, "wrapped lines must grow the popup")
+            val line = UiTextFonts.resolve(state.fontFamily).lineHeight(state.fontSize)
+            assertTrue(
+                popupLayout.rect.height > line * 1.5f,
+                "wrapped lines must grow the popup: ${popupLayout.rect} for a $line line",
+            )
             assertEquals(0f, popupLayout.scrollRange.y, 0.01f, "two wrapped lines must not create a scrollbar")
             assertTrue(popupLayout.rect.width < 604f, "fit width must hug the longest wrapped line")
         }

@@ -51,15 +51,11 @@ loom {
 
     runs {
         configureEach {
-            runDir("../run")
+            runDirectory.set(rootProject.layout.projectDirectory.dir("run"))
             if (name == "client") {
-                programArgs("--username", "TheHollowHorizon")
+                programArguments.addAll("--username", "TheHollowHorizon")
             }
         }
-    }
-
-    settingsPostEdit.add {
-        it.runDirIdeaUrl = "file://\$PROJECT_DIR\$/run"
     }
 }
 
@@ -110,14 +106,14 @@ dependencies {
 
     neoForge("net.neoforged:neoforge:$neoForgeVersion")
 
-    implementation("lib:iris-neoforge:1.8.12+mc1.21.1")
-    runtimeOnly("lib:iris-neoforge:1.8.12+mc1.21.1")
+    implementation("lib:iris-neoforge:1.8.14-beta.1+mc1.21.1")
+    runtimeOnly("lib:iris-neoforge:1.8.14-beta.1+mc1.21.1")
 
-    implementation("lib:sodium-neoforge:0.6.13+mc1.21.1")
-    runtimeOnly("lib:sodium-neoforge:0.6.13+mc1.21.1")
+    implementation("lib:sodium-neoforge:0.8.13+mc1.21.1")
+    runtimeOnly("lib:sodium-neoforge:0.8.13+mc1.21.1")
 
     implementation("org.anarres:jcpp:1.4.14")
-    implementation("io.github.douira:glsl-transformer:2.0.1")
+    implementation("io.github.douira:glsl-transformer:3.0.0-pre3")
 
     val mixinExtras = "io.github.llamalad7:mixinextras-neoforge:0.4.1"
     implementation(mixinExtras)

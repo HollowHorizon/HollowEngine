@@ -3,27 +3,65 @@ package ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui
 import androidx.compose.runtime.*
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.docking.DockTags
+import ru.hollowhorizon.hollowengine.client.ui.docking.LocalDockPanelTitle
 import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.*
+import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.scroll.UiScrollHandle
 import ru.hollowhorizon.hollowengine.client.ui.style.UiTextOverflow
-import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdown
+import ru.hollowhorizon.hollowengine.client.ui.widgets.ContextMenu
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiDropdownItem
+import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextInputFilter
 import ru.hollowhorizon.hollowengine.client.ui.widgets.tooltipOnHover
 import ru.hollowhorizon.hollowengine.client.utils.lang
+import kotlin.math.abs
 
-private const val PlayIcon = "hollowengine:textures/gui/icons/play.svg"
-private const val PauseIcon = "hollowengine:textures/gui/icons/pause.svg"
-private const val StartIcon = "hollowengine:textures/gui/icons/step_backward.svg"
-private const val EndIcon = "hollowengine:textures/gui/icons/step_forward.svg"
-private const val ZoomInIcon = "hollowengine:textures/gui/icons/zoom_in.svg"
-private const val ZoomOutIcon = "hollowengine:textures/gui/icons/zoom_out.svg"
-private const val MenuIcon = "hollowengine:textures/gui/icons/options.svg"
-private const val DopeSheetIcon = "hollowengine:textures/gui/icons/layers.svg"
-private const val CurvesIcon = "hollowengine:textures/gui/icons/graph.svg"
-private const val FrameCurvesIcon = "hollowengine:textures/gui/icons/maximize.svg"
-private const val PulseIcon = "hollowengine:textures/gui/icons/pulse.svg"
-private const val AddIcon = "hollowengine:textures/gui/icons/add.svg"
-private const val SettingsIcon = "hollowengine:textures/gui/icons/general.svg"
+/** The stylesheet of the timeline window's chrome; lanes and keys are drawn from [TimelineColors]. */
+internal const val TimelineStylesheet = "hollowengine:ui/styles/timeline.hss"
+
+/** The icons of the timeline, one family drawn for it. */
+internal object TimelineIcons {
+    private const val ROOT = "hollowengine:textures/gui/icons/timeline/"
+
+    const val PLAY = ROOT + "play.svg"
+    const val PAUSE = ROOT + "pause.svg"
+    const val TO_START = ROOT + "to_start.svg"
+    const val TO_END = ROOT + "to_end.svg"
+    const val PREV_KEY = ROOT + "prev_key.svg"
+    const val NEXT_KEY = ROOT + "next_key.svg"
+    const val ZOOM_IN = ROOT + "zoom_in.svg"
+    const val ZOOM_OUT = ROOT + "zoom_out.svg"
+    const val MORE = ROOT + "more.svg"
+    const val DOPE_SHEET = ROOT + "dope_sheet.svg"
+    const val CURVES = ROOT + "curves.svg"
+    const val FRAME = ROOT + "frame.svg"
+    const val CAPTURE = ROOT + "capture.svg"
+    const val EYE = ROOT + "eye.svg"
+    const val EYE_OFF = ROOT + "eye_off.svg"
+    const val LOCK = ROOT + "lock.svg"
+    const val LOCK_OPEN = ROOT + "lock_open.svg"
+    const val CLOSE = ROOT + "close.svg"
+    const val DELETE = ROOT + "delete.svg"
+    const val SMOOTH = ROOT + "smooth.svg"
+    const val FILM = ROOT + "film.svg"
+    const val SAVE = ROOT + "save.svg"
+    const val LOAD = ROOT + "load.svg"
+}
+
+/**
+ * Which of the shared timeline controls make sense for what is being edited.
+ */
+class TimelineFeatures(
+    val capture: Boolean = true,
+    val storage: Boolean = true,
+    val cameraPreview: Boolean = true,
+    /** Play, pause and the jumps to either end; a curve with no clock has no use for them. */
+    val playback: Boolean = true,
+) {
+    companion object {
+        val CUTSCENE = TimelineFeatures()
+    }
+}
 
 @Composable
 internal fun TimelineToolbar(
@@ -32,167 +70,196 @@ internal fun TimelineToolbar(
     onSave: () -> Unit,
     onLoad: () -> Unit,
     refresh: () -> Unit,
+    features: TimelineFeatures = TimelineFeatures.CUTSCENE,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
+    var menuAnchor by remember { mutableStateOf(UiRect.Zero) }
 
+    val parked = LocalDockPanelTitle.current
     Row(
-        id = "cutscene-timeline-toolbar",
-        modifier = Modifier.size(100.percent, 34.px).alignItems(vertical = UiAlign.CENTER)
-            .background(TimelineColors.Panel).border(1.px, TimelineColors.Border).padding(6.px, 0.px).gap(4.px),
+        id = parked?.headerId ?: "cutscene-timeline-toolbar",
+        tags = listOf("timeline-toolbar"),
+        modifier = parked?.dragHandle,
     ) {
-        ToolbarIcon(StartIcon, "timeline-start") {
-            controller.isPlaying = false
-            controller.applyCurrentTime(0f)
-            refresh()
+        parked?.let { panel ->
+            panel.icon?.let { icon -> Image(icon, tags = listOf(DockTags.PinnedHeaderIcon)) }
+            Text(panel.title, tags = listOf(DockTags.PinnedHeaderLabel), modifier = Modifier.textWrap(false))
+            TimelineSeparator()
         }
-        ToolbarIcon(
-            if (controller.isPlaying) PauseIcon else PlayIcon,
-            "timeline-play",
-            active = controller.isPlaying,
-        ) {
-            controller.togglePlayback()
-            refresh()
-        }
-        ToolbarIcon(EndIcon, "timeline-end") {
-            controller.isPlaying = false
-            controller.applyCurrentTime(controller.workAreaEnd)
-            refresh()
+        if (features.playback) {
+            TimelineButton(TimelineIcons.TO_START, "timeline-start", CutsceneLang.TO_START.lang) {
+                controller.isPlaying = false
+                controller.applyCurrentTime(0f)
+                refresh()
+            }
+            TimelineButton(TimelineIcons.PREV_KEY, "timeline-prev-key", CutsceneLang.PREV_KEY.lang) {
+                if (controller.jumpToKey(-1)) refresh()
+            }
+            TimelineButton(
+                if (controller.isPlaying) TimelineIcons.PAUSE else TimelineIcons.PLAY,
+                "timeline-play",
+                CutsceneLang.PLAY.lang,
+                active = controller.isPlaying,
+            ) {
+                controller.togglePlayback()
+                refresh()
+            }
+            TimelineButton(TimelineIcons.NEXT_KEY, "timeline-next-key", CutsceneLang.NEXT_KEY.lang) {
+                if (controller.jumpToKey(1)) refresh()
+            }
+            TimelineButton(TimelineIcons.TO_END, "timeline-end", CutsceneLang.TO_END.lang) {
+                controller.isPlaying = false
+                controller.applyCurrentTime(controller.workAreaEnd)
+                refresh()
+            }
+            TimeField(controller, refresh)
+            TimelineSeparator()
         }
 
-        TimelineSeparator()
-
-        ToolbarIcon(
-            DopeSheetIcon,
+        TimelineButton(
+            TimelineIcons.DOPE_SHEET,
             "timeline-view-dope",
+            CutsceneLang.VIEW_DOPE_SHEET.lang,
             active = controller.viewMode == TimelineViewMode.DOPE_SHEET,
-            tooltip = CutsceneLang.VIEW_DOPE_SHEET.lang,
         ) {
             controller.viewMode = TimelineViewMode.DOPE_SHEET
             refresh()
         }
-        ToolbarIcon(
-            CurvesIcon,
+        TimelineButton(
+            TimelineIcons.CURVES,
             "timeline-view-curves",
+            CutsceneLang.VIEW_CURVES.lang,
             active = controller.viewMode == TimelineViewMode.CURVES,
-            tooltip = CutsceneLang.VIEW_CURVES.lang,
         ) {
             controller.enterCurveView()
             refresh()
         }
 
-        TimelineSeparator()
-
-        Text(
-            "${formatSeconds(controller.currentTime)} / ${formatSeconds(controller.workAreaEnd)}",
-            modifier = Modifier.align(vertical = UiAlign.CENTER).fontSize(11f).foreground(TimelineColors.Text),
-        )
-
         // Push the trailing controls to the right edge.
         Box(modifier = Modifier.size(0.px, 1.px).grow(1f))
 
-        ToolbarIcon(PulseIcon, "timeline-capture", tooltip = CutsceneLang.CAPTURE_KEYFRAME.lang) {
-            onCapture()
-            refresh()
-        }
-
-        TimelineSeparator()
-
-        if (controller.viewMode == TimelineViewMode.CURVES) {
-            ToolbarIcon(FrameCurvesIcon, "timeline-frame-curves", tooltip = CutsceneLang.FRAME_CURVES.lang) {
-                controller.frameCurves()
+        if (features.capture) {
+            TimelineButton(TimelineIcons.CAPTURE, "timeline-capture", CutsceneLang.CAPTURE_KEYFRAME.lang) {
+                onCapture()
                 refresh()
             }
+            TimelineSeparator()
         }
 
-        ToolbarIcon(ZoomOutIcon, "timeline-zoom-out") {
+        val curves = controller.viewMode == TimelineViewMode.CURVES
+        TimelineButton(
+            TimelineIcons.FRAME,
+            "timeline-frame",
+            (if (curves) CutsceneLang.FRAME_CURVES else CutsceneLang.FRAME_TIME).lang,
+        ) {
+            if (curves) controller.frameCurves()
+            controller.requestFrameTime()
+            refresh()
+        }
+        TimelineButton(TimelineIcons.ZOOM_OUT, "timeline-zoom-out", CutsceneLang.ZOOM_OUT.lang) {
             zoomAroundCenter(controller, 1f / TimelineZoomButtonFactor)
             refresh()
         }
-        ToolbarIcon(ZoomInIcon, "timeline-zoom-in") {
+        TimelineButton(TimelineIcons.ZOOM_IN, "timeline-zoom-in", CutsceneLang.ZOOM_IN.lang) {
             zoomAroundCenter(controller, TimelineZoomButtonFactor)
             refresh()
         }
 
-        TimelineSeparator()
-
         // Everything that doesn't fit on the bar lives in an overflow menu.
-        UiDropdown(
-            id = "timeline-overflow",
-            label = "",
-            icon = MenuIcon,
-            expanded = menuOpen,
-            onExpandedChange = { menuOpen = it },
-            tags = listOf("timeline-overflow"),
-            items = listOf(
-                UiDropdownItem(CutsceneLang.CAPTURE_KEYFRAME.lang, icon = PulseIcon) {
-                    onCapture(); refresh()
-                },
+        Box(modifier = Modifier.onPlaced { menuAnchor = it }) {
+            TimelineButton(TimelineIcons.MORE, "timeline-overflow", CutsceneLang.MORE.lang, active = menuOpen) {
+                menuOpen = !menuOpen
+            }
+        }
+        if (menuOpen) ContextMenu(
+            id = "timeline-overflow-menu",
+            anchorBounds = menuAnchor,
+            alignment = OverflowMenuAlignment,
+            onExpandedChange = { if (!it) menuOpen = false },
+            items = listOfNotNull(
                 UiDropdownItem(
                     CutsceneLang.DELETE_SELECTED.lang,
-                    icon = "hollowengine:textures/gui/icons/remove.svg",
+                    icon = TimelineIcons.DELETE,
                     enabled = controller.selectedKeyframes.isNotEmpty(),
+                    shortcut = "Del",
                 ) {
                     controller.deleteSelectedKeyframes(); refresh()
                 },
                 UiDropdownItem(
                     CutsceneLang.SMOOTH_SELECTED.lang,
-                    icon = CurvesIcon,
+                    icon = TimelineIcons.SMOOTH,
                     enabled = controller.canEditSelectedCurves,
+                    shortcut = "S",
                 ) {
                     controller.smoothSelectedKeyframes(); refresh()
                 },
-                UiDropdownItem(
+                if (!features.cameraPreview) null else UiDropdownItem(
                     if (controller.isCameraPreviewEnabled) CutsceneLang.CAMERA_PREVIEW_ON.lang
                     else CutsceneLang.CAMERA_PREVIEW_OFF.lang,
-                    icon = "hollowengine:textures/gui/icons/film.svg",
+                    icon = TimelineIcons.FILM,
                     closeOnClick = false,
+                    separatorBefore = true,
                 ) {
                     controller.applyCameraPreviewEnabled(!controller.isCameraPreviewEnabled)
                     refresh()
                 },
-                UiDropdownItem(CutsceneLang.SAVE.lang, icon = "hollowengine:textures/gui/icons/save.svg") { onSave() },
-                UiDropdownItem(CutsceneLang.LOAD.lang, icon = "hollowengine:textures/gui/icons/load.svg") { onLoad() },
+                if (!features.storage) null else UiDropdownItem(
+                    CutsceneLang.SAVE.lang,
+                    icon = TimelineIcons.SAVE,
+                    separatorBefore = true,
+                ) { onSave() },
+                if (!features.storage) null else UiDropdownItem(
+                    CutsceneLang.LOAD.lang,
+                    icon = TimelineIcons.LOAD,
+                ) { onLoad() },
             ),
         )
     }
 }
 
+/** Where the playhead is, as a field: typing a time jumps there. */
 @Composable
-private fun ToolbarIcon(
-    icon: String,
-    id: String,
-    active: Boolean = false,
-    tooltip: String? = null,
-    onClick: () -> Unit,
-) {
-    var hovered by remember { mutableStateOf(false) }
-    val background = when {
-        active -> TimelineAccentSoft
-        hovered -> TimelineColors.PanelAlt
-        else -> UiColor.Transparent
-    }
-    Box(
-        id = id,
-        mode = UiBoxMode.STACK,
-        modifier = Modifier.size(24.px, 24.px).background(background)
-            .border(1.px, if (active) TimelineColors.Accent else TimelineColors.Border, 4f).cursor(UiCursorShape.HAND)
-            .let { if (tooltip == null) it else it.tooltipOnHover(tooltip) }.onEnter { hovered = true }
-            .onExit { hovered = false }.onClick { event ->
-                onClick()
-                event.consume()
-            },
-    ) {
-        key(icon) {
-            Image(
-                icon,
-                modifier = Modifier.size(14.px, 14.px).align(UiAlign.CENTER, UiAlign.CENTER)
-                    .opacity(if (active || hovered) 1f else 0.8f),
-            )
-        }
-    }
+private fun TimeField(controller: TimelineController, refresh: () -> Unit) {
+    TextField(
+        value = formatSeconds(controller.currentTime),
+        id = "timeline-time",
+        fontSize = 9f,
+        filter = UiTextInputFilter.DECIMAL,
+        tags = listOf("timeline-time"),
+        modifier = Modifier.tooltipOnHover(CutsceneLang.TIME_HINT.lang),
+        onChange = { typed ->
+            val time = typed.toFloatOrNull() ?: return@TextField
+            if (abs(time - controller.currentTime) < TimeFieldEpsilon) return@TextField
+            controller.isPlaying = false
+            controller.applyCurrentTime(time)
+            refresh()
+        },
+    )
+    Text("/ " + formatSeconds(controller.workAreaEnd), tags = listOf("timeline-duration"))
 }
 
-private val TimelineAccentSoft = UiColor(1f, 0.54f, 0.18f, 0.22f)
+private const val TimeFieldEpsilon = 0.005f
+
+/** A flat button of the bar, the way the IDE toolbar draws them. */
+@Composable
+private fun TimelineButton(
+    icon: String,
+    id: String,
+    tooltip: String,
+    active: Boolean = false,
+    onClick: () -> Unit,
+) {
+    Box(
+        id = id,
+        tags = if (active) listOf("timeline-button", "active") else listOf("timeline-button"),
+        modifier = Modifier.cursor(UiCursorShape.HAND).tooltipOnHover(tooltip).onClick { event ->
+            onClick()
+            event.consume()
+        },
+    ) {
+        key(icon) { Image(icon, tags = listOf("timeline-button-icon")) }
+    }
+}
 
 @Composable
 internal fun TimelineHeaders(
@@ -202,39 +269,38 @@ internal fun TimelineHeaders(
     verticalOffset: Float,
     ownsVerticalScroll: Boolean,
     contentHeight: Float,
-    onLayerSettings: (AnimLayer) -> Unit,
-    onPropertySettings: (AnimProperty<*>) -> Unit,
+    trackScroll: UiScrollHandle,
     refresh: () -> Unit,
 ) {
     val width = controller.headerWidth
     val labelWidth = maxOf(width, rows.maxOfOrNull { headerLabelWidth(it) } ?: width)
+    var menu by remember { mutableStateOf<TrackMenu?>(null) }
+
     Column(
         id = "timeline-headers",
-        modifier = Modifier.size(width.px, 100.percent).background(TimelineColors.Panel),
+        modifier = Modifier.size(width.px, 100.percent),
     ) {
         // Corner cell, level with the ruler so the rows below line up with the lanes.
         Box(
             mode = UiBoxMode.STACK,
-            modifier = Modifier.size(width.px, TimelineRulerHeight.px).background(TimelineColors.Group),
+            tags = listOf("timeline-corner"),
+            modifier = Modifier.size(width.px, TimelineRulerHeight.px),
         ) {
             Text(
                 CutsceneLang.TRACKS.lang,
-                modifier = Modifier.align(vertical = UiAlign.CENTER).margin(12.px, 0.px, 0.px, 0.px).fontSize(10f)
-                    .foreground(TimelineColors.Muted),
-            )
-            Box(
-                modifier = Modifier.position(0.px, (TimelineRulerHeight - 1f).px).size(width.px, 1.px)
-                    .background(TimelineColors.Border),
+                tags = listOf("timeline-corner-label"),
+                modifier = Modifier.align(vertical = UiAlign.CENTER),
             )
         }
         val overflows = labelWidth > width + 1f
         Box(
+            tags = listOf("timeline-scroll"),
             modifier = Modifier.size(width.px, 0.px).grow(1f).clip().scrollable(
-                    state = scroll,
-                    vertical = ownsVerticalScroll,
-                    horizontal = overflows,
-                    hasHorizontalScrollbar = overflows,
-                ),
+                state = scroll,
+                vertical = ownsVerticalScroll,
+                horizontal = overflows,
+                hasHorizontalScrollbar = overflows,
+            ).onScroll { event -> scrollTrackList(event, trackScroll, scroll) },
         ) {
             Box(
                 modifier = Modifier.position((-scroll.offsetX).px, (-verticalOffset).px)
@@ -242,236 +308,264 @@ internal fun TimelineHeaders(
             ) {
                 rows.forEach { row ->
                     key(row.id) {
-                        TimelineHeaderRow(row, controller, labelWidth, onLayerSettings, onPropertySettings, refresh)
+                        TimelineHeaderRow(row, controller, labelWidth, refresh) { event ->
+                            menu = TrackMenu(event.x, event.y, row)
+                        }
                     }
                 }
             }
         }
     }
+
+    menu?.let { open ->
+        ContextMenu(
+            id = "timeline-track-menu",
+            anchorBounds = UiRect(open.x, open.y, 0f, 0f),
+            alignment = UiPopupAlignment.Cursor,
+            items = trackMenu(controller, open.row, refresh),
+            onExpandedChange = { if (!it) menu = null },
+        )
+    }
 }
+
+/** Room at the end of a track row, so the list's scrollbar does not sit on the row's buttons. */
+private const val TrackRowEndPadding = 9f
+
+private class TrackMenu(val x: Float, val y: Float, val row: TimelineRow)
 
 private fun headerLabelWidth(row: TimelineRow): Float =
-    8f + row.depth * 12f + row.label.length * 5.5f + headerControlsWidth(row)
+    8f + row.depth * 10f + row.label.length * 5.2f + headerControlsWidth(row)
 
 private fun headerControlsWidth(row: TimelineRow): Float = when (row.kind) {
-    TimelineRowKind.CHANNEL -> 40f
-    TimelineRowKind.LAYER -> 76f
+    TimelineRowKind.CHANNEL -> 20f
     else -> 58f
 }
-
-private const val EyeOnIcon = "hollowengine:textures/gui/icons/visible.svg"
-private const val EyeOffIcon = "hollowengine:textures/gui/icons/invisible.svg"
-private const val LockedIcon = "hollowengine:textures/gui/icons/locked.svg"
-private const val UnlockedIcon = "hollowengine:textures/gui/icons/unlocked.svg"
-private const val CollapseArrowIcon = "hollowengine:textures/gui/icons/arrow.svg"
 
 @Composable
 private fun TimelineHeaderRow(
     row: TimelineRow,
     controller: TimelineController,
     width: Float,
-    onLayerSettings: (AnimLayer) -> Unit,
-    onPropertySettings: (AnimProperty<*>) -> Unit,
     refresh: () -> Unit,
+    onMenu: (UiEvent) -> Unit,
 ) {
     val top = row.y - TimelineRulerHeight
-    val isActiveLayer = row.kind == TimelineRowKind.LAYER && controller.activeLayer === row.layer
     val isCurveView = controller.viewMode == TimelineViewMode.CURVES
     val rowCurves = if (isCurveView) row.curves.filter { it.spec.supportsCurveEditor } else row.curves
     val isFocused = isCurveView && rowCurves.isNotEmpty() && rowCurves.all { controller.isFocused(it) }
-    val color = when {
-        row.kind == TimelineRowKind.GROUP -> TimelineColors.Group
-        isFocused -> TimelineColors.Accent.withAlpha(0.26f)
-        isActiveLayer -> TimelineColors.Blue.withAlpha(0.28f)
-        row.locked -> UiColor(0.09f, 0.09f, 0.1f, 1f)
-        !row.visible -> UiColor(0.09f, 0.1f, 0.11f, 1f)
-        row.kind == TimelineRowKind.CHANNEL -> TimelineColors.PanelAlt
-        else -> TimelineColors.Panel
+    val tags = buildList {
+        add("timeline-row")
+        add(row.kind.name.lowercase())
+        if (isFocused) add("focused")
+        if (row.locked) add("locked")
+        if (!row.visible) add("muted")
     }
     Box(
         id = "header-${row.id}",
         mode = UiBoxMode.STACK,
-        modifier = Modifier.position(0.px, top.px).size(width.px, row.height.px).background(color).onClick { event ->
-                // In the graph a click picks what the graph shows; ctrl adds to it. Everywhere else
-                // the row list is what it always was.
-                if (isCurveView && rowCurves.isNotEmpty()) {
-                    controller.focusCurves(rowCurves, additive = event.modifiers and GLFW.GLFW_MOD_CONTROL != 0)
-                }
-                when {
-                    row.group != null -> row.group.isCollapsed = !row.group.isCollapsed
-                    row.kind == TimelineRowKind.LAYER -> controller.activeLayer = row.layer
-                    else -> if (!isCurveView) controller.clearSelection()
-                }
+        tags = tags,
+        modifier = Modifier.position(0.px, top.px).size(width.px, row.height.px).onClick { event ->
+            if (event.button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
+                onMenu(event)
                 event.consume()
-                refresh()
-            },
+                return@onClick
+            }
+            // In the graph a click picks what the graph shows; ctrl adds to it. Everywhere else
+            // the row list is what it always was.
+            if (isCurveView && rowCurves.isNotEmpty()) {
+                controller.focusCurves(rowCurves, additive = event.modifiers and GLFW.GLFW_MOD_CONTROL != 0)
+            }
+            when {
+                row.group != null -> row.group.isCollapsed = !row.group.isCollapsed
+                else -> if (!isCurveView) controller.clearSelection()
+            }
+            event.consume()
+            refresh()
+        },
     ) {
         Row(
             modifier = Modifier.size(100.percent, 100.percent).alignItems(vertical = UiAlign.CENTER)
-                .padding(0.px, 0.px, 6.px, 0.px).gap(2.px),
+                .padding(0.px, 0.px, TrackRowEndPadding.px, 0.px).gap(2.px),
         ) {
-            Box(modifier = Modifier.size((8f + row.depth * 12f).px, 1.px))
+            Box(modifier = Modifier.size((4f + row.depth * 10f).px, 1.px))
             when {
-                row.group != null -> Image(
-                    CollapseArrowIcon,
-                    modifier = Modifier.size(10.px, 10.px).align(vertical = UiAlign.CENTER)
-                        .rotate(z = if (row.group.isCollapsed) 0f else 90f).opacity(0.75f)
-                        .margin(2.px, 0.px, 4.px, 0.px),
-                )
-
-                row.kind == TimelineRowKind.PROPERTY -> Expander(row.property?.isExpanded == true) {
-                    row.property?.let { it.isExpanded = !it.isExpanded }
+                row.group != null -> DisclosureArrow("${row.id}-fold", !row.group.isCollapsed) {
+                    row.group.isCollapsed = !row.group.isCollapsed
                     refresh()
                 }
 
-                row.kind == TimelineRowKind.LAYER -> Expander(row.layer?.isExpanded == true) {
-                    row.layer?.let { it.isExpanded = !it.isExpanded }
-                    refresh()
-                }
+                row.kind == TimelineRowKind.PROPERTY && (row.property?.curves?.size ?: 0) > 1 ->
+                    DisclosureArrow("${row.id}-fold", row.property?.isExpanded == true) {
+                        row.property?.let { it.isExpanded = !it.isExpanded }
+                        refresh()
+                    }
+
+                else -> Box(modifier = Modifier.size(10.px, 1.px))
             }
             row.color?.let { swatch ->
                 Box(
-                    modifier = Modifier.size(3.px, 12.px).align(vertical = UiAlign.CENTER)
+                    modifier = Modifier.size(3.px, 10.px).align(vertical = UiAlign.CENTER)
                         .background(swatch.toUiColor(if (row.visible) 1f else 0.35f)).borderRadius(1.5f)
-                        .margin(0.px, 0.px, 6.px, 0.px),
+                        .margin(0.px, 0.px, 3.px, 0.px),
                 )
             }
             Text(
                 row.label,
-                modifier = Modifier.grow(1f).align(vertical = UiAlign.CENTER)
-                    .fontSize(if (row.kind == TimelineRowKind.CHANNEL) 10f else 11f)
-                    .foreground(if (row.visible) TimelineColors.Text else TimelineColors.Muted).textWrap(false),
+                tags = listOf("timeline-row-label"),
+                modifier = Modifier.size(0.px, UiLength.Fit).grow(1f).align(vertical = UiAlign.CENTER)
+                    .textOverflow(UiTextOverflow.DOTS),
             )
-            row.layer?.takeIf { row.kind == TimelineRowKind.LAYER && it.blendMode != BlendMode.OVERRIDE }
-                ?.let { layer ->
-                    Text(
-                        blendModeLabel(layer.blendMode),
-                        modifier = Modifier.align(vertical = UiAlign.CENTER).fontSize(9f)
-                            .foreground(TimelineColors.Accent).textWrap(false).margin(0.px, 0.px, 4.px, 0.px),
-                    )
-                }
-            HeaderControls(row, controller, onLayerSettings, onPropertySettings, refresh)
+            HeaderControls(row, controller, refresh)
         }
-        Box(
-            modifier = Modifier.position(0.px, (row.height - 1f).px).size(width.px, 1.px)
-                .background(TimelineColors.Border),
-        )
     }
 }
 
 @Composable
-private fun HeaderControls(
-    row: TimelineRow,
-    controller: TimelineController,
-    onLayerSettings: (AnimLayer) -> Unit,
-    onPropertySettings: (AnimProperty<*>) -> Unit,
-    refresh: () -> Unit,
-) {
+private fun HeaderControls(row: TimelineRow, controller: TimelineController, refresh: () -> Unit) {
+    val hideProperty = controller.onHideProperty
+    val hideGroup = controller.onHideGroup
+    val property = row.property.takeIf { row.kind == TimelineRowKind.PROPERTY }
+    val group = row.group
+
+    if (property != null && hideProperty != null || group != null && hideGroup != null) {
+        RowToggle("${row.id}-remove", TimelineIcons.CLOSE, CutsceneLang.TRACK_REMOVE.lang, listOf("hide-track")) {
+            if (property != null) hideProperty?.invoke(property) else group?.let { hideGroup?.invoke(it) }
+            refresh()
+        }
+    }
+
     when (row.kind) {
         TimelineRowKind.CHANNEL -> {
             val curve = row.curve ?: return
-            HeaderIconToggle(if (curve.isVisible) EyeOnIcon else EyeOffIcon, curve.isVisible, accent = false) {
+            VisibilityToggle("${row.id}-visible", curve.isVisible) {
                 curve.isVisible = !curve.isVisible
                 refresh()
             }
         }
 
-        TimelineRowKind.LAYER -> {
-            val layer = row.layer ?: return
-            HeaderIconToggle(SettingsIcon, active = false, accent = false) { onLayerSettings(layer) }
-            HeaderIconToggle(if (layer.isVisible) EyeOnIcon else EyeOffIcon, layer.isVisible, accent = false) {
-                layer.isVisible = !layer.isVisible
-                refresh()
-            }
-            HeaderIconToggle(if (layer.isLocked) LockedIcon else UnlockedIcon, layer.isLocked, accent = true) {
-                layer.isLocked = !layer.isLocked
-                refresh()
-            }
-        }
-
         TimelineRowKind.PROPERTY -> {
-            val property = row.property ?: return
-            HeaderIconToggle(SettingsIcon, active = false, accent = false) { onPropertySettings(property) }
-            HeaderIconToggle(AddIcon, active = false, accent = false) {
-                val layer = property.addLayer(blendMode = BlendMode.ADD)
-                property.isExpanded = true
-                controller.activeLayer = layer
-                onLayerSettings(layer)
+            val owner = row.property ?: return
+            VisibilityToggle("${row.id}-visible", owner.isVisible) {
+                owner.isVisible = !owner.isVisible
                 refresh()
             }
-            val visible = property.layers.any { it.isVisible }
-            HeaderIconToggle(if (visible) EyeOnIcon else EyeOffIcon, visible, accent = false) {
-                property.layers.forEach { it.isVisible = !visible }
+            LockToggle("${row.id}-lock", owner.isLocked) {
+                owner.isLocked = !owner.isLocked
                 refresh()
             }
         }
 
         TimelineRowKind.GROUP -> {
-            val group = row.group ?: return
-            val visible = groupLayers(group).any { it.isVisible }
-            HeaderIconToggle(if (visible) EyeOnIcon else EyeOffIcon, visible, accent = false) {
-                groupLayers(group).forEach { it.isVisible = !visible }
-                group.isVisible = !visible
+            val owner = row.group ?: return
+            VisibilityToggle("${row.id}-visible", owner.isVisible) {
+                owner.isVisible = !owner.isVisible
                 refresh()
             }
-            HeaderIconToggle(if (group.isLocked) LockedIcon else UnlockedIcon, group.isLocked, accent = true) {
-                group.isLocked = !group.isLocked
+            LockToggle("${row.id}-lock", owner.isLocked) {
+                owner.isLocked = !owner.isLocked
                 refresh()
             }
         }
     }
 }
 
-private fun groupLayers(group: TrackGroup): List<AnimLayer> = group.allProperties().flatMap { it.layers }
+@Composable
+private fun VisibilityToggle(id: String, visible: Boolean, onClick: () -> Unit) = RowToggle(
+    id,
+    if (visible) TimelineIcons.EYE else TimelineIcons.EYE_OFF,
+    (if (visible) CutsceneLang.TRACK_HIDE else CutsceneLang.TRACK_SHOW).lang,
+    if (visible) listOf("on") else emptyList(),
+    onClick,
+)
 
 @Composable
-private fun Expander(expanded: Boolean, onClick: () -> Unit) {
+private fun LockToggle(id: String, locked: Boolean, onClick: () -> Unit) = RowToggle(
+    id,
+    if (locked) TimelineIcons.LOCK else TimelineIcons.LOCK_OPEN,
+    (if (locked) CutsceneLang.TRACK_UNLOCK else CutsceneLang.TRACK_LOCK).lang,
+    if (locked) listOf("warn") else emptyList(),
+    onClick,
+)
+
+@Composable
+private fun RowToggle(id: String, icon: String, tooltip: String, states: List<String>, onClick: () -> Unit) {
     Box(
-        mode = UiBoxMode.STACK,
-        modifier = Modifier.size(12.px, 12.px).align(vertical = UiAlign.CENTER).cursor(UiCursorShape.HAND)
-            .margin(0.px, 0.px, 2.px, 0.px).onClick {
+        id = id,
+        tags = listOf("timeline-row-toggle") + states,
+        modifier = Modifier.align(vertical = UiAlign.CENTER).cursor(UiCursorShape.HAND).tooltipOnHover(tooltip)
+            .onClick {
                 onClick()
                 it.consume()
             },
     ) {
-        Image(
-            CollapseArrowIcon,
-            modifier = Modifier.size(9.px, 9.px).align(UiAlign.CENTER, UiAlign.CENTER)
-                .rotate(z = if (expanded) 90f else 0f).opacity(0.6f),
-        )
+        key(icon) { Image(icon, tags = listOf("timeline-row-icon")) }
     }
 }
 
 @Composable
-private fun HeaderIconToggle(icon: String, active: Boolean, accent: Boolean, onClick: () -> Unit) {
-    var hovered by remember { mutableStateOf(false) }
-    val tint = when {
-        active && accent -> TimelineColors.Accent
-        active -> TimelineColors.Text
-        else -> TimelineColors.Muted
-    }
+private fun DisclosureArrow(id: String, expanded: Boolean, onClick: () -> Unit) {
     Box(
-        mode = UiBoxMode.STACK,
-        modifier = Modifier.size(18.px, 18.px).align(vertical = UiAlign.CENTER)
-            .background(if (hovered) TimelineColors.PanelAlt else UiColor.Transparent).borderRadius(3f)
-            .cursor(UiCursorShape.HAND).onEnter { hovered = true }.onExit { hovered = false }.onClick {
+        id = id,
+        tags = listOf("tree-expander"),
+        attributes = mapOf("expanded" to expanded.toString()),
+        modifier = Modifier.size(10.px, 10.px).margin(0.px).align(vertical = UiAlign.CENTER).cursor(UiCursorShape.HAND)
+            .onClick {
                 onClick()
                 it.consume()
             },
-    ) {
-        Image(
-            icon,
-            modifier = Modifier.size(12.px, 12.px).align(UiAlign.CENTER, UiAlign.CENTER).tint(tint)
-                .opacity(if (active || hovered) 1f else 0.75f),
-        )
-    }
+    )
 }
+
+/**
+ * What a right click on a track offers: its keys, whether it shows and takes edits, the basis a
+ * rotation is keyed in, and taking it off the list.
+ */
+private fun trackMenu(controller: TimelineController, row: TimelineRow, refresh: () -> Unit): List<UiDropdownItem> =
+    buildList {
+        val keys = row.curves.flatMap { it.keyframes }
+        add(UiDropdownItem(CutsceneLang.TRACK_SELECT_KEYS.lang, enabled = keys.isNotEmpty() && !row.locked) {
+            controller.select(keys, additive = false)
+            refresh()
+        })
+
+        val property = row.property.takeIf { row.kind == TimelineRowKind.PROPERTY }
+        val type = property?.type as? RotationPropertyType
+        if (property != null && type != null) {
+            add(
+                UiDropdownItem(
+                    CutsceneLang.ROTATION_MODE.lang,
+                    separatorBefore = true,
+                    children = RotationMode.entries.map { mode ->
+                        UiDropdownItem(rotationModeLabel(mode), checked = type.mode == mode) {
+                            controller.edit("Change rotation basis") { property.setRotationMode(mode) }
+                            refresh()
+                        }
+                    },
+                )
+            )
+        }
+
+        val hideProperty = controller.onHideProperty
+        val hideGroup = controller.onHideGroup
+        val group = row.group
+        if (property != null && hideProperty != null) {
+            add(UiDropdownItem(CutsceneLang.TRACK_REMOVE.lang, icon = TimelineIcons.CLOSE, separatorBefore = true) {
+                hideProperty(property)
+                refresh()
+            })
+        } else if (group != null && hideGroup != null) {
+            add(UiDropdownItem(CutsceneLang.TRACK_REMOVE.lang, icon = TimelineIcons.CLOSE, separatorBefore = true) {
+                hideGroup(group)
+                refresh()
+            })
+        }
+    }
 
 @Composable
 internal fun ToolbarButton(label: String, id: String, color: UiColor = TimelineColors.PanelAlt, onClick: () -> Unit) {
     Box(
         id = id,
-        modifier = Modifier.size(UiLength.Auto, 22.px).background(color).border(1.px, TimelineColors.Border, 3f)
+        modifier = Modifier.size(UiLength.Auto, 20.px).background(color).borderRadius(3f)
             .padding(10.px, 0.px).cursor(UiCursorShape.HAND).onClick { event ->
                 onClick()
                 event.consume()
@@ -479,7 +573,7 @@ internal fun ToolbarButton(label: String, id: String, color: UiColor = TimelineC
     ) {
         Text(
             label,
-            modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER).fontSize(10f).foreground(TimelineColors.Text)
+            modifier = Modifier.align(UiAlign.CENTER, UiAlign.CENTER).fontSize(9f).foreground(TimelineColors.Text)
                 .textWrap(false).textOverflow(UiTextOverflow.DOTS).textAlign(UiTextAlign.CENTER),
         )
     }
@@ -487,21 +581,17 @@ internal fun ToolbarButton(label: String, id: String, color: UiColor = TimelineC
 
 @Composable
 private fun TimelineSeparator() {
-    Box(modifier = Modifier.size(1.px, 18.px).background(TimelineColors.Border))
-}
-
-internal fun blendModeLabel(mode: BlendMode): String = when (mode) {
-    BlendMode.OVERRIDE -> CutsceneLang.BLEND_OVERRIDE.lang
-    BlendMode.ADD -> CutsceneLang.BLEND_ADD.lang
-    BlendMode.SUBTRACT -> CutsceneLang.BLEND_SUBTRACT.lang
-    BlendMode.MULTIPLY -> CutsceneLang.BLEND_MULTIPLY.lang
+    Box(tags = listOf("timeline-separator"))
 }
 
 internal fun formatSeconds(value: Float): String = "%.2f".format(value).replace(',', '.')
 
-/** Zoom keeping the visible centre roughly fixed; used by the toolbar buttons. */
+/** Zoom keeping the visible center roughly fixed; used by the toolbar buttons. */
 internal fun zoomAroundCenter(controller: TimelineController, factor: Float) {
     controller.pixelsPerSecond = (controller.pixelsPerSecond * factor).coerceIn(TimelineMinZoom, TimelineMaxZoom)
 }
 
 internal const val TimelineZoomButtonFactor = 1.25f
+
+/** The overflow menu hangs under its button, flush with its right edge, since the button ends the bar. */
+private val OverflowMenuAlignment = UiPopupAlignment(anchorHorizontal = UiAlign.END, popupHorizontal = UiAlign.END)

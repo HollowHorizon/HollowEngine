@@ -16,5 +16,6 @@
   "toggle_colliders": "Show the colliders",
   "start_physics": "Drop the rig and see what it does",
   "stop_physics": "Stop the simulation",
-  "kind_item": "Item"
+  "kind_item": "Item",
+  "kind_vfx": "Effect"
 }

@@ -42,7 +42,7 @@ open class EventHandler<T : Event> {
      * Subscribes [listener] for as long as [scope] is active. A [LogicalSide] in the scope's context limits
      * it to the posts of that side.
      */
-    open fun register(scope: CoroutineScope, listener: EventListener<T>): EventListener<T> {
+    fun register(scope: CoroutineScope, listener: EventListener<T>): EventListener<T> {
         val job = requireNotNull(scope.coroutineContext[Job]) {
             "Event subscriptions require a CoroutineScope with a Job"
         }

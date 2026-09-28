@@ -51,33 +51,34 @@ float minimumSegmentDistance(vec2 point, ivec4 tile) {
     return distance;
 }
 
-float softenedCoverage(float edge, float blurRadius) {
-    float aa = max(fwidth(edge), 0.0001);
+float softenedCoverage(float edge, float blurRadius, float pixelSize) {
+    float aa = pixelSize;
     if (blurRadius <= 0.0001) return clamp(0.5 - edge / aa, 0.0, 1.0);
     float extent = max(blurRadius * 3.0, aa);
     return 1.0 - smoothstep(-extent, extent, edge);
 }
 
-float strokeCoverage(vec2 point, ivec4 tile, float radius, float spreadRadius, float blurRadius) {
+float strokeCoverage(vec2 point, ivec4 tile, float radius, float spreadRadius, float blurRadius, float pixelSize) {
     float distance = minimumSegmentDistance(point, tile);
     float edge = distance - radius - spreadRadius;
-    return softenedCoverage(edge, blurRadius);
+    return softenedCoverage(edge, blurRadius, pixelSize);
 }
 
-float pathCoverage(ivec4 tile, ivec4 style) {
+float pathCoverage(ivec4 tile, ivec4 style, vec2 pixelX, vec2 pixelY) {
+    float pixelSize = max(sqrt(0.5 * (dot(pixelX, pixelX) + dot(pixelY, pixelY))), 0.0001);
     float spreadRadius = intBitsToFloat(style.z);
     float blurRadius = intBitsToFloat(style.w);
     if (style.x == TILE_STYLE_STROKE) {
-        return strokeCoverage(localPosition, tile, intBitsToFloat(style.y), spreadRadius, blurRadius);
+        return strokeCoverage(localPosition, tile, intBitsToFloat(style.y), spreadRadius, blurRadius, pixelSize);
     }
     if ((tile.w & TILE_FULL_COVERAGE) != 0) return 1.0;
     if (blurRadius > 0.0001 || abs(spreadRadius) > 0.0001) {
         float distance = minimumSegmentDistance(localPosition, tile);
         float edge = windingAt(localPosition, tile.x, tile.y) == 0 ? distance : -distance;
-        return softenedCoverage(edge - spreadRadius, blurRadius);
+        return softenedCoverage(edge - spreadRadius, blurRadius, pixelSize);
     }
-    vec2 horizontal = dFdx(localPosition) * 0.25;
-    vec2 vertical = dFdy(localPosition) * 0.25;
+    vec2 horizontal = pixelX * 0.25;
+    vec2 vertical = pixelY * 0.25;
     float coverage = 0.0;
     coverage += windingAt(localPosition - horizontal - vertical, tile.x, tile.y) != 0 ? 0.25 : 0.0;
     coverage += windingAt(localPosition + horizontal - vertical, tile.x, tile.y) != 0 ? 0.25 : 0.0;
@@ -142,8 +143,10 @@ void main() {
     int tileOffset = tileIndex * 2;
     ivec4 tile = texelFetch(TileBuffer, tileOffset);
     ivec4 style = texelFetch(TileBuffer, tileOffset + 1);
+    vec2 pixelX = dFdx(localPosition);
+    vec2 pixelY = dFdy(localPosition);
     if (style.x < 0) discard;
-    float coverage = pathCoverage(tile, style);
+    float coverage = pathCoverage(tile, style, pixelX, pixelY);
     if (coverage <= 0.0) discard;
     fragColor = samplePaint(tile.z);
     fragColor.a *= coverage;

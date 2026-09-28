@@ -234,7 +234,7 @@ class VideoSurfaceTexture : AutoCloseable {
         val cullWasEnabled = GL11.glIsEnabled(GL11.GL_CULL_FACE)
 
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, framebuffer)
-        GL11.glViewport(0, 0, width, height)
+        GlStateManager._viewport(0, 0, width, height)
         if (blendWasEnabled) GlStateManager._disableBlend()
         if (scissorWasEnabled) GlStateManager._disableScissorTest()
         if (depthWasEnabled) GlStateManager._disableDepthTest()
@@ -263,7 +263,7 @@ class VideoSurfaceTexture : AutoCloseable {
 
         GL20.glUseProgram(previousProgram)
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, previousFramebuffer)
-        GL11.glViewport(previousViewport[0], previousViewport[1], previousViewport[2], previousViewport[3])
+        GlStateManager._viewport(previousViewport[0], previousViewport[1], previousViewport[2], previousViewport[3])
         if (blendWasEnabled) GlStateManager._enableBlend()
         if (scissorWasEnabled) GlStateManager._enableScissorTest()
         if (depthWasEnabled) GlStateManager._enableDepthTest()

@@ -1,29 +1,23 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide
 
 import androidx.compose.runtime.*
+import kotlinx.coroutines.delay
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.screens.ChatScreen
 import org.lwjgl.glfw.GLFW
 import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL30
-import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.client.editor.TransformGizmoEditor
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.docking.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.asset.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeImageEditor
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.animator.HollowIdeAnimatorEditor
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.rig.RigEditorPanel
-import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeSoundsEditor
-import ru.hollowhorizon.hollowengine.client.ui.ide.panels.HollowIdeConsolePanel
-import ru.hollowhorizon.hollowengine.client.ui.ide.panels.HollowIdeConsole
-import ru.hollowhorizon.hollowengine.client.ui.ide.panels.GameViewportDock
-import ru.hollowhorizon.hollowengine.client.ui.ide.panels.HollowIdeUiProfilerPanel
-import ru.hollowhorizon.hollowengine.client.ui.ide.panels.ModelEditorPanel
-import ru.hollowhorizon.hollowengine.client.ui.ide.panels.VanillaModelEditorPanel
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.cutscene.CutsceneEditorSessions
-import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.CutsceneTimelineDock
-import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorPanel
+import ru.hollowhorizon.hollowengine.client.ui.ide.files.shadergraph.ShaderGraphEditor
+import ru.hollowhorizon.hollowengine.client.ui.ide.files.vfx.VfxEditorPanel
+import ru.hollowhorizon.hollowengine.client.ui.ide.panels.*
+import ru.hollowhorizon.hollowengine.client.ui.ide.preview.*
+import ru.hollowhorizon.hollowengine.client.ui.ide.timeline.ui.TimelineDock
 import ru.hollowhorizon.hollowengine.client.ui.inspector.InspectorSelection
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.render.MinecraftUiRenderer
@@ -31,25 +25,22 @@ import ru.hollowhorizon.hollowengine.client.ui.render.UiRenderTarget
 import ru.hollowhorizon.hollowengine.client.ui.style.UiImageFit
 import ru.hollowhorizon.hollowengine.client.ui.style.parseColor
 import ru.hollowhorizon.hollowengine.client.ui.widgets.*
-import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.hssColorLiteralText
 import ru.hollowhorizon.hollowengine.client.utils.IconHelper
 import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.config.EditMode
 import ru.hollowhorizon.hollowengine.common.config.HollowEngineConfig
-import ru.hollowhorizon.hollowengine.common.addons.HollowAddonExtension
-import ru.hollowhorizon.hollowengine.common.addons.HollowAddonExtensionChange
-import ru.hollowhorizon.hollowengine.common.addons.HollowAddonRegistration
-import ru.hollowhorizon.hollowengine.common.addons.HostHollowAddonExtensions
 import ru.hollowhorizon.hollowengine.common.events.ClientOnly
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.events.client.render.RenderTickEvent
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
-import ru.hollowhorizon.hollowengine.common.utils.DesktopUtil
 import ru.hollowhorizon.hollowengine.common.scripting.ide.DefinitionLocation
 import ru.hollowhorizon.hollowengine.common.scripting.ide.InlayAction
 import ru.hollowhorizon.hollowengine.common.scripting.ide.ResourceLocationTargets
-import java.util.concurrent.ConcurrentHashMap
+import ru.hollowhorizon.hollowengine.common.scripting.ide.ui.hssColorLiteralText
+import ru.hollowhorizon.hollowengine.common.utils.DesktopUtil
+import ru.hollowhorizon.hollowengine.common.utils.isProduction
 import java.io.File
+import kotlin.time.Duration.Companion.milliseconds
 
 /** A file dragged out of the project tree; anything that accepts drops can look for this payload. */
 data class HollowIdeFileDrag(val path: String, val isDirectory: Boolean = false)
@@ -70,13 +61,15 @@ internal const val AssetManagerId = "ide-asset-manager"
 
 internal const val ProjectFilterInputId = "ide-project-filter"
 internal const val ConsoleId = "ide-console"
-internal const val CutsceneTimelineId = "ide-cutscene-timeline"
-internal const val CutscenePropertiesId = "ide-cutscene-properties"
-internal const val CutsceneViewportId = "ide-cutscene-viewport"
+internal const val TimelineId = "ide-cutscene-timeline"
+internal const val SceneId = "ide-scene"
 internal const val InspectorId = "ide-inspector"
 internal const val GameViewportId = "ide-game-viewport"
-internal const val GameViewportNodeId = "ide-game-viewport-node"
-internal const val OptionsIcon = "hollowengine:textures/gui/icons/options.svg"
+internal const val GameViewportNodeId = "game-viewport"
+
+private const val LayoutSaveDelayMillis = 600L
+
+private const val StripeShortcutCount = 9
 internal const val UiProfilerId = "ide-ui-profiler"
 internal const val LogoIcon = "hollowengine:textures/gui/logo/logo.svg"
 internal const val ProjectIcon = "hollowengine:textures/gui/icons/folder.svg"
@@ -84,18 +77,37 @@ internal const val AssetManagerIcon = "hollowengine:textures/gui/icons/folder_as
 internal const val ConsoleIcon = "hollowengine:textures/gui/icons/console.svg"
 internal const val SearchIcon = "hollowengine:textures/gui/icons/search.svg"
 internal const val CutsceneIcon = "hollowengine:textures/gui/icons/film.svg"
+internal const val OptionsIcon = "hollowengine:textures/gui/icons/options.svg"
 
 @ClientOnly
 object HollowIdeOverlay {
     var useHollowUiOverlay: Boolean = true
-    val expanded: Boolean get() = isVisible() && !collapsed
-    fun holdsPointer(): Boolean = expanded && (activeButton != null || isMouseOver(lastMouseX, lastMouseY))
 
-    private val builtinExtensions = HostHollowAddonExtensions(HollowEngine.MODID, HollowIdeOverlay::class.java.classLoader)
-    private val extensionObservers = mutableListOf<HollowAddonRegistration>()
-    private val fileTypes = HollowIdeFileTypeRegistry()
+    private val fileTypes = HollowIdeFileTypeRegistry().apply {
+        registerBuiltinFileTypes(
+            modelEditor = { file -> ModelEditorPanel(file.path) },
+            imageEditor = { file -> HollowIdeImageEditor(file, file::save) },
+            videoEditor = { file ->
+                Video(
+                    source = file.path,
+                    fit = UiImageFit.CONTAIN,
+                    modifier = Modifier.size(100.percent, 100.percent),
+                )
+            },
+            animatorEditor = { file -> HollowIdeAnimatorEditor(file) },
+            rigEditor = { file -> RigEditorPanel(file) },
+            vfxEditor = { file -> VfxEditorPanel(file) },
+            shaderGraphEditor = { file -> ShaderGraphEditor(file) },
+            textEditor = { file -> FileEditor(file) },
+        )
+        registerAssetFileTypes(
+            imageEditor = { file -> HollowIdeImageEditor(file, file::save) },
+            textEditor = { file -> FileEditor(file) },
+            jsonModelEditor = { file -> VanillaModelEditorPanel(file.path) },
+        )
+    }
+    private val previews = HollowIdePreviewRegistry().apply { registerBuiltinPreviews() }
     private val model = HollowIdeModel(fileTypes)
-    private val console = HollowIdeConsole()
     private val assetManagerState = AssetManagerState()
     private val dock = DockingState()
     private val surface = HollowUiSurface()
@@ -106,6 +118,8 @@ object HollowIdeOverlay {
     private var initialized = false
     private var activeButton: Int? = null
     private var collapsed by mutableStateOf(true)
+    private var hideToolbarConfirmationVisible by mutableStateOf(false)
+    private var shortcutsVisible by mutableStateOf(false)
     private val projectFilter = UiTreeFilterState(ProjectFilterInputId)
     private var openDropdown by mutableStateOf<String?>(null)
     private var statusText by mutableStateOf("")
@@ -116,8 +130,7 @@ object HollowIdeOverlay {
             if (surface.runtime.focusedKey != ProjectFilterInputId) surface.runtime.unfocus()
         },
         shortcutsActive = {
-            dock.focusedItemId == ProjectTreeId &&
-                    surface.runtime.focusedKey != ProjectFilterInputId
+            dock.focusedItemId == ProjectTreeId && surface.runtime.focusedKey != ProjectFilterInputId && !packaging.hasOpenDialog
         },
         closeDockItem = { dock.close(it) },
         openFile = { openFileDockItem(it) },
@@ -125,11 +138,14 @@ object HollowIdeOverlay {
         pointerX = { surface.runtime.mouseX },
         pointerY = { surface.runtime.mouseY },
     )
-    private val diagnosticsPanels = mutableStateMapOf<String, Boolean>()
-    private val diagnosticsPanelHeights = mutableStateMapOf<String, Float>()
+    private val packaging = HollowIdeProjectPackaging(model) { statusText = it }
+    private val console = HollowIdeConsole()
+
+    private var activeEditorPath by mutableStateOf<String?>(null)
     private var editorAnalysisRevision by mutableStateOf(0)
     private val editorSessions = mutableMapOf<String, HollowIdeEditorSession>()
     private val editorStates = mutableMapOf<String, TextFieldState>()
+    private val fileViews = mutableMapOf<String, HollowIdeFileView>()
     private var fileContextMenu by mutableStateOf<FileContextMenu?>(null)
     private val dragAndDrop = UiDragAndDropState()
     private var refreshFilesRequested = false
@@ -157,38 +173,34 @@ object HollowIdeOverlay {
     private val findStates = mutableStateMapOf<String, HollowIdeFindState>()
     private val search = HollowIdeSearchController { statusText = it }
     private var colorPicker by mutableStateOf<EditorColorPicker?>(null)
-    private var extensionRevision by mutableStateOf(0L)
-    private val reportedExtensionFailures = ConcurrentHashMap.newKeySet<String>()
     private val ideContext = object : HollowIdeContext {
-        override val focusedFile: HollowIdeOpenFile?
-            get() = this@HollowIdeOverlay.focusedFile()
+        override val focusedFile: HollowIdeOpenFile? get() = this@HollowIdeOverlay.focusedFile()
 
-        override fun openFile(path: String): Boolean {
-            return when (val result = model.openFile(path)) {
-                HollowIdeOpenResult.Directory,
-                HollowIdeOpenResult.Unsupported,
-                    -> false
+        override fun openFile(path: String): Boolean = openPath(path)
 
-                is HollowIdeOpenResult.File -> {
-                    openFileDockItem(result.file)
-                    true
-                }
-            }
+        override fun openPanel(id: String): Boolean {
+            val window = toolWindow(id) ?: return false
+            collapsed = false
+            dock.openToolWindow(window, model)
+            return true
         }
 
-        override fun openPanel(id: String): Boolean = openRegisteredPanel(id)
+        override fun closePanel(id: String): Boolean = dock.close(id)
 
-        override fun closePanel(id: String): Boolean = resolvePanel(id)?.let { dock.close(it.dockId) } ?: false
-
-        override fun isPanelOpen(id: String): Boolean = resolvePanel(id)?.let { dock.contains(it.dockId) } == true
+        override fun isPanelOpen(id: String): Boolean = dock.contains(id)
 
         override fun saveAll(): Int = model.saveAll()
 
-        override fun refreshProject() = model.refreshProject()
+        override fun refreshProject() = model.tree.refresh()
 
         override fun setStatus(message: String) {
             statusText = message
         }
+    }
+    private val contributions = HollowIdeContributions(fileTypes, model, dock, ideContext) {
+        editorSessions.values.forEach(HollowIdeEditorSession::close)
+        editorSessions.clear()
+        editorAnalysisRevision++
     }
 
     private fun editorState(file: HollowIdeOpenFile): TextFieldState = editorStates.getOrPut(file.path) {
@@ -208,244 +220,261 @@ object HollowIdeOverlay {
     private var lastMouseX = 0f
     private var lastMouseY = 0f
 
+    private var gameCaptureRequested = false
+
+    private var gestureOwner: PointerOwner? = null
+    private var buttonsDown = 0
+
+    private var pointerFollowsGame = false
+    private var blockedMouseGrab = false
+    private var cursorWasGrabbed = false
+
     init {
-        ensureBuiltinIdeLanguagesRegistered()
-        installBuiltinExtensions()
-        HollowIdeExtensionPoints.FILE_TYPES.extensions().forEach(::installFileType)
-        extensionObservers += HollowIdeExtensionPoints.FILE_TYPES.observe(::onFileTypeChanged)
-        extensionObservers += HollowIdeExtensionPoints.PANELS.observe(::onPanelChanged)
-        extensionObservers += HollowIdeExtensionPoints.MENU_ITEMS.observe { extensionRevision++ }
-        extensionObservers += HollowIdeExtensionPoints.FILE_ACTIONS.observe { extensionRevision++ }
-        extensionObservers += HollowIdeExtensionPoints.PROJECT_ACTIONS.observe { extensionRevision++ }
-        extensionObservers += HollowIdeExtensionPoints.LANGUAGES.observe(::onLanguageExtensionChanged)
         initialize()
     }
 
-    /** Compatibility bridge. Dynamic addons should use `context.extensions.registerIdeFileType`. */
-    @Deprecated("Use HollowAddonContext.extensions.registerIdeFileType so reload can remove the contribution")
+    /** Registers a new IDE file type. IDs must be unique; higher priorities are matched first. */
     fun registerFileType(type: HollowIdeFileType) {
-        builtinExtensions.registerIdeFileType(type)
-    }
-
-    fun openPath(path: String): Boolean = ideContext.openFile(path)
-
-    fun openOrCreate(path: String, content: () -> ByteArray): Boolean {
-        if (!model.createIfMissing(path, content())) return false
-        return openPath(path)
-    }
-
-    private fun installBuiltinExtensions() {
-        val builtins = HollowIdeFileTypeRegistry().apply {
-            registerBuiltinFileTypes(
-                modelEditor = { file -> ModelEditorPanel(file.path) },
-                imageEditor = { file -> HollowIdeImageEditor(file, file::save) },
-                videoEditor = { file ->
-                    Video(
-                        source = file.path,
-                        fit = UiImageFit.CONTAIN,
-                        modifier = Modifier.size(100.percent, 100.percent),
-                    )
-                },
-                soundsEditor = { file -> HollowIdeSoundsEditor(file) },
-                animatorEditor = { file -> HollowIdeAnimatorEditor(file) },
-                rigEditor = { file -> RigEditorPanel(file) },
-                textEditor = { file -> FileEditor(file) },
-            )
-            registerAssetFileTypes(
-                imageEditor = { file -> HollowIdeImageEditor(file, file::save) },
-                textEditor = { file -> FileEditor(file) },
-                jsonModelEditor = { file -> VanillaModelEditorPanel(file.path) },
-            )
-        }
-        builtins.registeredTypes().forEach { type -> builtinExtensions.registerIdeFileType(type) }
-
-        listOf(
-            HollowIdePanel(
-                id = ProjectTreeId,
-                title = "hollowengine.gui.ide.project_tree",
-                icon = ProjectIcon,
-                minWidth = 220f,
-                placement = HollowIdePanelPlacement(HollowIdePanelAnchor.Root, DockPlacement.CENTER),
-                content = { ProjectTree() },
-            ),
-            HollowIdePanel(
-                id = AssetManagerId,
-                title = AssetManagerLang.TITLE,
-                icon = AssetManagerIcon,
-                minWidth = 520f,
-                minHeight = 260f,
-                placement = HollowIdePanelPlacement(HollowIdePanelAnchor.Project, DockPlacement.RIGHT),
-                content = { AssetManagerPanel(assetManagerState, ::openAssetFile, ::overrideAssetFile, ::hideAssetFile, ::restoreAssetFile, ::requestSurfaceFocus) },
-            ),
-            HollowIdePanel(
-                id = ConsoleId,
-                title = "hollowengine.gui.ide.console",
-                icon = ConsoleIcon,
-                minWidth = 360f,
-                minHeight = 180f,
-                placement = HollowIdePanelPlacement(HollowIdePanelAnchor.Editor, DockPlacement.BOTTOM),
-                content = { HollowIdeConsolePanel(console) },
-            ),
-            HollowIdePanel(
-                id = CutsceneTimelineId,
-                title = "Cutscene Timeline",
-                icon = CutsceneIcon,
-                minWidth = 520f,
-                minHeight = 260f,
-                placement = HollowIdePanelPlacement(HollowIdePanelAnchor.Editor, DockPlacement.BOTTOM),
-                content = {
-                    CutsceneTimelineDock(
-                        session = CutsceneEditorSessions.default,
-                        keyboardActive = dock.focusedItemId == CutsceneTimelineId,
-                    )
-                },
-            ),
-            HollowIdePanel(
-                id = InspectorId,
-                title = "hollowengine.gui.ide.windows.inspector",
-                icon = OptionsIcon,
-                minWidth = 240f,
-                minHeight = 260f,
-                placement = HollowIdePanelPlacement(
-                    HollowIdePanelAnchor.Panel(CutsceneTimelineId),
-                    DockPlacement.RIGHT,
-                ),
-                content = { InspectorPanel(InspectorSelection.current) },
-            ),
-            HollowIdePanel(
-                id = GameViewportId,
-                title = "hollowengine.gui.ide.windows.game_viewport",
-                icon = CutsceneIcon,
-                minWidth = 320f,
-                minHeight = 180f,
-                placement = HollowIdePanelPlacement(
-                    HollowIdePanelAnchor.Panel(CutsceneTimelineId),
-                    DockPlacement.TOP,
-                ),
-                content = { GameViewportDock() },
-            ),
-            HollowIdePanel(
-                id = UiProfilerId,
-                title = "UI Profiler",
-                icon = "hollowengine:textures/gui/icons/options.svg",
-                minWidth = 360f,
-                minHeight = 260f,
-                placement = HollowIdePanelPlacement(HollowIdePanelAnchor.Project, DockPlacement.BOTTOM),
-                showInWindowMenu = false,
-                content = { HollowIdeUiProfilerPanel(surface.runtime.profiler) },
-            ),
-        ).forEach { panel -> builtinExtensions.registerIdePanel(panel) }
-    }
-
-    private fun onFileTypeChanged(change: HollowAddonExtensionChange<HollowIdeFileType>) {
-        when (change) {
-            is HollowAddonExtensionChange.Added -> installFileType(change.extension)
-            is HollowAddonExtensionChange.Removed -> {
-                model.closeFilesUsing(change.extension.value)
-                fileTypes.unregister(extensionUiId(change.extension))
-            }
-        }
-        extensionRevision++
-    }
-
-    private fun installFileType(extension: HollowAddonExtension<HollowIdeFileType>) {
-        fileTypes.register(extensionUiId(extension), extension.value)
-    }
-
-    private fun onPanelChanged(change: HollowAddonExtensionChange<HollowIdePanel>) {
-        if (change is HollowAddonExtensionChange.Removed) {
-            dock.close(extensionUiId(change.extension))
-        }
-        extensionRevision++
-    }
-
-    private fun onLanguageExtensionChanged(change: HollowAddonExtensionChange<*>) {
-        editorSessions.values.forEach(HollowIdeEditorSession::close)
-        editorSessions.clear()
-        editorAnalysisRevision++
-        extensionRevision++
-    }
-
-    private fun <T : Any> extensionUiId(extension: HollowAddonExtension<T>): String =
-        if (extension.ownerId == HollowEngine.MODID) extension.qualifiedId.substringAfter(':') else extension.qualifiedId
-
-    private fun registeredPanels(): List<RegisteredIdePanel> = HollowIdeExtensionPoints.PANELS.extensions().map { extension ->
-        RegisteredIdePanel(extension, extensionUiId(extension))
-    }
-
-    private fun resolvePanel(id: String): RegisteredIdePanel? = registeredPanels().firstOrNull { panel ->
-        panel.dockId == id || panel.extension.qualifiedId == id
-    }
-
-    private fun openRegisteredPanel(id: String): Boolean {
-        val registered = resolvePanel(id) ?: return false
-        if (!dock.contains(registered.dockId)) {
-            val panel = registered.extension.value
-            dock.open(
-                DockItem(
-                    id = registered.dockId,
-                    title = panel.title,
-                    icon = panel.icon,
-                    closable = panel.closable,
-                    minWidth = panel.minWidth,
-                    minHeight = panel.minHeight,
-                ),
-                panelTarget(panel.placement),
-            )
-        }
-        dock.focus(registered.dockId)
-        return true
-    }
-
-    private fun panelTarget(placement: HollowIdePanelPlacement): DockTarget {
-        if (placement.anchor == HollowIdePanelAnchor.Root) {
-            return DockTarget(placement = placement.placement)
-        }
-        val anchorItem = when (val anchor = placement.anchor) {
-            HollowIdePanelAnchor.Root -> null
-            HollowIdePanelAnchor.Project -> ProjectTreeId.takeIf(dock::contains)
-            HollowIdePanelAnchor.Console -> ConsoleId.takeIf(dock::contains)
-            HollowIdePanelAnchor.Editor -> model.files.values.firstOrNull { file -> dock.contains(file.id) }?.id
-            is HollowIdePanelAnchor.Panel -> resolvePanel(anchor.id)?.dockId?.takeIf(dock::contains)
-        }
-        val fallback = anchorItem
-            ?: model.files.values.firstOrNull { file -> dock.contains(file.id) }?.id
-            ?: ProjectTreeId.takeIf(dock::contains)
-        val stackId = fallback?.let(dock::stackIdOf)
-        return stackId?.let { DockTarget(it, placement.placement) }
-            ?: DockTarget(placement = placement.placement)
+        fileTypes.register(type)
     }
 
     fun isVisible(): Boolean = useHollowUiOverlay && isAvailable()
 
-    fun isMouseOver(x: Float, y: Float): Boolean {
-        if (!isVisible()) return false
-        val point = hollowIdeOverlayPoint(x, y)
-        return surface.runtime.lastFrame?.hitsVisible(point.x, point.y) ?: false
+    fun hasFocusedInput(): Boolean = isVisible() && surface.runtime.isAnyFocused
+
+    fun openPath(path: String): Boolean {
+        val result = model.openFile(path)
+        if (result !is HollowIdeOpenResult.File) return false
+        collapsed = false
+        openFileDockItem(result.file)
+        return true
     }
 
-    fun hasFocusedInput(): Boolean = isVisible() && surface.runtime.isAnyFocused
+    /** Opens [path], starting it from [initial] when there is no such file yet. */
+    fun openOrCreate(path: String, initial: () -> ByteArray): Boolean =
+        model.createIfMissing(path, initial()) && openPath(path)
 
     /** While Windows owns the gesture the IDE must not act on the input it keeps receiving. */
     private val nativeFileDragActive: Boolean
         get() = WindowsFileDragSource.active || externalFiles.active
 
+    /** The editor is on screen with its panels, not folded away into the gear button. */
+    internal val expanded: Boolean
+        get() = isVisible() && !collapsed
+
+    private enum class PointerOwner { EDITOR, GAME }
+
+    val isGameViewportActive: Boolean
+        get() = expanded && dock.focusedItemId == GameViewportId && HollowIdeGameViewport.isEmbedded()
+
+    val isGameCaptured: Boolean
+        get() = isGameViewportActive && gameCaptureRequested && Minecraft.getInstance().screen == null
+
+    /** Vanilla may hide the cursor while the editor is away, or while the game panel is driving. */
+    fun allowMouseGrab(): Boolean {
+        val allowed = !expanded || isGameCaptured
+        if (!allowed) blockedMouseGrab = true
+        return allowed
+    }
+
+    private fun viewportFraction(point: HollowIdeOverlayPoint, clamp: Boolean = false): HollowIdeOverlayPoint? {
+        if (!expanded) return null
+        val image = HollowIdeGameViewport.imageRect() ?: return null
+        if (image.width <= 0f || image.height <= 0f) return null
+        val fractionX = (point.x - image.x) / image.width
+        val fractionY = (point.y - image.y) / image.height
+        if (clamp) return HollowIdeOverlayPoint(fractionX.coerceIn(0f, 1f), fractionY.coerceIn(0f, 1f))
+        if (fractionX !in 0f..1f || fractionY !in 0f..1f) return null
+        return HollowIdeOverlayPoint(fractionX, fractionY)
+    }
+
+    private fun gamePanelHit(point: HollowIdeOverlayPoint): Boolean {
+        var node = surface.runtime.lastFrame?.hitTest(point.x, point.y)?.node ?: return false
+        while (true) {
+            if (node.id == GameViewportNodeId) return true
+            node = node.layoutState.parentNode ?: return false
+        }
+    }
+
+    private fun pointerOwnerAt(point: HollowIdeOverlayPoint): PointerOwner = when {
+        isGameCaptured -> PointerOwner.GAME
+        viewportFraction(point) != null && gamePanelHit(point) -> PointerOwner.GAME
+        else -> PointerOwner.EDITOR
+    }
+
+    private fun pointerOwner(point: HollowIdeOverlayPoint): PointerOwner = gestureOwner ?: pointerOwnerAt(point)
+
+    private fun beginGesture(owner: PointerOwner): PointerOwner {
+        if (buttonsDown == 0) gestureOwner = owner
+        buttonsDown++
+        return gestureOwner ?: owner
+    }
+
+    private fun endGesture(fallback: PointerOwner): PointerOwner {
+        val owner = gestureOwner ?: fallback
+        buttonsDown = (buttonsDown - 1).coerceAtLeast(0)
+        return owner
+    }
+
+    private fun settleGesture() {
+        if (buttonsDown == 0) gestureOwner = null
+    }
+
+    private fun dropAbandonedGesture() {
+        if (buttonsDown == 0) return
+        val window = Minecraft.getInstance().window.window
+        val held = (GLFW.GLFW_MOUSE_BUTTON_1..GLFW.GLFW_MOUSE_BUTTON_3).any { button ->
+            GLFW.glfwGetMouseButton(window, button) == GLFW.GLFW_PRESS
+        }
+        if (!held) forgetGesture()
+    }
+
+    private fun forgetGesture() {
+        gestureOwner = null
+        buttonsDown = 0
+    }
+
+    fun holdsPointer(): Boolean {
+        if (!isVisible() || isGameCaptured) return false
+        if (pointerOwner(HollowIdeOverlayPoint(lastMouseX, lastMouseY)) == PointerOwner.GAME) return false
+        return surface.runtime.lastFrame?.hitsVisible(lastMouseX, lastMouseY) ?: false
+    }
+
+    internal fun worldPointer(x: Float, y: Float): HollowIdeOverlayPoint? {
+        if (!expanded) return HollowIdeOverlayPoint(x, y)
+        val point = hollowIdeOverlayPoint(x, y)
+        if (pointerOwner(point) == PointerOwner.EDITOR) return null
+        val target = Minecraft.getInstance().mainRenderTarget ?: return null
+        val fraction =
+            viewportFraction(point, clamp = gestureOwner == PointerOwner.GAME) ?: return HollowIdeOverlayPoint(x, y)
+        return HollowIdeOverlayPoint(fraction.x * target.width, fraction.y * target.height)
+    }
+
+    internal fun gameWindowPointer(x: Float, y: Float): HollowIdeOverlayPoint? {
+        if (!expanded || isGameCaptured) return null
+        val point = hollowIdeOverlayPoint(x, y)
+        val fraction = viewportFraction(point, clamp = gestureOwner == PointerOwner.GAME) ?: return null
+        val window = Minecraft.getInstance().window
+        return HollowIdeOverlayPoint(fraction.x * window.screenWidth, fraction.y * window.screenHeight)
+    }
+
+
     fun handleMouseMove(x: Float, y: Float): Boolean {
         if (nativeFileDragActive) return true
         if (!isVisible()) return false
+        if (isGameCaptured) return false
         pipeline.await()
         val point = hollowIdeOverlayPoint(x, y)
         val deltaX = point.x - lastMouseX
         val deltaY = point.y - lastMouseY
         lastMouseX = point.x
         lastMouseY = point.y
-        val button = activeButton ?: return false
+        dropAbandonedGesture()
+        settleGesture()
+        if (pointerOwner(point) == PointerOwner.GAME) {
+            routePointerToGame(true)
+            return false
+        }
+        routePointerToGame(false)
+        val button = activeButton ?: return expanded
         val handled = surface.runtime.mouseDragged(point.x, point.y, button, deltaX, deltaY, currentUiKeyModifiers())
-        if (point.x < 0f || point.y < 0f ||
-            point.x >= HollowIdeScale.scaledWidth() || point.y >= HollowIdeScale.scaledHeight()) {
+        if (point.x < 0f || point.y < 0f || point.x >= HollowIdeScale.scaledWidth() || point.y >= HollowIdeScale.scaledHeight()) {
             exportFileDrag()
         }
-        return handled
+        return handled || expanded
+    }
+
+    fun handleMouseButton(x: Float, y: Float, button: Int, action: Int): Boolean {
+        if (nativeFileDragActive) return true
+        if (!isVisible()) return false
+        pipeline.await()
+        val point = hollowIdeOverlayPoint(x, y)
+
+        settleGesture()
+        return when (action) {
+            GLFW.GLFW_PRESS -> when (beginGesture(pointerOwnerAt(point))) {
+                PointerOwner.GAME -> {
+                    focusGamePanel()
+                    false
+                }
+
+                PointerOwner.EDITOR -> {
+                    gameCaptureRequested = false
+                    focusDockContentAt(point.x, point.y)
+                    val handled = surface.runtime.mouseClicked(point.x, point.y, button, currentUiKeyModifiers())
+                    if (handled) activeButton = button
+                    handled || expanded
+                }
+            }
+
+            GLFW.GLFW_RELEASE -> {
+                activeButton = null
+                when (endGesture(pointerOwnerAt(point))) {
+                    PointerOwner.GAME -> false
+                    PointerOwner.EDITOR -> surface.runtime.mouseReleased(
+                        point.x, point.y, button, currentUiKeyModifiers()
+                    ) || expanded
+                }
+            }
+
+            else -> false
+        }
+    }
+
+    private fun focusGamePanel() {
+        if (!HollowIdeGameViewport.isEmbedded()) return
+        gameCaptureRequested = true
+        if (dock.focusedItemId == GameViewportId) return
+        dock.focus(GameViewportId)
+        surface.runtime.unfocus()
+    }
+
+    fun handleMouseScroll(x: Float, y: Float, scrollX: Double, scrollY: Double): Boolean {
+        if (nativeFileDragActive) return true
+        if (!isVisible()) return false
+        if (isGameCaptured) return false
+        pipeline.await()
+        val point = hollowIdeOverlayPoint(x, y)
+        if (pointerOwner(point) == PointerOwner.GAME) return false
+        return surface.runtime.mouseScrolled(
+            point.x,
+            point.y,
+            scrollX.toFloat(),
+            scrollY.toFloat(),
+            currentUiKeyModifiers(),
+        ) || expanded
+    }
+
+    fun handleKey(key: Int, scanCode: Int, action: Int, modifiers: Int): Boolean {
+        if (nativeFileDragActive) return true
+        if (!expanded) return false
+        if (isGameViewportActive) {
+            if (key == GLFW.GLFW_KEY_ESCAPE && action == GLFW.GLFW_PRESS) {
+                pipeline.await()
+                if (surface.runtime.keyPressed(key, scanCode, modifiers, repeat = false)) return true
+            }
+            return false
+        }
+        if (action == GLFW.GLFW_PRESS || action == GLFW.GLFW_REPEAT) {
+            pipeline.await()
+            surface.runtime.keyPressed(key, scanCode, modifiers, repeat = action == GLFW.GLFW_REPEAT)
+        }
+        return true
+    }
+
+    fun handleChar(codePoint: Int, modifiers: Int): Boolean {
+        if (nativeFileDragActive) return true
+        if (!expanded) return false
+        if (isGameViewportActive) return false
+        pipeline.await()
+        surface.runtime.charTyped(codePoint.toChar(), modifiers)
+        return true
+    }
+
+    private fun routePointerToGame(routed: Boolean) {
+        if (routed == pointerFollowsGame) return
+        pointerFollowsGame = routed
+        if (routed) Minecraft.getInstance().mouseHandler.setIgnoreFirstMove()
     }
 
     private fun exportFileDrag() {
@@ -473,51 +502,6 @@ object HollowIdeOverlay {
         return dragAndDrop.canDrop
     }
 
-    fun handleMouseButton(x: Float, y: Float, button: Int, action: Int): Boolean {
-        if (nativeFileDragActive) return true
-        if (!isVisible()) return false
-        pipeline.await()
-        val point = hollowIdeOverlayPoint(x, y)
-
-        return when (action) {
-            GLFW.GLFW_PRESS -> {
-                focusDockContentAt(point.x, point.y)
-                val result = surface.runtime.mouseClicked(point.x, point.y, button, currentUiKeyModifiers())
-                if (result) activeButton = button
-                result
-            }
-
-            GLFW.GLFW_RELEASE -> {
-                activeButton = null
-                surface.runtime.mouseReleased(point.x, point.y, button, currentUiKeyModifiers())
-            }
-
-            else -> false
-        }
-    }
-
-    fun handleMouseScroll(x: Float, y: Float, scrollX: Double, scrollY: Double): Boolean {
-        if (nativeFileDragActive) return true
-        if (!isVisible()) return false
-        pipeline.await()
-        val point = hollowIdeOverlayPoint(x, y)
-        return surface.runtime.mouseScrolled(
-            point.x,
-            point.y,
-            scrollX.toFloat(),
-            scrollY.toFloat(),
-            currentUiKeyModifiers(),
-        )
-    }
-
-    fun handleKey(key: Int, scanCode: Int, action: Int, modifiers: Int): Boolean {
-        if (nativeFileDragActive) return true
-        if (!isVisible() || collapsed) return false
-        if (action != GLFW.GLFW_PRESS && action != GLFW.GLFW_REPEAT) return false
-        pipeline.await()
-        return surface.runtime.keyPressed(key, scanCode, modifiers, repeat = action == GLFW.GLFW_REPEAT)
-    }
-
     private fun focusDockContentAt(x: Float, y: Float) {
         var node = surface.runtime.lastFrame?.hitTest(x, y)?.node ?: return
         while (true) {
@@ -527,15 +511,33 @@ object HollowIdeOverlay {
         }
     }
 
-    fun handleChar(codePoint: Int, modifiers: Int): Boolean {
-        if (nativeFileDragActive) return true
-        if (!isVisible() || collapsed) return false
-        pipeline.await()
-        return surface.runtime.charTyped(codePoint.toChar(), modifiers)
+    private fun syncMouseGrab(minecraft: Minecraft) {
+        val mouse = minecraft.mouseHandler
+        if (cursorWasGrabbed != mouse.isMouseGrabbed) {
+            cursorWasGrabbed = mouse.isMouseGrabbed
+            forgetGesture()
+            routePointerToGame(false)
+            if (!mouse.isMouseGrabbed) {
+                lastMouseX = HollowIdeScale.scaledWidth() * 0.5f
+                lastMouseY = HollowIdeScale.scaledHeight() * 0.5f
+            }
+        }
+        if (expanded) {
+            if (isGameCaptured) {
+                if (!mouse.isMouseGrabbed) mouse.grabMouse()
+            } else if (mouse.isMouseGrabbed) {
+                mouse.releaseMouse()
+            }
+            return
+        }
+        if (!blockedMouseGrab) return
+        blockedMouseGrab = false
+        if (!mouse.isMouseGrabbed && minecraft.screen == null && minecraft.level != null) mouse.grabMouse()
     }
 
     @SubscribeEvent
     fun render(event: RenderTickEvent.Blit) {
+        syncMouseGrab(event.minecraft)
         if (WindowsFileDragSource.active) {
             pipeline.await()
             WindowsFileDragSource.runPending(event.minecraft.window.window)
@@ -556,10 +558,39 @@ object HollowIdeOverlay {
         initialized = true
         dock.onTabContextMenu = ::openFileContextMenu
         model.onFileRemoved = ::forgetFile
-        check(openRegisteredPanel(ProjectTreeId)) { "The built-in project panel is not registered" }
+        contributions.start()
+        restoreLayout()
         surface.setContent { Content() }
     }
-    
+
+    private fun restoreLayout() {
+        val stored = HollowIdeLayoutStore.load()
+        if (stored != null && dock.restore(stored, ::restoreDockItem)) return
+        applyDefaultLayout()
+    }
+
+    private fun toolWindow(id: String): HollowIdeToolWindow? = HollowIdeToolWindows.byId(id) ?: contributions.toolWindow(id)
+
+    private fun restoreDockItem(itemId: String): DockItem? {
+        toolWindow(itemId)?.let { return it.dockItem() }
+        val path = fileDockItemPath(itemId) ?: return null
+        val opened = model.openFile(path) as? HollowIdeOpenResult.File ?: return null
+        return opened.file.dockItem()
+    }
+
+    private fun applyDefaultLayout() {
+        val project = dock.newStack(listOf(HollowIdeToolWindows.Project.dockItem())) ?: return
+        val viewport = dock.newStack(listOf(HollowIdeToolWindows.GameViewport.dockItem())) ?: return
+        val console = dock.newStack(listOf(HollowIdeToolWindows.Console.dockItem())) ?: return
+        val inspector = dock.newStack(listOf(HollowIdeToolWindows.Inspector.dockItem())) ?: return
+        val center = dock.newSplit(DockOrientation.VERTICAL, viewport, console, fraction = 0.62f)
+        val withInspector = dock.newSplit(DockOrientation.HORIZONTAL, center, inspector, fraction = 0.78f)
+        dock.applyLayout(
+            root = dock.newSplit(DockOrientation.HORIZONTAL, project, withInspector, fraction = 0.2f),
+            focused = ProjectTreeId,
+        )
+    }
+
     private fun insertFileReference(
         file: HollowIdeOpenFile,
         editor: TextFieldState,
@@ -579,7 +610,7 @@ object HollowIdeOverlay {
         if (changed) {
             model.updateText(file.path, editor.text)
             dock.updateItem(file.dockItem())
-            statusText = "Inserted $reference"
+            statusText = EditorLang.INSERTED.lang(reference)
         }
         surface.runtime.focus("editor-${file.id}")
         return changed
@@ -590,8 +621,8 @@ object HollowIdeOverlay {
         dock.close(id)
         editorSessions.remove(path)?.close()
         editorStates.remove(path)
-        diagnosticsPanels.remove(id)
-        diagnosticsPanelHeights.remove(id)
+        fileViews.remove(path)
+        if (activeEditorPath == path) activeEditorPath = null
         findStates.remove(path)
         if (colorPicker?.path == path) colorPicker = null
         if (fileContextMenu?.path == path) fileContextMenu = null
@@ -613,6 +644,12 @@ object HollowIdeOverlay {
                 FileContextMenuEntry(action, enabled = action.isEnabled(context))
             },
         )
+    }
+
+    private fun closeShortcuts(): Boolean {
+        if (!shortcutsVisible) return false
+        shortcutsVisible = false
+        return true
     }
 
     private fun closeFileContextMenu(): Boolean {
@@ -668,7 +705,7 @@ object HollowIdeOverlay {
 
             override fun copyPath() {
                 Minecraft.getInstance().keyboardHandler.clipboard = target.path
-                statusText = "Copied ${target.path}"
+                statusText = EditorLang.COPIED.lang(target.path)
             }
 
             override fun setStatus(message: String) {
@@ -678,27 +715,28 @@ object HollowIdeOverlay {
 
     @Composable
     private fun Content() {
+        RememberLayout()
+        TrackActiveEditor()
         Box(
             id = "ide-root",
-            modifier = Modifier.style("hollowengine:ui/styles/ide.hss")
-                .style("hollowengine:ui/styles/widgets.hss")
-                .size(100.percent, 100.percent)
-                .focusScope()
-                .onKeyInput { input ->
-                    val handled = !input.repeat && (
-                            input.key == GLFW.GLFW_KEY_ESCAPE && closeFileContextMenu() ||
-                                    handleHollowIdeSearchKey(search, input.key, input.modifiers, ::openSearchResult) ||
-                                    project.handleNameDialogKey(input.key) ||
-                                    handleSearchOverlayShortcut(input.key, input.modifiers) ||
-                                    handleProjectFilterShortcut(input.key, input.modifiers) ||
-                                    project.handleShortcut(input.key, input.modifiers) ||
-                                    handleDockShortcut(input.key, input.modifiers) ||
-                                    handleEditorShortcut(input.key, input.modifiers) ||
-                                    input.key == GLFW.GLFW_KEY_F4 && goToDefinition()
-                            )
+            modifier = Modifier.style("hollowengine:ui/styles/widgets.hss").style("hollowengine:ui/styles/ide.hss")
+                .size(100.percent, 100.percent).focusScope().onKeyInput { input ->
+                    val handled =
+                        !input.repeat && (input.key == GLFW.GLFW_KEY_ESCAPE && packaging.closeDialogs() || input.key == GLFW.GLFW_KEY_ESCAPE && closeFileContextMenu() || input.key == GLFW.GLFW_KEY_ESCAPE && closeShortcuts() || handleHollowIdeSearchKey(
+                            search, input.key, input.modifiers, ::openSearchResult
+                        ) || project.handleNameDialogKey(input.key) || handleSearchOverlayShortcut(
+                            input.key, input.modifiers
+                        ) || handleProjectFilterShortcut(
+                            input.key, input.modifiers
+                        ) || project.handleShortcut(input.key, input.modifiers) || handleStripeShortcut(
+                            input.key, input.modifiers
+                        ) || handleDockShortcut(
+                            input.key, input.modifiers
+                        ) || handleEditorShortcut(
+                            input.key, input.modifiers
+                        ) || input.key == GLFW.GLFW_KEY_F4 && goToDefinition())
                     if (handled) input.consume()
-                }
-        ) {
+                }) {
             CompositionLocalProvider(LocalDragAndDrop provides dragAndDrop) {
                 if (collapsed) {
                     GearButton()
@@ -708,10 +746,14 @@ object HollowIdeOverlay {
                         DockSpace(
                             state = dock,
                             id = "ide-dock",
-                            modifier = Modifier.size(100.percent, 0.px)
-                                .grow(1f),
+                            modifier = Modifier.size(100.percent, 0.px).grow(1f),
+                            tabBarActions = { item ->
+                                if (item.id == ProjectTreeId) HollowIdeProjectActions(packaging)
+                                else fileView(item.id)?.let { view -> HollowIdeViewModeSwitch(view, item.id) }
+                            },
                             content = { item -> DockContent(item) },
                         )
+                        StatusBar()
                     }
                     HollowIdeFileContextMenu(
                         menu = fileContextMenu,
@@ -719,57 +761,157 @@ object HollowIdeOverlay {
                         onDismiss = { fileContextMenu = null },
                     )
                     HollowIdeSearchDialog(search, ::openSearchResult)
+                    HollowIdeProjectDialogs(packaging)
+                    HollowIdeShortcutsDialog(shortcutsVisible) { shortcutsVisible = false }
                     EditorColorPickerPopup()
                     UiDragGhost(dragAndDrop)
                 }
+                HollowIdeHideToolbarDialog(
+                    visible = hideToolbarConfirmationVisible,
+                    onConfirm = ::hideToolbar,
+                    onCancel = { hideToolbarConfirmationVisible = false },
+                )
             }
         }
+    }
+
+    @Composable
+    private fun RememberLayout() {
+        val layout = dock.capture()
+        LaunchedEffect(layout) {
+            delay(LayoutSaveDelayMillis.milliseconds)
+            HollowIdeLayoutStore.save(layout)
+        }
+    }
+
+    @Composable
+    private fun TrackActiveEditor() {
+        val focused = focusedFile()?.takeIf { it.textOrNull != null }?.path
+        LaunchedEffect(focused) {
+            if (focused != null) activeEditorPath = focused
+        }
+    }
+
+    private fun activeEditorFile(): HollowIdeOpenFile? {
+        val file = activeEditorPath?.let { model.files[it] } ?: return null
+        return file.takeIf { it.textOrNull != null && dock.contains(it.id) }
+    }
+
+    /** Brings up the Problems page on [file], wherever the bottom tool window is parked. */
+    private fun showProblems(file: HollowIdeOpenFile) {
+        activeEditorPath = file.path
+        console.tab = ConsoleTab.PROBLEMS
+        dock.openToolWindow(HollowIdeToolWindows.Console, model)
+    }
+
+    private fun currentProblems(): HollowIdeProblems {
+        val file = activeEditorFile()
+        val diagnostics = file?.let { editorSessions[it.path]?.diagnostics(it.text) }.orEmpty()
+        return HollowIdeProblems(file, diagnostics) { diagnostic ->
+            if (file != null) {
+                openFileDockItem(file)
+                focusEditorAt(file, diagnostic.start)
+            }
+        }
+    }
+
+    private val statusNavigation = HollowIdeStatusNavigation(
+        revealInProject = { path ->
+            if (path.isNotEmpty()) model.revealPath(path)
+            dock.openToolWindow(HollowIdeToolWindows.Project, model)
+        },
+        showWindow = { window -> dock.openToolWindow(window, model) },
+        showInspectedSource = {
+            val window = if (IdeScenes.current != null) HollowIdeToolWindows.Scene else HollowIdeToolWindows.Inspector
+            dock.openToolWindow(window, model)
+        },
+    )
+
+    @Composable
+    private fun StatusBar() {
+        val navigation = statusNavigation
+        val project = HollowIdeCrumb(packaging.properties.displayName, ProjectIcon) { navigation.revealInProject("") }
+        val focused = dock.focusedItemId
+        val selection = InspectorSelection.current
+        val treePath = model.selectedTreePath
+        val file = focusedFile() ?: activeEditorFile()
+        val status = when {
+            focused == ProjectTreeId && treePath.isNotEmpty() -> HollowIdeStatus(
+                pathCrumbs(
+                    project, treePath, null, navigation.revealInProject
+                )
+            )
+
+            focused == InspectorId && selection != null -> inspectorStatus(project, selection, navigation)
+            file != null -> fileStatus(project, file, editorStates[file.path], navigation)
+            selection != null -> inspectorStatus(project, selection, navigation)
+            else -> HollowIdeStatus(listOf(project))
+        }
+        HollowIdeStatusBar(status, statusText)
     }
 
     @Composable
     private fun GearButton() {
         var popup by remember { mutableStateOf(false) }
         var anchorBounds by remember { mutableStateOf(UiRect.Zero) }
-        Box(
-            id = "ide-logo",
-            modifier = Modifier.cursor(UiCursorShape.HAND)
-                .onClick { event ->
-                    if (event.isLeftClick()) {
-                        collapsed = !collapsed
-                        openDropdown = null
-                        event.consume()
-                    } else if (event.isRightClick()) {
-                        popup = true
-                    }
-                }
-                .onPlaced {
-                    anchorBounds = it
-                }
-        ) {
+        Box(id = "ide-logo", modifier = Modifier.cursor(UiCursorShape.HAND).onClick { event ->
+            if (event.isLeftClick()) {
+                collapsed = !collapsed
+                openDropdown = null
+                event.consume()
+            } else if (event.isRightClick()) {
+                popup = true
+            }
+        }.onPlaced {
+            anchorBounds = it
+        }) {
             Image(LogoIcon, tags = listOf("ide-logo-icon"))
         }
         if (popup) {
+            val editMode = HollowEngineConfig.editMode
             ContextMenu(
                 "ide-editor-menu", anchorBounds, listOf(
-                    UiDropdownItem("Show always") {
+                    UiDropdownItem(
+                        "$MenuLang.show_always".lang,
+                        checked = editMode == EditMode.ENABLED,
+                        mark = UiDropdownMark.RADIO,
+                    ) {
                         HollowEngineConfig.editMode = EditMode.ENABLED
-                        if (collapsed) {
-                            collapsed = false
-                        }
+                        collapsed = false
                     },
-                    UiDropdownItem("Collapse") {
-                        if (!collapsed) {
-                            collapsed = true
-                        }
-                    },
-                    UiDropdownItem("Hide") {
-                        HollowEngineConfig.editMode = EditMode.DISABLED
-                    },
-                    UiDropdownItem("Show only in chat menu") {
+                    UiDropdownItem(
+                        "$MenuLang.chat_only".lang,
+                        checked = editMode == EditMode.CHAT_ONLY,
+                        mark = UiDropdownMark.RADIO,
+                    ) {
                         HollowEngineConfig.editMode = EditMode.CHAT_ONLY
-                    }
-                )) { popup = it }
+                    },
+                    UiDropdownItem(
+                        if (collapsed) "$MenuLang.expand".lang else "$MenuLang.collapse".lang,
+                        separatorBefore = true,
+                    ) {
+                        collapsed = !collapsed
+                    },
+                    UiDropdownItem("$MenuLang.hide".lang) {
+                        requestToolbarHide()
+                    },
+                )
+            ) { popup = it }
         }
+    }
+
+    private fun requestToolbarHide() {
+        if (HollowEngineConfig.showToolbarHideConfirmation) {
+            hideToolbarConfirmationVisible = true
+        } else {
+            hideToolbar(false)
+        }
+    }
+
+    private fun hideToolbar(doNotShowAgain: Boolean) {
+        hideToolbarConfirmationVisible = false
+        if (doNotShowAgain) HollowEngineConfig.showToolbarHideConfirmation = false
+        HollowEngineConfig.editMode = EditMode.DISABLED
     }
 
     @Composable
@@ -778,15 +920,29 @@ object HollowIdeOverlay {
             id = "ide-toolbar",
             modifier = Modifier.alignItems(vertical = UiAlign.CENTER),
         ) {
+            val operator = AssetManagerLifecycle.operator
             GearButton()
-            ToolbarMenus()
+            ToolbarMenus(operator)
+            if (operator && !isProduction) {
+                Box(tags = listOf("ide-toolbar-divider"))
+                HollowIdeGizmoSwitcher()
+            }
             Box(modifier = Modifier.size(0.px, 100.percent).grow(1f))
-            Text(statusText, tags = listOf("ide-status"))
+            ToolbarIconButton(
+                id = "ide-toolbar-search",
+                icon = SearchIcon,
+                tooltip = "$MenuLang.search".lang + " (Ctrl+N)",
+                onClick = ::openSearch,
+            )
         }
     }
 
+    private fun openSearch() {
+        search.open(focusedEditorFile()?.let { editorStates[it.path]?.selectedText() })
+    }
+
     @Composable
-    private fun ToolbarMenus() {
+    private fun ToolbarMenus(operator: Boolean) {
         UiDropdown(
             id = "ide-file-menu",
             label = "hollowengine.gui.ide.file".lang,
@@ -795,141 +951,85 @@ object HollowIdeOverlay {
             items = hollowIdeFileMenuItems(
                 model = model,
                 dock = dock,
+                packaging = packaging,
                 focusedFile = ::focusedFile,
                 canReformat = { file -> fileActionContext(file).canFormat },
                 onReformat = ::formatFile,
-            ) + contributedMenuItems(HollowIdeMenu.FILE),
+                onSearch = ::openSearch,
+                operator = operator,
+            ) + contributions.menuItems(HollowIdeMenu.FILE),
         )
         UiDropdown(
             id = "ide-windows-menu",
             label = "hollowengine.gui.ide.windows".lang,
             expanded = openDropdown == "windows",
             onExpandedChange = { openDropdown = if (it) "windows" else null },
-            items = windowMenuItems() + contributedMenuItems(HollowIdeMenu.WINDOW),
+            items = hollowIdeWindowMenuItems(model, dock, contributions.windowMenu(), ::applyDefaultLayout) +
+                contributions.menuItems(HollowIdeMenu.WINDOW),
         )
         UiDropdown(
             id = "ide-tools-menu",
             label = "hollowengine.gui.ide.tools".lang,
             expanded = openDropdown == "tools",
             onExpandedChange = { openDropdown = if (it) "tools" else null },
-            items = hollowIdeToolMenuItems(ideContext, dock, surface.runtime.profiler) +
-                    contributedMenuItems(HollowIdeMenu.TOOLS),
+            items = hollowIdeToolMenuItems(model, dock, operator) + contributions.menuItems(HollowIdeMenu.TOOLS),
         )
+        if (operator) {
+            UiDropdown(
+                id = "ide-world-menu",
+                label = WorldLang.TITLE.lang,
+                expanded = openDropdown == "world",
+                onExpandedChange = { expanded ->
+                    if (expanded) WorldControlClient.refresh()
+                    openDropdown = if (expanded) "world" else null
+                },
+                items = hollowIdeWorldMenuItems(),
+            )
+        }
         UiDropdown(
             id = "ide-help-menu",
             label = "hollowengine.gui.ide.help".lang,
             expanded = openDropdown == "help",
             onExpandedChange = { openDropdown = if (it) "help" else null },
-            items = hollowIdeHelpMenuItems() + contributedMenuItems(HollowIdeMenu.HELP),
+            items = hollowIdeHelpMenuItems(onShowShortcuts = { shortcutsVisible = true }) +
+                contributions.menuItems(HollowIdeMenu.HELP),
         )
     }
 
     @Composable
     private fun DockContent(item: DockItem) {
-        extensionRevision
-        val panel = registeredPanels().firstOrNull { registered -> registered.dockId == item.id }
-        if (panel != null) {
-            PanelContent(panel.extension)
-            return
+        when (item.id) {
+            ProjectTreeId -> ProjectTree()
+            AssetManagerId -> AssetManagerPanel(
+                state = assetManagerState,
+                onOpenFile = ::openAssetFile,
+                onOverrideFile = ::overrideAssetFile,
+                onHideFile = ::hideAssetFile,
+                onRestoreFile = ::restoreAssetFile,
+                onFocusFilter = ::requestSurfaceFocus,
+            )
+
+            ConsoleId -> HollowIdeConsolePanel(console, currentProblems())
+            TimelineId -> TimelineDock(keyboardActive = dock.focusedItemId == TimelineId)
+
+            SceneId -> SceneDock()
+
+            InspectorId -> IdeInspectorDock()
+
+            GameViewportId -> GameViewportDock(
+                active = isGameViewportActive,
+                attached = !dock.isFloating(GameViewportId),
+            )
+
+            UiProfilerId -> HollowIdeUiProfilerPanel(surface.runtime.profiler)
+            in contributions -> contributions.PanelContent(item.id)
+            else -> model.files.values.firstOrNull { it.id == item.id }?.let { file ->
+                FileTabBody(file)
+                LaunchedEffect(file.dirty) {
+                    dock.updateItem(file.dockItem())
+                }
+            } ?: EmptyEditor()
         }
-        model.files.values.firstOrNull { it.id == item.id }?.let { file ->
-            file.type.editor(file)
-            LaunchedEffect(file.dirty) {
-                dock.updateItem(file.dockItem())
-            }
-        } ?: EmptyEditor()
-    }
-
-    @Composable
-    private fun PanelContent(extension: HollowAddonExtension<HollowIdePanel>) {
-        extension.value.content(ideContext)
-    }
-
-    private fun windowMenuItems(): List<UiDropdownItem> {
-        extensionRevision
-        return registeredPanels().filter { registered -> registered.extension.value.showInWindowMenu }.map { registered ->
-            val panel = registered.extension.value
-            UiDropdownItem(panel.title.lang, panel.icon) {
-                openRegisteredPanel(registered.extension.qualifiedId)
-            }
-        }
-    }
-
-    private fun contributedMenuItems(menu: HollowIdeMenu): List<UiDropdownItem> {
-        extensionRevision
-        return HollowIdeExtensionPoints.MENU_ITEMS.extensions().mapNotNull { extension ->
-            val item = extension.value
-            if (item.menu != menu) return@mapNotNull null
-            val visible = runCatching { extension.invoke { it.isVisible(ideContext) } }
-                .onFailure { reportExtensionFailure(extension.qualifiedId, "menu-visibility", it) }
-                .getOrDefault(false)
-            if (!visible) return@mapNotNull null
-            val enabled = runCatching { extension.invoke { it.isEnabled(ideContext) } }
-                .onFailure { reportExtensionFailure(extension.qualifiedId, "menu-enabled", it) }
-                .getOrDefault(false)
-            val checked = runCatching { extension.invoke { it.isChecked(ideContext) } }
-                .onFailure { reportExtensionFailure(extension.qualifiedId, "menu-checked", it) }
-                .getOrDefault(false)
-            UiDropdownItem(
-                label = item.label.lang,
-                icon = item.icon,
-                enabled = enabled,
-                checked = checked,
-                mark = when (item.mark) {
-                    HollowIdeMenuMark.CHECKBOX -> UiDropdownMark.CHECKBOX
-                    HollowIdeMenuMark.RADIO -> UiDropdownMark.RADIO
-                    null -> null
-                },
-                closeOnClick = item.closeOnClick,
-            ) {
-                runCatching { extension.invoke { it.run(ideContext) } }
-                    .onFailure { reportExtensionFailure(extension.qualifiedId, "menu-action", it) }
-            }
-        }
-    }
-
-    private fun projectActionContext(menu: ProjectContextMenu): HollowIdeProjectActionContext =
-        object : HollowIdeProjectActionContext {
-            override val ide: HollowIdeContext = ideContext
-            override val path: String = menu.path
-            override val selectedPaths: List<String> = model.selectedOr(menu.path)
-            override val isDirectory: Boolean = menu.path.fromReadablePath().isDirectory
-        }
-
-    private fun projectActionEntries(context: HollowIdeProjectActionContext): List<HollowIdeProjectMenuEntry> {
-        extensionRevision
-        return HollowIdeExtensionPoints.PROJECT_ACTIONS.extensions().flatMap { extension ->
-            val actions = runCatching { extension.invoke { provider -> provider.actions(context) } }
-                .onFailure { reportExtensionFailure(extension.qualifiedId, "project-actions", it) }
-                .getOrDefault(emptyList())
-            actions.mapNotNull { action ->
-                val visible = runCatching { extension.invoke { action.isVisible(context) } }
-                    .onFailure { reportExtensionFailure(extension.qualifiedId, "project-action-visibility", it) }
-                    .getOrDefault(false)
-                if (!visible) return@mapNotNull null
-                val enabled = runCatching { extension.invoke { action.isEnabled(context) } }
-                    .onFailure { reportExtensionFailure(extension.qualifiedId, "project-action-enabled", it) }
-                    .getOrDefault(false)
-                HollowIdeProjectMenuEntry(
-                    action = HollowIdeProjectAction(
-                        id = action.id,
-                        label = action.label,
-                        shortcut = action.shortcut,
-                        icon = action.icon,
-                    ) { actionContext ->
-                        runCatching { extension.invoke { action.run(actionContext) } }
-                            .onFailure { reportExtensionFailure(extension.qualifiedId, "project-action", it) }
-                    },
-                    enabled = enabled,
-                )
-            }
-        }
-    }
-
-    private fun reportExtensionFailure(id: String, stage: String, failure: Throwable) {
-        val key = "$id:$stage:${failure::class.qualifiedName}:${failure.message}"
-        if (!reportedExtensionFailures.add(key)) return
-        HollowEngine.LOGGER.error("IDE extension '{}' failed during {}", id, stage, failure)
     }
 
     @Composable
@@ -938,20 +1038,22 @@ object HollowIdeOverlay {
         val rootHighlighted = dragAndDrop.hoveredTargetId == rootDrop && dragAndDrop.canDrop
         Column(
             tags = listOfNotNull("ide-panel", "project-tree-panel", "drop-target".takeIf { rootHighlighted }),
-            modifier = Modifier.size(100.percent, 100.percent)
-                .dropTarget(
-                    id = rootDrop,
-                    accepts = { (it.payload as? HollowIdeExternalFileDrag)?.canImportInto("".fromReadablePath()) == true },
-                    onDrop = { item, _, _ ->
-                        val files = item.payload as? HollowIdeExternalFileDrag
-                        files != null && project.importFiles(files.files, "")
-                    },
-                ),
+            modifier = Modifier.size(100.percent, 100.percent).dropTarget(
+                id = rootDrop,
+                accepts = { (it.payload as? HollowIdeExternalFileDrag)?.canImportInto("".fromReadablePath()) == true },
+                onDrop = { item, _, _ ->
+                    val files = item.payload as? HollowIdeExternalFileDrag
+                    files != null && project.importFiles(files.files, "")
+                },
+            ),
         ) {
             UiTreeView(
-                items = model.visibleTreeItems(projectFilter.query, "hollowengine.gui.ide.project_tree".lang),
+                items = model.visibleTreeItems(projectFilter.query, rootLabel = packaging.properties.displayName),
                 onToggle = project::toggle,
                 onSelect = project::select,
+                fillRowWidth = false,
+                reveal = model.treeReveal,
+                onRevealed = { model.treeReveal = null },
                 filterState = projectFilter,
                 filterPlaceholder = "hollowengine.message.filter".lang,
                 onFilterOpened = ::requestSurfaceFocus,
@@ -976,18 +1078,19 @@ object HollowIdeOverlay {
                 canDrop = { item, dragged ->
                     when (val payload = dragged.payload) {
                         is HollowIdeExternalFileDrag -> payload.canImportInto(item.payload.dropDirectoryPath.fromReadablePath())
-                        is HollowIdeFileDrag -> item.payload.isDirectory && payload.path != item.payload.path &&
-                            !item.payload.path.startsWith(payload.path + "/")
+                        is HollowIdeFileDrag -> item.payload.isDirectory && payload.path != item.payload.path && !item.payload.path.startsWith(
+                            payload.path + "/"
+                        )
+
                         else -> false
                     }
                 },
             )
-            val projectMenu = project.contextMenu
-            val projectActionContext = projectMenu?.let(::projectActionContext)
             HollowIdeProjectContextMenu(
-                menu = projectMenu,
+                menu = project.contextMenu,
                 onCreateFile = project::openCreateFileDialog,
                 onCreateFolder = project::openCreateFolderDialog,
+                onCreateScript = project::openCreateScriptDialog,
                 onCreateSoundEvents = project::createSoundEvents,
                 onRename = project::openRenameDialog,
                 onCopy = { project.copy(it, cut = false) },
@@ -995,12 +1098,8 @@ object HollowIdeOverlay {
                 onPaste = project::pasteInto,
                 onShowInExplorer = project::showInExplorer,
                 onDelete = project::delete,
-                additionalActions = projectActionContext?.let(::projectActionEntries).orEmpty(),
-                onAdditionalAction = { action ->
-                    projectActionContext?.let { context -> action.run(context) }
-                    project.closePopups()
-                },
                 onDismiss = { project.closePopups() },
+                contributedActions = { menu -> contributions.projectActions(menu.path, menu.path.fromReadablePath().isDirectory) },
             )
             val dialog = project.nameDialog
             HollowIdeProjectNameDialog(
@@ -1025,9 +1124,6 @@ object HollowIdeOverlay {
         val editorState = editorState(file)
         val analysisRevision = editorAnalysisRevision.toLong() + editorSession.revision
         val diagnostics = editorSession.diagnostics(file.text)
-        LaunchedEffect(file.id, diagnostics.isEmpty()) {
-            if (diagnostics.isEmpty()) diagnosticsPanels.remove(file.id)
-        }
         val inlayHints = editorSession.inlayHints(file.text)
         val fontSize = HollowIdeFontSize.size
         val editorId = "editor-${file.id}"
@@ -1050,17 +1146,16 @@ object HollowIdeOverlay {
                 id = "editor-stack-${file.id}",
                 mode = UiBoxMode.STACK,
                 tags = listOf("ide-editor-stack"),
-                modifier = Modifier.grow(1f)
-                    .dropTarget(
-                        accepts = { !file.readOnly && it.payload is HollowIdeFileDrag },
-                        onDragOver = { _, x, y ->
-                            editorState.offsetAtPoint?.invoke(x, y)?.let(editorState::moveCaret)
-                        },
-                        onDrop = { item, x, y ->
-                            val dropped = item.payload as? HollowIdeFileDrag ?: return@dropTarget false
-                            insertFileReference(file, editorState, dropped.path, x, y)
-                        },
-                    ),
+                modifier = Modifier.grow(1f).dropTarget(
+                    accepts = { !file.readOnly && it.payload is HollowIdeFileDrag },
+                    onDragOver = { _, x, y ->
+                        editorState.offsetAtPoint?.invoke(x, y)?.let(editorState::moveCaret)
+                    },
+                    onDrop = { item, x, y ->
+                        val dropped = item.payload as? HollowIdeFileDrag ?: return@dropTarget false
+                        insertFileReference(file, editorState, dropped.path, x, y)
+                    },
+                ),
             ) {
                 UiCodeEditor(
                     value = file.text,
@@ -1084,51 +1179,68 @@ object HollowIdeOverlay {
                     state = editorState,
                     id = editorId,
                     attributes = mapOf("analysis-revision" to analysisRevision.toString()),
-                    modifier = Modifier.size(100.percent, 100.percent)
-                        .onFocus {
-                            dock.focus(file.id)
-                        }
-                        .onScroll { event ->
-                            if (!event.isCtrlDown()) return@onScroll
-                            HollowIdeFontSize.zoom(event.rawScrollY)
-                            event.consume()
-                        }
-                )
-                HollowIdeDiagnosticsBadge(file.id, diagnostics) { id ->
-                    diagnosticsPanels[id] = diagnosticsPanels[id] != true
-                }
-            }
-            if (diagnostics.isNotEmpty() && diagnosticsPanels[file.id] == true) {
-                val height = diagnosticsPanelHeights[file.id] ?: DefaultDiagnosticsPanelHeight
-                HollowIdeDiagnosticsPanel(file.id, diagnostics, height) { id, requestedHeight ->
-                    diagnosticsPanelHeights[id] = requestedHeight.coerceIn(
-                        MinDiagnosticsPanelHeight,
-                        MaxDiagnosticsPanelHeight,
-                    )
-                }
+                    modifier = Modifier.size(100.percent, 100.percent).onFocus {
+                        dock.focus(file.id)
+                    }.onScroll { event ->
+                        if (!event.isCtrlDown()) return@onScroll
+                        HollowIdeFontSize.zoom(event.rawScrollY)
+                        event.consume()
+                    })
+                HollowIdeDiagnosticsBadge(file.id, diagnostics) { showProblems(file) }
             }
         }
     }
 
+    /** The file's editor, or its text and preview in the mode the tab bar's switch picked. */
     @Composable
-    private fun EmptyEditor(message: String = "Open a file from Project Tree") {
+    private fun FileTabBody(file: HollowIdeOpenFile) {
+        val view = fileView(file)
+        if (view == null) {
+            file.type.editor(file)
+            return
+        }
+        val context = remember(file, view) {
+            HollowIdePreviewContext(file, view) { next ->
+                applyEditorText(file, next, editorState(file).caret.coerceAtMost(next.length))
+            }
+        }
+        HollowIdeFileViewBody(
+            view = view,
+            id = file.id,
+            text = { file.type.editor(file) },
+            preview = { view.preview.content(context) },
+        )
+    }
+
+    private fun fileView(itemId: String): HollowIdeFileView? =
+        model.files.values.firstOrNull { it.id == itemId }?.let(::fileView)
+
+    /** Only text files get a preview: it reads and writes the text, whatever type the file has. */
+    private fun fileView(file: HollowIdeOpenFile): HollowIdeFileView? {
+        if (file.textOrNull == null) return null
+        fileViews[file.path]?.let { return it }
+        val preview = previews.find(file.path) ?: return null
+        return HollowIdeFileView(preview).also { fileViews[file.path] = it }
+    }
+
+    @Composable
+    private fun EmptyEditor() {
         Column(tags = listOf("ide-empty-editor")) {
-            Text(message, tags = listOf("ide-empty-title"))
-            Text(statusText, tags = listOf("ide-status"))
+            Text(EditorLang.EMPTY.lang, tags = listOf("ide-empty-title"))
         }
     }
 
     private fun openFileDockItem(file: HollowIdeOpenFile) {
         statusText = ""
-        if (!dock.contains(file.id)) {
-            val hadOpenEditor = model.files.values.any { dock.contains(it.id) }
-            dock.open(file.dockItem(), editorTarget())
-            if (!hadOpenEditor) {
-                dock.setSplitFractionForItem(ProjectTreeId, file.id, 0.28f)
-            }
-        } else {
+        if (dock.contains(file.id)) {
             dock.updateItem(file.dockItem())
             dock.focus(file.id)
+            return
+        }
+        val target = editorTarget()
+        dock.open(file.dockItem(), target)
+        if (target.placement == DockPlacement.RIGHT) {
+            dock.setSplitFractionForItem(ProjectTreeId, file.id, 0.28f)
         }
     }
 
@@ -1143,8 +1255,9 @@ object HollowIdeOverlay {
             statusText = AssetManagerLang.SERVER_UNAVAILABLE.lang
             return
         }
-        val modelTypeId = assetFileTypeId(scope, asset.location.path, ByteArray(0), forceText)
-            ?.takeIf { it == AssetJsonModelFileTypeId || it == "model" }
+        val modelTypeId = assetFileTypeId(
+            scope, asset.location.path, ByteArray(0), forceText
+        )?.takeIf { it == AssetJsonModelFileTypeId || it == "model" }
         val bytes = if (modelTypeId != null) {
             ByteArray(0)
         } else {
@@ -1160,7 +1273,8 @@ object HollowIdeOverlay {
             statusText = AssetManagerLang.NO_PREVIEW.lang(asset.location)
             return
         }
-        val path = "resource://${scope.name.lowercase()}/${scope.directory}/${asset.location.namespace}/${asset.location.path}"
+        val path =
+            "resource://${scope.name.lowercase()}/${scope.directory}/${asset.location.namespace}/${asset.location.path}"
         when (val result = model.openVirtual(path, typeId, bytes)) {
             HollowIdeOpenResult.Directory -> Unit
             HollowIdeOpenResult.Unsupported -> statusText = AssetManagerLang.CANNOT_OPEN.lang(asset.location)
@@ -1220,12 +1334,23 @@ object HollowIdeOverlay {
         return dock.closeFocused()
     }
 
+    private fun handleStripeShortcut(key: Int, modifiers: Int): Boolean {
+        if (modifiers and GLFW.GLFW_MOD_ALT == 0) return false
+        if (modifiers and (GLFW.GLFW_MOD_CONTROL or GLFW.GLFW_MOD_SUPER) != 0) return false
+        val index = key - GLFW.GLFW_KEY_1
+        if (index < 0 || index >= StripeShortcutCount) return false
+        val side = if (modifiers and GLFW.GLFW_MOD_SHIFT != 0) DockSide.RIGHT else DockSide.LEFT
+        val pinned = dock.pinnedOn(side).getOrNull(index) ?: return false
+        dock.togglePinned(pinned.item.id)
+        return true
+    }
+
     /** Ctrl+N opens the project-wide search overlay, wherever the focus is. */
     private fun handleSearchOverlayShortcut(key: Int, modifiers: Int): Boolean {
         if (modifiers and GLFW.GLFW_MOD_CONTROL == 0) return false
         if (modifiers and GLFW.GLFW_MOD_SHIFT != 0 || modifiers and GLFW.GLFW_MOD_ALT != 0) return false
         if (key != GLFW.GLFW_KEY_N) return false
-        search.open(focusedEditorFile()?.let { editorStates[it.path]?.selectedText() })
+        openSearch()
         return true
     }
 
@@ -1370,7 +1495,7 @@ object HollowIdeOverlay {
         if (file.readOnly || file.textOrNull == null) return false
         val session = editorSession(file.path)
         if (!session.canFormat) {
-            statusText = "No formatter for ${file.title}"
+            statusText = EditorLang.NO_FORMATTER.lang(file.title)
             return false
         }
         val editor = editorState(file)
@@ -1378,24 +1503,28 @@ object HollowIdeOverlay {
         fileContextMenu = null
         session.format(text) { formatted ->
             when {
-                formatted == null -> statusText = "${file.title} is already formatted"
-                editor.text != text -> statusText = "${file.title} changed while formatting"
+                formatted == null -> statusText = EditorLang.ALREADY_FORMATTED.lang(file.title)
+                editor.text != text -> statusText = EditorLang.CHANGED_WHILE_FORMATTING.lang(file.title)
                 else -> {
                     val caret = mapCaretThroughFormat(text, formatted, editor.caret)
                     editor.applyEdit(formatted, listOf(UiTextCaret(caret)))
                     model.updateText(file.path, formatted)
                     dock.updateItem(file.dockItem())
-                    statusText = "Reformatted ${file.title}"
+                    statusText = EditorLang.REFORMATTED.lang(file.title)
                 }
             }
         }
         return true
     }
 
+    /**
+     * Where a newly opened file goes: in with the files that are already open, else into the main
+     * panel the game view sits in, and only failing both of those into a split off the project tree.
+     */
     private fun editorTarget(): DockTarget {
-        model.files.values.firstOrNull { dock.contains(it.id) }
-            ?.let { dock.stackIdOf(it.id) }
+        model.files.values.firstOrNull { dock.contains(it.id) }?.let { dock.stackIdOf(it.id) }
             ?.let { return DockTarget(it) }
+        dock.stackIdOf(GameViewportId)?.let { return DockTarget(it) }
         dock.stackIdOf(ProjectTreeId)?.let { return DockTarget(it, DockPlacement.RIGHT) }
         return DockTarget.Root
     }
@@ -1414,7 +1543,7 @@ object HollowIdeOverlay {
         statusText = ""
         session.resolveDefinition(file.text, editor.caret) { definition ->
             if (definition == null) {
-                statusText = "Definition not found"
+                statusText = EditorLang.DEFINITION_NOT_FOUND.lang
                 return@resolveDefinition
             }
             openDefinition(definition)
@@ -1436,7 +1565,7 @@ object HollowIdeOverlay {
             is InlayAction.OpenResource -> {
                 val definition = ResourceLocationTargets.definition(decoded.location)
                 if (definition == null) {
-                    statusText = "Cannot find '${decoded.location}'"
+                    statusText = EditorLang.RESOURCE_NOT_FOUND.lang(decoded.location)
                 } else {
                     openDefinition(definition)
                 }
@@ -1446,7 +1575,7 @@ object HollowIdeOverlay {
                 decoded.copy(start = it.first, end = it.last + 1)
             } ?: decoded)
 
-            null -> statusText = "Unsupported inlay action"
+            null -> statusText = EditorLang.UNSUPPORTED_ACTION.lang
         }
     }
 
@@ -1456,8 +1585,9 @@ object HollowIdeOverlay {
             return
         }
         val text = file.text
-        if (action.start < 0 || action.end !in action.start..text.length ||
-            text.substring(action.start, action.end) != action.literal
+        if (action.start < 0 || action.end !in action.start..text.length || text.substring(
+                action.start, action.end
+            ) != action.literal
         ) {
             statusText = EditorLang.COLOR_MOVED.lang
             return
@@ -1512,7 +1642,7 @@ object HollowIdeOverlay {
         } else {
             when (val result = model.openFile(definition.path)) {
                 HollowIdeOpenResult.Unsupported -> {
-                    statusText = "Unsupported definition target: ${definition.path}"
+                    statusText = EditorLang.UNSUPPORTED_DEFINITION.lang(definition.path)
                     return
                 }
 
@@ -1540,12 +1670,15 @@ object HollowIdeOverlay {
         val window = Minecraft.getInstance().window
         val frameWidth = HollowIdeScale.scaledWidth()
         val frameHeight = HollowIdeScale.scaledHeight()
-        val frame = (if (PIPELINE_FRAMES) pipeline.take(frameWidth, frameHeight) else null)
-            ?: surface.frame(frameWidth, frameHeight, lastMouseX, lastMouseY, System.nanoTime())
+        val frame = (if (PIPELINE_FRAMES) pipeline.take(frameWidth, frameHeight) else null) ?: surface.frame(
+            frameWidth, frameHeight, lastMouseX, lastMouseY, System.nanoTime()
+        )
         renderer.render(frame, target)
         // Only ask for the cursor while the pointer is actually over the IDE; anywhere else the
         // world and its gizmo are free to have it.
-        val overIde = surface.runtime.lastFrame?.hitsVisible(lastMouseX, lastMouseY) == true
+        val overIde = !isGameCaptured && !pointerFollowsGame && surface.runtime.lastFrame?.hitsVisible(
+            lastMouseX, lastMouseY
+        ) == true
         UiCursorManager.claim(
             window = window.window,
             owner = this,
@@ -1561,19 +1694,19 @@ object HollowIdeOverlay {
     }
 
     private fun currentBlitTarget(): UiRenderTarget {
-        val viewport = IntArray(4)
-        GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport)
+        val width = HollowIdeGameViewport.windowWidth()
+        val height = HollowIdeGameViewport.windowHeight()
         val logicalWidth = HollowIdeScale.scaledWidth()
         val logicalHeight = HollowIdeScale.scaledHeight()
         return UiRenderTarget(
             framebufferId = GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING),
-            x = viewport[0],
-            y = viewport[1],
-            width = viewport[2],
-            height = viewport[3],
+            x = 0,
+            y = 0,
+            width = width,
+            height = height,
             logicalWidth = logicalWidth,
             logicalHeight = logicalHeight,
-            scale = viewport[2] / logicalWidth,
+            scale = width / logicalWidth,
         )
     }
 
@@ -1587,16 +1720,22 @@ object HollowIdeOverlay {
 
 }
 
-private data class RegisteredIdePanel(
-    val extension: HollowAddonExtension<HollowIdePanel>,
-    val dockId: String,
-)
-
 internal object EditorLang {
     private const val ROOT = "hollowengine.gui.ide.editor."
 
     const val COLOR_MOVED = ROOT + "color_moved"
     const val READ_ONLY = ROOT + "read_only"
+    const val EMPTY = ROOT + "empty"
+    const val INSERTED = ROOT + "status.inserted"
+    const val COPIED = ROOT + "status.copied"
+    const val NO_FORMATTER = ROOT + "status.no_formatter"
+    const val ALREADY_FORMATTED = ROOT + "status.already_formatted"
+    const val CHANGED_WHILE_FORMATTING = ROOT + "status.changed_while_formatting"
+    const val REFORMATTED = ROOT + "status.reformatted"
+    const val DEFINITION_NOT_FOUND = ROOT + "status.definition_not_found"
+    const val RESOURCE_NOT_FOUND = ROOT + "status.resource_not_found"
+    const val UNSUPPORTED_ACTION = ROOT + "status.unsupported_action"
+    const val UNSUPPORTED_DEFINITION = ROOT + "status.unsupported_definition"
 }
 
 private data class EditorColorPicker(
@@ -1608,7 +1747,3 @@ private data class EditorColorPicker(
     val x: Float,
     val y: Float,
 )
-
-private const val DefaultDiagnosticsPanelHeight = 160f
-private const val MinDiagnosticsPanelHeight = 90f
-private const val MaxDiagnosticsPanelHeight = 360f

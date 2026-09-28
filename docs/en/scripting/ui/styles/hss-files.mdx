@@ -25,6 +25,27 @@ HSS is ideal for palettes, repeated geometry, transitions, and pseudo-states. Us
 
 Stylesheets live in files. Scripts import them by resource location, so the styling of a screen stays readable and reloadable on its own; there is no API for compiling a stylesheet out of a string inside a script.
 
+## Imports and variables
+
+A stylesheet can import other HSS files, store values in `$name` variables, and reuse declaration sets with `@apply`:
+
+```css
+@import "project:ui/styles/palette.hss";
+
+$accent: #6AA9FF;
+$card {
+    padding: 12px;
+    border-radius: 6px;
+}
+
+.card {
+    @apply $card;
+    background: $accent;
+}
+```
+
+Imported rules come before the current file's rules. Local variables and sets override imported names; each import is read once, including imports in a cycle. Variables can refer to other variables and be used inside sets. Unknown names and recursive substitutions produce an error where the value is used. The built-in HSS editor reports diagnostics for imports, variables, and `@apply`.
+
 ## Selectors
 
 | Selector | Matches |

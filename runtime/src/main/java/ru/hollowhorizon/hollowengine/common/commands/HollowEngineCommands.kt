@@ -7,9 +7,6 @@ import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.mojang.brigadier.builder.RequiredArgumentBuilder
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import net.minecraft.client.Minecraft
 import net.minecraft.commands.CommandSourceStack
@@ -23,13 +20,12 @@ import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.api.system
-import ru.hollowhorizon.hollowengine.client.models.internal.Model
-import ru.hollowhorizon.hollowengine.client.models.internal.manager.HollowModelManager
 import ru.hollowhorizon.hollowengine.client.particles.BedrockParticles
 import ru.hollowhorizon.hollowengine.client.particles.ParticleEffect
 import ru.hollowhorizon.hollowengine.client.particles.Transform
 import ru.hollowhorizon.hollowengine.client.utils.mc
-import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
+import ru.hollowhorizon.hollowengine.client.vfx.VfxAssets
+import ru.hollowhorizon.hollowengine.common.vfx.Vfx
 import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
 import ru.hollowhorizon.hollowengine.common.dialogue.DialogueInput
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
@@ -117,24 +113,54 @@ private fun CommandExtension.registerParticleCommands() {
             SUCCESS
         }
     }
+
+    registerVfxCommands()
 }
 
-private fun CommandExtension.registerModelCommands() {
-    "model"(arg("model", StringArgumentType.string()) { getAvailableModels() }) {
+private fun CommandExtension.registerVfxCommands() {
+    "vfx"(
+        arg("pos", Vec3Argument.vec3()),
+        arg("name", StringArgumentType.greedyString()) { knownEffects() }
+    ) {
         executes {
-            val modelName = StringArgumentType.getString(this, "model")
-            ShowModelInfoPacket(modelName).send(source.playerOrException)
+            Vfx.play(
+                source.level,
+                Vec3Argument.getVec3(this, "pos"),
+                StringArgumentType.getString(this, "name"),
+            )
             SUCCESS
         }
     }
 
+    "vfx"(
+        arg("entity", EntityArgument.entity()),
+        arg("name", StringArgumentType.greedyString()) { knownEffects() }
+    ) {
+        executes {
+            Vfx.play(
+                EntityArgument.getEntity(this, "entity"),
+                StringArgumentType.getString(this, "name"),
+            )
+            SUCCESS
+        }
+    }
+}
+
+private fun knownEffects(): List<String> =
+    if (isPhysicalClient) VfxAssets.ids.map { it.toString() } else emptyList()
+
+private fun CommandExtension.registerModelCommands() {
+    "model"(arg("model", StringArgumentType.string()) { getAvailableModels() }) {
+        executes { showModelInfo(source, StringArgumentType.getString(this, "model")) }
+    }
+
     "model" {
         "info"(arg("model", StringArgumentType.string()) { getAvailableModels() }) {
-            executes {
-                val modelName = StringArgumentType.getString(this, "model")
-                ShowModelInfoPacket(modelName).send(source.playerOrException)
-                SUCCESS
-            }
+            executes { showModelInfo(source, StringArgumentType.getString(this, "model")) }
+        }
+
+        "entity"(arg("entity", EntityArgument.entity())) {
+            executes { showEntityModel(source, EntityArgument.getEntity(this, "entity")) }
         }
 
         "attach"(
@@ -620,6 +646,10 @@ private fun playEntityAnimation(
         source.sendFailure("Animation name must not be blank".literal)
         return 0
     }
+    missingAnimation(entity, animation)?.let { reason ->
+        source.sendFailure(reason)
+        return 0
+    }
 
     NpcAnimationRuntime.apply(
         entity = entity,
@@ -725,42 +755,6 @@ class CopyTextPacket(val text: String) : HollowPacket {
     }
 }
 
-@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
-@Serializable
-class ShowModelInfoPacket(val model: String) : HollowPacket {
-    override fun handle(player: Player) {
-        val location = model.rl
-        Minecraft.getInstance().coroutineScope.launch {
-            val hollowModel = HollowModelManager.getOrCreate(location)
-                .filter { it !== Model.EMPTY }
-                .first()
-
-            player.sendSystemMessage(
-                "hollowengine.commands.model_animations".mcTranslate(model.substringAfterLast('/'))
-            )
-
-            hollowModel.animationsByName.keys.forEach { anim ->
-                player.sendSystemMessage(
-                    ("- ".literal + anim.literal)
-                        .onHoverText("hollowengine.tooltips.copy".mcTranslate)
-                        .onClickCopy(anim)
-                )
-            }
-
-            player.sendSystemMessage(
-                "hollowengine.commands.model_textures".mcTranslate(model.substringAfterLast('/'))
-            )
-
-            hollowModel.materials.map { it.texture.path.removeSuffix(".png") }.forEach { texture ->
-                player.sendSystemMessage(
-                    ("- ".literal + texture.literal)
-                        .onHoverText("hollowengine.tooltips.copy".mcTranslate)
-                        .onClickCopy(texture)
-                )
-            }
-        }
-    }
-}
 // endregion
 
 

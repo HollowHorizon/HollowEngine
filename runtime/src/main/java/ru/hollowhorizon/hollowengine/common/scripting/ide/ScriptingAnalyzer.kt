@@ -28,7 +28,28 @@ interface ScriptingAnalyzer {
     fun signatureHelp(name: String, text: String, offset: Int): SignatureHelp? = null
     fun hover(name: String, text: String, offset: Int): HoverInfo? = null
     fun diagnostic(name: String, text: String): List<Diagnostic>
+
+    /**
+     * Classes and top-level functions and properties on the script classpath whose name matches
+     * [query]: a simple name, part of one, or a name qualified by part of its package. Closest first.
+     */
+    fun searchSymbols(query: String, limit: Int): List<SymbolMatch> = emptyList()
+
+    /**
+     * Source of the class, member or top-level declaration [qualifiedName] names, read from a sources
+     * jar when there is one and decompiled otherwise; [DefinitionLocation.offset] points at the name.
+     */
+    fun symbolSource(qualifiedName: String): DefinitionLocation? = null
 }
+
+enum class SymbolKind { CLASS, ANNOTATION, FUNCTION, PROPERTY }
+
+/** A declaration found by [ScriptingAnalyzer.searchSymbols]; [signature] is empty for classes. */
+data class SymbolMatch(
+    val kind: SymbolKind,
+    val qualifiedName: String,
+    val signature: String = "",
+)
 
 /**
  * Receives completions as they are produced. Returning `false` means the request is stale (the

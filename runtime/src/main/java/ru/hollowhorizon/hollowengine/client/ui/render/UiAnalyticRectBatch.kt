@@ -6,8 +6,10 @@ import ru.hollowhorizon.hollowengine.client.ui.style.UiFilterChain
 import ru.hollowhorizon.hollowengine.client.ui.style.UiShadow
 import ru.hollowhorizon.hollowengine.client.ui.text.UiGlyphAtlasPage
 import java.nio.FloatBuffer
+import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 internal class UiAnalyticRectBatch {
     private val instances = UiFloatArrayBuilder()
@@ -89,8 +91,10 @@ internal class UiAnalyticRectBatch {
             paintEncoder.append(borderPaint, command.opacity, command.filter, width, height)
         }
         val radius = command.border.radius.coerceIn(0f, min(width, height) * 0.5f)
+        val dash = command.border.dash?.takeIf { !it.isSolid && borderWidth > 0f }
+            ?.let { borderDashPattern(width, height, radius, borderWidth, it) }
         records.add(width, height, radius, borderWidth)
-        records.add(paintIndex.toFloat(), borderPaintIndex.toFloat(), 0f, 0f)
+        records.add(paintIndex.toFloat(), borderPaintIndex.toFloat(), dash?.period ?: 0f, -(dash?.length ?: 0f))
         records.add(borderColor.red, borderColor.green, borderColor.blue, borderColor.alpha)
         records.add(clip.minX, clip.minY, clip.maxX, clip.maxY)
         appendInstance(transform, 0f, 0f, width, height)
@@ -231,6 +235,27 @@ internal class UiAnalyticRectBatch {
         private const val AntialiasMargin = 1f
         private const val BorderEpsilon = 0.001f
     }
+}
+
+/** A dash pattern fitted to one border: [period] divides its center line into whole repeats. */
+internal class UiBorderDashPattern(val period: Float, val length: Float)
+
+internal fun borderDashPattern(
+    width: Float,
+    height: Float,
+    radius: Float,
+    borderWidth: Float,
+    dash: UiBorderDash,
+): UiBorderDashPattern {
+    val inset = borderWidth * 0.5f
+    val halfWidth = width * 0.5f - inset
+    val halfHeight = height * 0.5f - inset
+    val centreRadius = (radius - inset).coerceIn(0f, min(halfWidth, halfHeight))
+    val perimeter = 4f * (halfWidth - centreRadius) + 4f * (halfHeight - centreRadius) + 2f * PI.toFloat() * centreRadius
+    val repeat = dash.length + dash.gap
+    val count = (perimeter / repeat).roundToInt().coerceAtLeast(1)
+    val period = perimeter / count
+    return UiBorderDashPattern(period, period * dash.length / repeat)
 }
 
 /**

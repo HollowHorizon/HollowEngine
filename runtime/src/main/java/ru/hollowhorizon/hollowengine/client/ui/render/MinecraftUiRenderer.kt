@@ -71,10 +71,10 @@ private const val ProjectiveLayerTextureSubdivisions = 12
 
 private const val PORTRAIT_YAW = 180f
 
-/** Colour links are drawn in when the style does not name one. */
+/** Color links are drawn in when the style does not name one. */
 private val LinkColor = UiColor(0.34f, 0.67f, 1f, 1f)
 
-/** Below this an underline can fall between pixel centres and vanish entirely. */
+/** Below this an underline can fall between pixel centers and vanish entirely. */
 private const val MinTextRuleThickness = 0.5f
 
 /** Corner rounding of a span background or an inline code chip. */
@@ -1500,6 +1500,7 @@ class MinecraftUiRenderer {
             opacity = command.opacity,
             flipY = command.flipY,
             filter = command.filter,
+            maskRadius = command.radius,
             opaqueSource = command.opaque,
         )
     }
@@ -2018,6 +2019,7 @@ class MinecraftUiRenderer {
             command.filter,
             command.slice,
             command.tint,
+            command.uv,
         )
     }
 
@@ -2387,7 +2389,7 @@ class MinecraftUiRenderer {
         if (target == null) {
             Minecraft.getInstance().mainRenderTarget.bindWrite(true)
             val window = Minecraft.getInstance().window
-            GL11.glViewport(0, 0, window.width, window.height)
+            RenderSystem.viewport(0, 0, window.width, window.height)
             restoreMainProjection()
             return
         }
@@ -2459,7 +2461,7 @@ class MinecraftUiRenderer {
 
     private fun bindTarget(target: RenderTargetState) {
         GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, target.framebufferId)
-        GL11.glViewport(target.x, target.y, target.width, target.height)
+        RenderSystem.viewport(target.x, target.y, target.width, target.height)
     }
 
     private fun configureLayerProjection(width: Float, height: Float) {

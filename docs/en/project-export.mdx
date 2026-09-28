@@ -13,13 +13,13 @@ Starting with HollowEngine 2.3.2, a project can be built into a `.jar` archive t
 An exported project is still a HollowEngine addon. It will not start unless HollowEngine 2.3.2 or newer is installed.
 :::
 
-## Project toolbar
+## Project actions
 
-The **Project** panel provides three actions:
+The three actions are available both as buttons in the **Project** panel and in the **File** menu:
 
 1. **Project Settings** - metadata and dependencies for the future mod. This is also where you configure the dependent mods and add-ons that you can use in your scripts during development.
-2. **Import Project** - restores a previously exported project, provided the source code was included in the archive.
-3. **Export Project** - compiles scripts and builds the finished `.jar` archive. If necessary, you can disable the export of the project’s source code here; however, this will make it impossible to import it back later.
+2. **Import a project** - restores a previously exported project, provided the source code was included in the archive.
+3. **Export as an addon** - compiles scripts and builds the finished `.jar` archive. You can disable export of the project's source code here, but this prevents importing it back later.
 
 ![Settings, import, and export buttons in the Project panel](/hollowengine/pictures/project-export/actions.webp)
 
@@ -45,7 +45,9 @@ Select **Save** after changing the settings.
 
 ## Exporting the project
 
-Select **Export project**, then:
+Click **Export as an addon** in the **Project** panel or choose **File > Export as an addon**, then:
+
+![Project export dialog](/hollowengine/pictures/project-export/export-dialog.webp)
 
 1. Check the version of the resulting mod.
 2. Choose whether to include script sources.
@@ -80,7 +82,7 @@ Once HollowEngine 2.3.2 is released, the project can be published on CurseForge 
 
 ## Importing a project
 
-To continue working on a previously exported project, select **Import project** and choose its JAR file.
+To continue working on a previously exported project, click **Import a project** in the **Project** panel or choose **File > Import a project**, then select its JAR file.
 
 ![Selecting a JAR to import](/hollowengine/pictures/project-export/import-dialog.webp)
 

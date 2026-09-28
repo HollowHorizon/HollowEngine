@@ -5,6 +5,7 @@ import net.minecraft.server.MinecraftServer
 import net.minecraft.world.item.ItemStack
 import ru.hollowhorizon.hollowengine.common.events.SubscribeEvent
 import ru.hollowhorizon.hollowengine.common.scripting.annotations.Import
+import ru.hollowhorizon.hollowengine.common.scripting.console.ServerConsoleScript
 import ru.hollowhorizon.hollowengine.common.scripting.mixins.MixinScript
 import ru.hollowhorizon.hollowengine.common.scripting.nodes.NodeScript
 import ru.hollowhorizon.hollowengine.common.scripting.reload.ReloadScript
@@ -18,6 +19,7 @@ const val UI_SCRIPT_EXTENSION = "ui.kts"
 const val RELOAD_SCRIPT_EXTENSION = "reload.kts"
 const val STARTUP_SCRIPT_EXTENSION = "startup.kts"
 const val CONSOLE_SCRIPT_EXTENSION = "console.kts"
+const val SERVER_CONSOLE_SCRIPT_EXTENSION = "server-console.kts"
 const val MIXIN_SCRIPT_EXTENSION = "mixin.kts"
 private const val CLIENT_RELOAD_CONTEXT = "ru.hollowhorizon.hollowengine.client.scripting.ClientReloadContext"
 private const val CONSOLE_SCRIPT = "ru.hollowhorizon.hollowengine.client.scripting.ConsoleScript"
@@ -74,7 +76,6 @@ object DefaultScriptDefinitions {
                     ResourceLocation::class.qualifiedName!!,
                     ItemStack::class.qualifiedName!!,
                     "net.minecraft.core.component.DataComponentPatch",
-                    "net.minecraft.world.entity.EntityAttachment",
                     SubscribeEvent::class.qualifiedName!!,
                     Import::class.qualifiedName!!,
                     "kotlinx.coroutines.launch",
@@ -160,7 +161,6 @@ object DefaultScriptDefinitions {
                     ResourceLocation::class.qualifiedName!!,
                     "net.minecraft.nbt.CompoundTag",
                     "net.minecraft.world.entity.Entity",
-                    "net.minecraft.world.entity.EntityAttachment",
                     "net.minecraft.world.entity.LivingEntity",
                     "net.minecraft.world.entity.player.Player",
                     "net.minecraft.world.entity.EquipmentSlot",
@@ -212,6 +212,26 @@ object DefaultScriptDefinitions {
                     "net.minecraft.world.phys.Vec3",
                     "net.minecraft.world.entity.Entity",
                     "net.minecraft.world.entity.LivingEntity",
+                    "kotlinx.coroutines.launch",
+                    "kotlinx.coroutines.delay",
+                    "kotlin.time.Duration.Companion.seconds",
+                    "ru.hollowhorizon.hollowengine.common.utils.rl",
+                    "ru.hollowhorizon.hollowengine.common.utils.literal",
+                ),
+            )
+            this += Provider(
+                extension = SERVER_CONSOLE_SCRIPT_EXTENSION,
+                baseClass = ServerConsoleScript::class.qualifiedName!!,
+                defaultImports = listOf(
+                    Import::class.qualifiedName!!,
+                    ResourceLocation::class.qualifiedName!!,
+                    ItemStack::class.qualifiedName!!,
+                    "net.minecraft.core.BlockPos",
+                    "net.minecraft.world.phys.Vec3",
+                    "net.minecraft.world.entity.Entity",
+                    "net.minecraft.world.entity.LivingEntity",
+                    "net.minecraft.server.level.ServerLevel",
+                    "net.minecraft.server.level.ServerPlayer",
                     "kotlinx.coroutines.launch",
                     "kotlinx.coroutines.delay",
                     "kotlin.time.Duration.Companion.seconds",

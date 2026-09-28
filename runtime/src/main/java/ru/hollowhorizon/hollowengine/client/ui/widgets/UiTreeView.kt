@@ -36,6 +36,26 @@ data class UiTreeItem<T>(
     val selected: Boolean = false,
 )
 
+/** Asks the tree to scroll [itemId] into view; a new [revision] asks again for the same item. */
+data class UiTreeReveal(val itemId: String, val revision: Int)
+
+/**
+ * For each row, whether the guide of each of its levels runs on below it: level `L` does while a
+ * later row sits at depth `L + 1` before anything shallower closes that subtree.
+ */
+internal fun <T> treeGuideContinuations(items: List<UiTreeItem<T>>): List<BooleanArray> {
+    val maxDepth = items.maxOfOrNull { it.depth } ?: 0
+    val later = BooleanArray(maxDepth + 2)
+    val result = arrayOfNulls<BooleanArray>(items.size)
+    for (index in items.indices.reversed()) {
+        val depth = items[index].depth
+        result[index] = BooleanArray(depth) { level -> later[level + 1] }
+        later[depth] = true
+        for (deeper in depth + 1 until later.size) later[deeper] = false
+    }
+    return result.map { it ?: BooleanArray(0) }
+}
+
 @Composable
 fun <T> UiTreeView(
     items: List<UiTreeItem<T>>,
@@ -52,7 +72,19 @@ fun <T> UiTreeView(
     filterPlaceholder: String = "Filter",
     onFilterOpened: ((String) -> Unit)? = null,
     scrollState: UiScrollHandle = rememberScrollState(),
+    onBackgroundClick: (() -> Unit)? = null,
+    onBackgroundContextMenu: ((UiEvent) -> Unit)? = null,
+    reveal: UiTreeReveal? = null,
+    onRevealed: (() -> Unit)? = null,
 ) {
+    val latestItems by rememberUpdatedState(items)
+    if (reveal != null) {
+        LaunchedEffect(reveal) {
+            scrollToRow(scrollState, reveal.itemId) { latestItems }
+            onRevealed?.invoke()
+        }
+    }
+    val continuations = remember(items) { treeGuideContinuations(items) }
     Column(
         tags = listOf("tree-view") + tags,
         modifier = modifier.focus().onKeyInput(FilterShortcutPriority) { input ->
@@ -75,12 +107,21 @@ fun <T> UiTreeView(
         }
         Column(
             tags = listOf("tree-view-scroll"),
-            modifier = Modifier.size(100.percent, 0.px).grow(1f).scrollable(state = scrollState),
+            modifier = Modifier.size(100.percent, 0.px).grow(1f).scrollable(state = scrollState).then(
+                if (onBackgroundClick == null && onBackgroundContextMenu == null) Modifier else Modifier.input(clickable = true).onClick { event ->
+                    if (event.button == GLFW.GLFW_MOUSE_BUTTON_RIGHT && onBackgroundContextMenu != null) {
+                        onBackgroundContextMenu(event)
+                    } else {
+                        onBackgroundClick?.invoke()
+                    }
+                    event.consume()
+                },
+            ),
         ) {
-            items.forEach { item ->
+            items.forEachIndexed { index, item ->
                 key(item.id) {
                     UiTreeRow(
-                        item, onToggle, onSelect, onIconClick, fillRowWidth, onDrop, canDrop,
+                        item, continuations[index], onToggle, onSelect, onIconClick, fillRowWidth, onDrop, canDrop,
                         draggable = dragItem != null,
                     ) {
                         dragItem?.invoke(item)
@@ -88,6 +129,20 @@ fun <T> UiTreeView(
                 }
             }
         }
+    }
+}
+
+private suspend fun <T> scrollToRow(scroll: UiScrollHandle, itemId: String, items: () -> List<UiTreeItem<T>>) {
+    repeat(RevealLayoutFrames) {
+        withFrameNanos { }
+        val viewport = scroll.viewport.height
+        val index = items().indexOfFirst { it.id == itemId }
+        if (index < 0 || viewport <= 0f) return@repeat
+        val top = index * TreeRowHeight
+        val offset = scroll.offsetY
+        if (top >= offset && top + TreeRowHeight <= offset + viewport) return
+        scroll.animateScrollBy(deltaY = top - (viewport - TreeRowHeight) / 2f - offset)
+        return
     }
 }
 
@@ -125,6 +180,7 @@ private fun UiTreeFilter(
 @Composable
 private fun <T> UiTreeRow(
     item: UiTreeItem<T>,
+    continues: BooleanArray,
     onToggle: (UiTreeItem<T>) -> Unit,
     onSelect: (UiTreeItem<T>, UiEvent) -> Unit,
     onIconClick: ((UiTreeItem<T>) -> Unit)?,
@@ -152,7 +208,7 @@ private fun <T> UiTreeRow(
             if (dragAndDrop?.hoveredTargetId == id) {
                 if (dragAndDrop.canDrop) "drop-target" else "drop-rejected"
             } else null),
-        modifier = Modifier.size(if (fillRowWidth) 100.percent else UiLength.Auto, 24.px)
+        modifier = Modifier.size(if (fillRowWidth) 100.percent else UiLength.Auto, TreeRowHeight.px)
             .alignItems(vertical = UiAlign.CENTER)
             .input(hoverable = true, clickable = true)
             .cursor(UiCursorShape.HAND)
@@ -160,8 +216,16 @@ private fun <T> UiTreeRow(
             .dragSource(dragSource, drag)
             .then(dropModifier)
     ) {
-        repeat(item.depth) {
-            Box(tags = listOf("tree-indent"))
+        repeat(item.depth) { level ->
+            val parentLevel = level == item.depth - 1
+            val opensSubtree = item.hasChildren && item.expanded
+            val guide = when {
+                parentLevel && opensSubtree -> if (continues[level]) "branch" else "last"
+                parentLevel -> if (continues[level]) "line" else "end"
+                continues[level] -> "line"
+                else -> null
+            }
+            Box(tags = listOfNotNull("tree-indent", guide))
         }
         Box(
             tags = if (!item.hasChildren) listOf("tree-expander-empty") else listOf("tree-expander"),
@@ -193,3 +257,5 @@ private fun <T> UiTreeRow(
 }
 
 private const val FilterShortcutPriority = 100
+private const val TreeRowHeight = 20f
+private const val RevealLayoutFrames = 4

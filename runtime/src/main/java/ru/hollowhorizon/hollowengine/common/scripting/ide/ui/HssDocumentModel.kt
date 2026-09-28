@@ -1,9 +1,12 @@
 package ru.hollowhorizon.hollowengine.common.scripting.ide.ui
 
 import ru.hollowhorizon.hollowengine.client.ui.style.HssDeclaration
+import ru.hollowhorizon.hollowengine.client.ui.style.HssImport
 import ru.hollowhorizon.hollowengine.client.ui.style.HssParseException
 import ru.hollowhorizon.hollowengine.client.ui.style.HssParseResult
+import ru.hollowhorizon.hollowengine.client.ui.style.HssScope
 import ru.hollowhorizon.hollowengine.client.ui.style.HssSelector
+import ru.hollowhorizon.hollowengine.client.ui.style.HssVariable
 import ru.hollowhorizon.hollowengine.client.ui.style.parseHssRecovering
 
 /**
@@ -16,11 +19,21 @@ internal class HssDocumentModel(val text: String) {
 
     val errors: List<HssParseException> get() = result.errors
 
-    val keyframeNames: Set<String> = result.document.keyframes.mapTo(LinkedHashSet()) { it.name }
+    /** The variables in scope, imported ones included, and what the imports could not read. */
+    val scope: HssScope = HssScope.of(result.document)
+
+    /** The document's own `$name: value` declarations. */
+    val variables: List<HssVariable> = result.document.variables
+
+    val imports: List<HssImport> = result.document.imports
+
+    val keyframeNames: Set<String> = (result.document.keyframes + scope.importedKeyframes)
+        .mapTo(LinkedHashSet()) { it.name }
 
     /** Every declaration in the document, rules and keyframes alike, in source order. */
     val declarations: List<HssDeclaration> = buildList {
         result.document.rules.forEach { addAll(it.declarations) }
+        result.document.sets.forEach { addAll(it.declarations) }
         result.document.keyframes.forEach { keyframes ->
             keyframes.frames.forEach { addAll(it.declarations) }
         }

@@ -64,7 +64,7 @@ Use the Gradle wrapper from the repository root:
 
 `build` also produces the development jar, and `buildAndCollect` copies it into `merged/`. It exposes engine classes (including `common.addons` and UI), the bridge, and bundled libraries directly on the compile classpath. Use it as `compileOnly` with Mojang/Parchment mappings and the Kotlin version used by HE. Install the regular universal jar in the game; the development jar is only for compilation.
 
-For an addon tied to a mod, use the [addon template](templates/hollow-addon-template/README.md). Its entrypoint is compiled into the mod jar and HE activates it only when that mod is installed. Independent addons continue to use the separate format-3 jar.
+For an addon tied to a mod, use the [addon template](addons/template/README.md). Its entrypoint is compiled into the mod jar and HE activates it only when that mod is installed. Independent addons continue to use the separate format-3 jar.
 
 ## Links
 

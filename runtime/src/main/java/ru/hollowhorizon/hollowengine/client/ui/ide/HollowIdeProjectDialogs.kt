@@ -43,7 +43,7 @@ import ru.hollowhorizon.hollowengine.common.scripting.source.DEFAULT_SANDBOX_NAM
 private const val LANG = "hollowengine.gui.ide.project"
 private const val SettingsIcon = "hollowengine:textures/gui/icons/options.svg"
 private const val ImportIcon = "hollowengine:textures/gui/icons/load.svg"
-private const val ExportIcon = "hollowengine:textures/gui/icons/file_zip.svg"
+private const val ExportIcon = "hollowengine:textures/gui/icons/export.svg"
 
 /** What can be done with the project as a whole, at the right end of the project tree's tab bar. */
 @Composable

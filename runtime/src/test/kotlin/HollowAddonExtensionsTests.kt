@@ -22,10 +22,10 @@ class HollowAddonExtensionsTests {
         scope.register(point, "second", TestExtension("second"))
         scope.onUnload { cleanupOrder += "second-cleanup" }
 
-        assertEquals(listOf("first", "second"), point.values().map(TestExtension::name))
+        assertEquals(listOf("first", "second"), point.extensions.map(TestExtension::name))
         scope.cleanup()
 
-        assertTrue(point.values().isEmpty())
+        assertTrue(point.extensions.isEmpty())
         assertEquals(listOf("second-cleanup", "first-cleanup"), cleanupOrder)
     }
 
@@ -40,7 +40,7 @@ class HollowAddonExtensionsTests {
 
         assertEquals(
             listOf("first-addon:editor", "second-addon:editor"),
-            point.extensions().map { it.qualifiedId },
+            point.registrations.map { it.qualifiedId },
         )
         assertFailsWith<IllegalArgumentException> {
             first.register(point, "editor", TestExtension("duplicate"))
@@ -59,7 +59,7 @@ class HollowAddonExtensionsTests {
         scope.register(point, "first-high", TestExtension("first-high"), priority = 10)
         scope.register(point, "second-high", TestExtension("second-high"), priority = 10)
 
-        assertEquals(listOf("first-high", "second-high", "normal"), point.values().map(TestExtension::name))
+        assertEquals(listOf("first-high", "second-high", "normal"), point.extensions.map(TestExtension::name))
         scope.cleanup()
     }
 
@@ -73,7 +73,7 @@ class HollowAddonExtensionsTests {
         registration.close()
 
         assertFalse(registration.isActive)
-        assertTrue(point.values().isEmpty())
+        assertTrue(point.extensions.isEmpty())
         scope.cleanup()
     }
 
@@ -86,7 +86,7 @@ class HollowAddonExtensionsTests {
         assertFailsWith<IllegalStateException> {
             scope.register(point, "late", TestExtension("late"))
         }
-        assertTrue(point.values().isEmpty())
+        assertTrue(point.extensions.isEmpty())
     }
 
     @Test
@@ -96,7 +96,7 @@ class HollowAddonExtensionsTests {
         val scope = OwnedHollowAddonExtensions("demo", loader)
         scope.register(point, "editor", TestExtension("editor"))
 
-        val observed = point.extensions().single().invoke { Thread.currentThread().contextClassLoader }
+        val observed = point.registrations.single().invoke { Thread.currentThread().contextClassLoader }
 
         assertSame(loader, observed)
         scope.cleanup()

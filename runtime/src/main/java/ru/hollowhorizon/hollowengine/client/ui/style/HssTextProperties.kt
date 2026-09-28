@@ -90,13 +90,13 @@ internal fun textHssProperties(): List<HssProperty> = hssProperties {
 
     property(
         "caret-color", "text-field-caret",
-        summary = "Colour of the text-field caret.",
+        summary = "Color of the text-field caret.",
         syntax = colorSyntax("color"),
     ) { style { it.textField = it.textFieldStyle().copy(caretColor = parseColor(value)) } }
 
     property(
         "selection-color", "text-selection",
-        summary = "Colour of the text-field selection highlight.",
+        summary = "Color of the text-field selection highlight.",
         syntax = colorSyntax("color"),
     ) { style { it.textField = it.textFieldStyle().copy(selectionColor = parseColor(value)) } }
 
@@ -114,7 +114,7 @@ internal fun textHssProperties(): List<HssProperty> = hssProperties {
 
     property(
         "line-number-color",
-        summary = "Colour of the code-editor line numbers.",
+        summary = "Color of the code-editor line numbers.",
         syntax = colorSyntax("color"),
     ) { style { it.textField = it.textFieldStyle().copy(lineNumberColor = parseColor(value)) } }
 

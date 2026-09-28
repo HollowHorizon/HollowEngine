@@ -1,0 +1,85 @@
+@import "hollowengine:ui/styles/theme.hss";
+
+/* A node graph: the canvas, its nodes and the minimap. Editors add tags to nodes for their own kinds. */
+
+.graph-canvas {
+    background: $bg-window;
+    font-family: $font;
+    font-size: $font-size;
+}
+
+.graph-node {
+    background: linear-gradient(180deg, $bg-hover, $bg-panel);
+    border: 1px $border;
+    border-radius: $radius;
+    shadow: 0px 2px 9px 0px $shadow;
+    cursor: hand;
+    transition: border-color 250ms ease-out;
+}
+
+.graph-node:hover {
+    border-color: $border-strong;
+}
+
+.graph-node.selected {
+    border-color: $accent;
+    shadow: 0px 0px 5px 0px alpha($accent, 0.22);
+}
+
+.graph-node-title {
+    font-size: $font-size;
+    foreground: $text-strong;
+    text-wrap: false;
+    text-overflow: dots;
+}
+
+.graph-node-subtitle {
+    font-size: $font-size-small;
+    foreground: $text-muted;
+    text-wrap: false;
+    text-overflow: dots;
+}
+
+.graph-minimap {
+    background: alpha($bg-panel, 0.92);
+    border: 1px $border;
+    border-radius: $radius;
+}
+
+.graph-minimap-mark {
+    border: 1px alpha($text-strong, 0);
+    border-radius: 2px;
+    cursor: hand;
+    transition: border-color 150ms ease-out;
+}
+
+.graph-minimap-mark:hover {
+    border-color: $text-strong;
+}
+
+.graph-marquee {
+    background: alpha($accent, 0.08);
+    border: 1px alpha($accent, 0.7);
+    border-radius: $radius-small;
+}
+
+.graph-link-label {
+    padding: 2px 4px;
+    font-size: $font-size-small;
+    foreground: $text-muted;
+    background: $bg-field;
+    border: 1px $border;
+    border-radius: $radius-small;
+    cursor: hand;
+    transition: background 250ms ease-out, border-color 250ms ease-out;
+}
+
+.graph-link-label:hover {
+    background: $bg-hover;
+    border-color: $border-strong;
+}
+
+.graph-link-label.selected {
+    foreground: $text-strong;
+    border-color: $accent;
+}

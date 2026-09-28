@@ -50,6 +50,8 @@ internal class EditableFieldLayout(
     internal val lineInputs: Array<EditableFieldLineInput?> = arrayOfNulls(lines.size),
     /** Multi-line editors keep one line of overscroll past the last row; single-line fields don't. */
     private val verticalOverscroll: Boolean = true,
+    /** Height of one unwrapped line in the field's font; the caret spans it. */
+    val lineHeight: Float = fontSize,
 ) {
     private val trailingMargin = if (verticalOverscroll) fontSize else 0f
     val height: Float get() = (offsets.lastOrNull() ?: 0f) + trailingMargin
@@ -362,6 +364,7 @@ internal fun computeEditableFieldLayout(
         lines, offsets, layouts, fontSize, fontFamily, contentWidth, naturalWidth, hintsById, inlayRevision,
         inlayHints.mapTo(HashSet(inlayHints.size)) { it.offset }, layoutWidth, lineInputs,
         verticalOverscroll = multiline,
+        lineHeight = uniformHeight,
     )
 }
 
@@ -970,7 +973,7 @@ private fun EditableFieldRow(
             val caret = layout.caretAt(range.position, range.inlayAffinity)
             key("caret", caretIndex) {
                 Box(
-                    modifier = Modifier.position(caret.x.px, caret.y.px).size(TextFieldCaretWidth.px, fontSize.px)
+                    modifier = Modifier.position(caret.x.px, caret.y.px).size(TextFieldCaretWidth.px, layout.lineHeight.px)
                         .background(state.caretColor).layer(1).animation(
                             UiCaretBlinkKeyframes, UiCaretBlinkPeriodMillis, iterationCount = Float.POSITIVE_INFINITY
                         ),
@@ -1287,6 +1290,7 @@ internal fun handleEditableFieldKey(
             GLFW.GLFW_KEY_LEFT, GLFW.GLFW_KEY_RIGHT -> completion.close()
         }
     }
+    if (!state.multiline && !input.shift && (input.key == GLFW.GLFW_KEY_UP || input.key == GLFW.GLFW_KEY_DOWN)) return false
     if (input.key == GLFW.GLFW_KEY_ESCAPE && codeInsight?.dismissSignature() == true) return true
     if (completion != null && (input.command && input.key == GLFW.GLFW_KEY_SPACE || input.alt && (input.key == GLFW.GLFW_KEY_ENTER || input.key == GLFW.GLFW_KEY_KP_ENTER))) {
         completion.open()

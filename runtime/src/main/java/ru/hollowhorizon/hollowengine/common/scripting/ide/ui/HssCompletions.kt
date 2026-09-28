@@ -18,6 +18,8 @@ internal fun hssCompletions(text: String, offset: Int): List<CompletionItem> {
     val model = HssDocumentModel(text)
     val state = HssLexer(before, model.keyframeNames).scanState()
 
+    VariablePrefix.find(before)?.let { reference -> return variableCompletions(reference.groupValues[1], model) }
+
     return when (state.region) {
         HssRegion.VALUE -> valueCompletions(before, caret, state.property, state.valueStart, model)
         HssRegion.PROPERTY -> propertyCompletions(identifierPrefix(before))
@@ -27,6 +29,28 @@ internal fun hssCompletions(text: String, offset: Int): List<CompletionItem> {
 }
 
 private val KeyframeSelectors = listOf("from", "to", "0%", "25%", "50%", "75%", "100%")
+
+/** A `$name` being typed in a value. */
+private val VariablePrefix = Regex("""\$([A-Za-z0-9_-]*)$""")
+
+/** The variables and sets in scope, each with what it stands for. */
+private fun variableCompletions(prefix: String, model: HssDocumentModel): List<CompletionItem> {
+    val variables = model.scope.variables.values.map { Triple(it.name, ": " + it.value, it.source ?: "this stylesheet") }
+    val sets = model.scope.sets.values.map { Triple(it.name, " { … }", "set") }
+    return (variables + sets)
+        .filter { (name, _, _) -> completionMatches(prefix, name) }
+        .map { (name, value, source) ->
+            declarationCompletionItem {
+                show = "$" + name
+                insert = name
+                this.name = name
+                tag = CompletionItemTag.PROPERTY
+                fqName = null
+                middle = value
+                tail = source
+            }
+        }
+}
 
 private fun propertyCompletions(prefix: String): List<CompletionItem> =
     HssSchema.properties

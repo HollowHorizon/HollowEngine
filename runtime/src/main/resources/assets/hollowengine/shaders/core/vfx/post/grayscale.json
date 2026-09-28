@@ -1,0 +1,11 @@
+{
+    "vertex": "hollowengine:vfx/post/screen",
+    "fragment": "hollowengine:vfx/post/grayscale",
+    "attributes": [ "Position", "UV0" ],
+    "samplers": [
+        { "name": "SceneColor" }
+    ],
+    "uniforms": [
+        { "name": "Strength", "type": "float", "count": 1, "values": [ 1.0 ] }
+    ]
+}

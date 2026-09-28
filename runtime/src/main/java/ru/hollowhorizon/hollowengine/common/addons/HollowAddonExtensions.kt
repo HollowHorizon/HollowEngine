@@ -107,11 +107,6 @@ internal class OwnedHollowAddonExtensions(
     }
 }
 
-internal class HostHollowAddonExtensions(
-    ownerId: String,
-    classLoader: ClassLoader,
-) : HollowAddonExtensions by OwnedHollowAddonExtensions(ownerId, classLoader)
-
 private class CallbackRegistration(
     private val cleanup: () -> Unit,
 ) : HollowAddonRegistration {

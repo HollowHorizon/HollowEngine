@@ -23,6 +23,9 @@ import ru.hollowhorizon.hollowengine.common.ide.session.insight.findSignatureHel
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaRekotLibraryModule
 import ru.hollowhorizon.hollowengine.common.ide.session.modules.KaScriptModule
 import ru.hollowhorizon.hollowengine.common.scripting.ide.*
+import ru.hollowhorizon.hollowengine.common.ide.session.symbols.searchSymbols
+import ru.hollowhorizon.hollowengine.common.ide.session.symbols.symbolSource
+import ru.hollowhorizon.hollowengine.common.scripting.source.SandboxScriptSource
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptImports
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
 import java.io.File
@@ -302,6 +305,21 @@ class ScriptingAnalyzerImpl(
     override fun diagnostic(name: String, text: String): List<Diagnostic> {
         val file = getOrCreateFile(name, text)
         return collectImportDiagnostics(name, file) + diagnosticCode(file)
+    }
+
+    @Synchronized
+    override fun searchSymbols(query: String, limit: Int): List<SymbolMatch> {
+        return searchSymbols(getOrCreateFile(SymbolLookupScript, ""), query, limit)
+    }
+
+    @Synchronized
+    override fun symbolSource(qualifiedName: String): DefinitionLocation? {
+        return symbolSource(getOrCreateFile(SymbolLookupScript, ""), qualifiedName)
+    }
+
+    private companion object {
+        /** An empty sandbox script, so name lookups see the classpath the project's own scripts compile against. */
+        val SymbolLookupScript = "${SandboxScriptSource.SCRIPTS_DIRECTORY}/.symbol-lookup.kts"
     }
 }
 

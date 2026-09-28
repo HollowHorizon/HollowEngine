@@ -341,7 +341,7 @@ private class TextLabArgs(private val effect: TextLabEffect, private val values:
 
     fun int(index: Int): Int = number(index).toInt()
 
-    /** Blank means "no override": the rule then takes the colour the text is drawn in. */
+    /** Blank means "no override": the rule then takes the color the text is drawn in. */
     fun color(index: Int): UiColor? {
         val raw = values[effect.key(index)]?.trim().orEmpty().ifEmpty { effect.params[index].default }
         return parseHexColor(raw)

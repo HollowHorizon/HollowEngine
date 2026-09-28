@@ -42,6 +42,31 @@ internal fun widgetHssProperties(): List<HssProperty> = hssProperties {
     ) { style { it.scrollbar = it.scrollbarStyle().copy(overlay = parseBoolean(value)) } }
 
     property(
+        "scrollbar-hover-thickness",
+        summary = "Thickness an overlay scrollbar grows to under the pointer or while dragged.",
+        syntax = syntax(sizeSlot("thickness", auto = false)),
+        examples = listOf("6px", "8px"),
+    ) { style { it.scrollbar = it.scrollbarStyle().copy(hoverThickness = parseLength(value)) } }
+
+    property(
+        "scrollbar-thumb-hover",
+        summary = "Fill of the scrollbar thumb under the pointer or while dragged.",
+        syntax = syntax(slot("paint", HssValueKind.PAINT)),
+    ) {
+        style { patch ->
+            val current = patch.scrollbarStyle()
+            patch.scrollbar = current.copy(thumbHover = current.thumbHover.copy(paint = parsePaint(value)))
+        }
+    }
+
+    property(
+        "scrollbar-side",
+        summary = "Edge an overlay scrollbar sits on: `end` (right, bottom) or `start` (left, top).",
+        syntax = syntax(keywordSlot("side", "start", "end")),
+        examples = listOf("start", "end"),
+    ) { style { it.scrollbar = it.scrollbarStyle().copy(atStart = value.trim() == "start") } }
+
+    property(
         "scrollbar-track",
         summary = "Fill of the scrollbar track.",
         syntax = syntax(slot("paint", HssValueKind.PAINT)),
@@ -179,7 +204,7 @@ internal fun widgetHssProperties(): List<HssProperty> = hssProperties {
 
     property(
         "checkbox-mark",
-        summary = "Colour of the check mark.",
+        summary = "Color of the check mark.",
         syntax = syntax(slot("paint", HssValueKind.PAINT)),
     ) { style { it.checkbox = (it.checkbox ?: UiCheckboxStyle()).copy(markPaint = parsePaint(value)) } }
 

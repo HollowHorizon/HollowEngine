@@ -6,19 +6,18 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.job
+import kotlinx.coroutines.launch
 import net.minecraft.client.Minecraft
 import net.minecraft.client.multiplayer.ClientLevel
 import net.minecraft.client.player.LocalPlayer
 import net.minecraft.client.server.IntegratedServer
 import org.apache.logging.log4j.LogManager
-import org.apache.logging.log4j.Logger
+import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.coroutines.dispatcher
 import ru.hollowhorizon.hollowengine.common.events.LogicalSide
 import ru.hollowhorizon.hollowengine.common.scripting.CONSOLE_SCRIPT_EXTENSION
-import ru.hollowhorizon.hollowengine.common.scripting.ScriptingEnvironment
-import ru.hollowhorizon.hollowengine.common.scripting.ide.ScriptCompilationException
-import java.util.concurrent.Executors
-import kotlin.script.experimental.api.constructorArgs
+import ru.hollowhorizon.hollowengine.common.scripting.console.SnippetRun
+import ru.hollowhorizon.hollowengine.common.scripting.console.SnippetRunner
 
 /**
  * Base of snippets typed into the IDE console. A snippet runs on the render thread and works in the
@@ -37,7 +36,7 @@ abstract class ConsoleScript(scope: CoroutineScope) : CoroutineScope by scope {
 
     /** Prints to the console, not to the game's standard output. */
     fun println(value: Any?) {
-        ConsoleScripts.LOGGER.info(value.toString())
+        ConsoleScripts.runner.print(value.toString())
     }
 
     fun print(value: Any?) = println(value)
@@ -48,11 +47,7 @@ object ConsoleScripts {
     /** Also the name the IDE analyzes the console input under, so both agree on the script type. */
     const val SCRIPT_NAME = "console.$CONSOLE_SCRIPT_EXTENSION"
 
-    internal val LOGGER: Logger = LogManager.getLogger("Console")
-
-    private val compiler = Executors.newSingleThreadExecutor { task ->
-        Thread(task, "HollowEngine-ConsoleCompiler").apply { isDaemon = true }
-    }
+    internal val runner = SnippetRunner(SCRIPT_NAME, LogManager.getLogger("Console"), "HollowEngine-ConsoleCompiler")
 
     @Volatile
     private var scope: CoroutineScope? = null
@@ -62,24 +57,20 @@ object ConsoleScripts {
      * snippet's last expression evaluates to is printed, like in a REPL.
      */
     fun run(code: String, onFinished: () -> Unit) {
-        val environment = ScriptingEnvironment.currentOrNull()
-        if (environment == null) {
-            LOGGER.warn("Kotlin snippets need the compiler addon, which is not installed")
-            onFinished()
-            return
-        }
-        LOGGER.info("> {}", code.trimEnd())
-        compiler.execute {
-            val compiled = environment.compiler.compile(SCRIPT_NAME, code)
-            Minecraft.getInstance().execute {
-                compiled.onSuccess { script ->
-                    script.evaluate { constructorArgs(currentScope()) }
-                        .onSuccess { result -> if (result.hasValue) LOGGER.info("= {}", result.value) }
-                        .onFailure { error -> LOGGER.error("The snippet failed", error) }
-                }.onFailure(::reportCompilationFailure)
+        val minecraft = Minecraft.getInstance()
+        minecraft.coroutineScope.launch {
+            try {
+                evaluate(code)
+            } finally {
                 onFinished()
             }
         }
+    }
+
+    /** Compiles and runs [code] like [run], and hands back what it printed and returned. */
+    suspend fun evaluate(code: String): SnippetRun {
+        val minecraft = Minecraft.getInstance()
+        return runner.run(code, minecraft.dispatcher) { listOf(currentScope()) }
     }
 
     /** Whether coroutines a snippet launched are still alive. */
@@ -95,17 +86,4 @@ object ConsoleScripts {
     private fun currentScope(): CoroutineScope = scope ?: CoroutineScope(
         SupervisorJob() + Minecraft.getInstance().dispatcher + LogicalSide.CLIENT + CoroutineName("Console snippets"),
     ).also { scope = it }
-
-    private fun reportCompilationFailure(error: Throwable) {
-        val reports = (error as? ScriptCompilationException)?.reports
-        if (reports == null) {
-            LOGGER.error("The snippet did not compile", error)
-            return
-        }
-        reports.filter { it.severity.isError() }.forEach { report ->
-            val start = report.range.start
-            if (start.line < 0) LOGGER.error(report.message)
-            else LOGGER.error("{}:{}: {}", start.line + 1, start.column + 1, report.message)
-        }
-    }
 }

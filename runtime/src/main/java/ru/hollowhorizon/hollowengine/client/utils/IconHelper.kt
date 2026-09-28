@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.utils
 
 import net.minecraft.resources.ResourceLocation
+import ru.hollowhorizon.hollowengine.common.utils.rl
 import ru.hollowhorizon.hollowengine.generated.Assets
 
 object IconHelper {
@@ -30,18 +31,40 @@ object IconHelper {
                 }
             }
 
-            else -> {
-                when (path.substringAfterLast('.')) {
-                    "bc" -> Icons.FILE_CODEBLOCKS
-                    "zip", "rar", "jar" -> Icons.FILE_ZIP
-                    "gltf", "glb", "fbx", "geo.json", "obj" -> Icons.FILE_MODEL
-                    "kts", "kt" -> Icons.FILE_KTS
-                    "png", "jpg", "jpeg", "gif" -> Icons.FILE_IMAGE
-                    "ogg", "mp3", "wav" -> Icons.FILE_SOUND
-                    "mp4", "avi", "mov" -> Icons.FILM
-                    else -> Icons.FILE
-                }
-            }
+            else -> forFile(path)
         }
     }
+
+    /**
+     * The icon of a file, by what it is: the engine's own formats first, since several of them end in a
+     * suffix another format also uses (`.node.kts` is a `.kts`, `.geo.json` is a `.json`).
+     */
+    fun forFile(path: String): ResourceLocation {
+        val name = path.substringAfterLast('/').lowercase()
+        val icon = FileIcons.firstOrNull { (suffixes, _) -> suffixes.any(name::endsWith) }?.second ?: "file"
+        return "hollowengine:textures/gui/icons/files/$icon.svg".rl
+    }
+
+    private val FileIcons: List<Pair<List<String>, String>> = listOf(
+        listOf(".node.kts") to "script_node",
+        listOf(".ui.kts") to "script_ui",
+        listOf(".startup.kts") to "script_startup",
+        listOf(".reload.kts") to "script_reload",
+        listOf(".mixin.kts") to "script_mixin",
+        listOf(".kts", ".kt") to "script",
+        listOf(".vfx") to "effect",
+        listOf(".material") to "shader",
+        listOf(".animator") to "animator",
+        listOf(".rig") to "rig",
+        listOf(".story") to "story",
+        listOf(".hss") to "style",
+        listOf(".bc") to "blocks",
+        listOf(".gltf", ".glb", ".fbx", ".geo.json", ".obj") to "model",
+        listOf(".json", ".json5", ".mcmeta") to "data",
+        listOf(".png", ".jpg", ".jpeg", ".gif") to "image",
+        listOf(".ogg", ".mp3", ".wav") to "sound",
+        listOf(".mp4", ".avi", ".mov") to "video",
+        listOf(".zip", ".rar", ".jar") to "archive",
+        listOf(".txt", ".md", ".yml", ".yaml", ".toml", ".properties", ".lang", ".cfg") to "text",
+    )
 }

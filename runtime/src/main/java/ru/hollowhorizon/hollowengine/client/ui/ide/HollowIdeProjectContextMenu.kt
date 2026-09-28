@@ -1,24 +1,22 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide
 
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import org.lwjgl.glfw.GLFW
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
-import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.COPY
-import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.CREATE_FILE
-import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.CREATE_FOLDER
-import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.CUT
-import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.FILE_SOUND
-import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.FOLDER
-import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.PASTE
-import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.REMOVE
-import ru.hollowhorizon.hollowengine.generated.Assets.Hollowengine.Textures.Gui.Icons.RENAME
+import ru.hollowhorizon.hollowengine.client.utils.IconHelper
 
 @Composable
 internal fun HollowIdeProjectContextMenu(
     menu: ProjectContextMenu?,
     onCreateFile: (String) -> Unit,
     onCreateFolder: (String) -> Unit,
+    onCreateScript: (String, ScriptTemplate) -> Unit,
     onCreateSoundEvents: (String) -> Unit,
     onRename: (String) -> Unit,
     onCopy: (String) -> Unit,
@@ -26,11 +24,13 @@ internal fun HollowIdeProjectContextMenu(
     onPaste: (String) -> Unit,
     onShowInExplorer: (String) -> Unit,
     onDelete: (String) -> Unit,
-    additionalActions: List<HollowIdeProjectMenuEntry> = emptyList(),
-    onAdditionalAction: (HollowIdeProjectAction) -> Unit = {},
     onDismiss: () -> Unit,
+    contributedActions: (ProjectContextMenu) -> List<HollowIdeProjectActionEntry> = { emptyList() },
 ) {
     if (menu == null) return
+    var scriptsOpen by remember(menu) { mutableStateOf(false) }
+    var scriptsAnchor by remember(menu) { mutableStateOf<UiRect?>(null) }
+    val closeScripts = { scriptsOpen = false }
     Popup(
         anchorBounds = UiRect(menu.x, menu.y, 0f, 0f),
         alignment = UiPopupAlignment.Cursor,
@@ -38,29 +38,58 @@ internal fun HollowIdeProjectContextMenu(
         tags = listOf("dropdown-popup", "project-context-menu"),
         onDismiss = onDismiss,
     ) {
-        ProjectMenuItem("New File", "Alt+Insert", CREATE_FILE.toString()) { onCreateFile(menu.path) }
-        ProjectMenuItem("New Folder", "Alt+Shift+Insert", CREATE_FOLDER.toString()) { onCreateFolder(menu.path) }
-        if (menu.canCreateSoundEvents) {
-            ProjectMenuItem("New Sound Events", "", FILE_SOUND.toString()) { onCreateSoundEvents(menu.path) }
-        }
-        ProjectMenuItem("Rename", "F2", RENAME.toString()) { onRename(menu.path) }
-        ProjectMenuItem("Copy", "Ctrl+C", COPY.toString()) { onCopy(menu.path) }
-        ProjectMenuItem("Cut", "Ctrl+X", CUT.toString()) { onCut(menu.path) }
-        ProjectMenuItem("Paste", "Ctrl+V", PASTE.toString()) { onPaste(menu.path) }
-        ProjectMenuItem("Show in Explorer", "", FOLDER.toString()) { onShowInExplorer(menu.path) }
-        ProjectMenuItem("Delete", "Del", REMOVE.toString()) { onDelete(menu.path) }
-        additionalActions.forEach { entry ->
+        ProjectMenuItem("New File", "Alt+Insert", ProjectMenuIcons.NEW_FILE, closeScripts) { onCreateFile(menu.path) }
+        ProjectMenuItem("New Folder", "Alt+Shift+Insert", ProjectMenuIcons.NEW_FOLDER, closeScripts) { onCreateFolder(menu.path) }
+        if (menu.canCreateScripts) {
             ProjectMenuItem(
-                label = entry.action.label,
-                shortcut = entry.action.shortcut,
-                icon = entry.action.icon,
-                enabled = entry.enabled,
-            ) {
-                onAdditionalAction(entry.action)
+                label = "New Script",
+                shortcut = "›",
+                icon = IconHelper.forFile("script.kts").toString(),
+                onEnter = { scriptsOpen = true },
+                onPlaced = { scriptsAnchor = it },
+            ) { scriptsOpen = !scriptsOpen }
+        }
+        if (menu.canCreateSoundEvents) {
+            ProjectMenuItem("New Sound Events", "", IconHelper.forFile("sounds.ogg").toString(), closeScripts) { onCreateSoundEvents(menu.path) }
+        }
+        ProjectMenuItem("Rename", "F2", ProjectMenuIcons.RENAME, closeScripts) { onRename(menu.path) }
+        ProjectMenuItem("Copy", "Ctrl+C", ProjectMenuIcons.COPY, closeScripts) { onCopy(menu.path) }
+        ProjectMenuItem("Cut", "Ctrl+X", ProjectMenuIcons.CUT, closeScripts) { onCut(menu.path) }
+        ProjectMenuItem("Paste", "Ctrl+V", ProjectMenuIcons.PASTE, closeScripts) { onPaste(menu.path) }
+        ProjectMenuItem("Show in Explorer", "", ProjectMenuIcons.REVEAL, closeScripts) { onShowInExplorer(menu.path) }
+        ProjectMenuItem("Delete", "Del", ProjectMenuIcons.DELETE, closeScripts) { onDelete(menu.path) }
+        contributedActions(menu).forEach { action ->
+            ProjectMenuItem(action.label, "", action.icon, closeScripts) {
+                onDismiss()
+                action.run()
+            }
+        }
+    }
+
+    val anchor = scriptsAnchor
+    if (scriptsOpen && anchor != null) {
+        Popup(
+            anchorBounds = anchor,
+            alignment = SubmenuAlignment,
+            layer = 1,
+            id = "project-new-script-menu",
+            tags = listOf("dropdown-popup", "project-context-menu"),
+            onDismiss = onDismiss,
+        ) {
+            ScriptTemplate.entries.forEach { template ->
+                ProjectMenuItem(template.label, template.extension, template.icon) { onCreateScript(menu.path, template) }
             }
         }
     }
 }
+
+/** Opens a submenu to the right of the item it belongs to, level with it. */
+private val SubmenuAlignment = UiPopupAlignment(
+    anchorHorizontal = UiAlign.END,
+    anchorVertical = UiAlign.START,
+    offsetX = 6f,
+    offsetY = -4f,
+)
 
 internal const val ProjectNameDialogInputId = "project-name-dialog-input"
 
@@ -111,20 +140,19 @@ private fun ProjectMenuItem(
     label: String,
     shortcut: String,
     icon: String? = null,
-    enabled: Boolean = true,
+    onEnter: () -> Unit = {},
+    onPlaced: ((UiRect) -> Unit)? = null,
     action: () -> Unit,
 ) {
     Row(
-        tags = buildList {
-            add("dropdown-item")
-            add("project-context-menu-item")
-            if (!enabled) add("disabled")
-        },
-        modifier = Modifier.input(hoverable = enabled, clickable = enabled)
-            .cursor(if (enabled) UiCursorShape.HAND else UiCursorShape.DEFAULT)
+        tags = listOf("dropdown-item", "project-context-menu-item"),
+        modifier = Modifier.input(hoverable = true, clickable = true)
+            .cursor(UiCursorShape.HAND)
             .alignItems(vertical = UiAlign.CENTER)
+            .onEnter { onEnter() }
+            .let { if (onPlaced != null) it.onPlaced(onPlaced) else it }
             .onClick { event ->
-                if (enabled) action()
+                action()
                 event.consume()
             }
     ) {
@@ -134,17 +162,12 @@ private fun ProjectMenuItem(
     }
 }
 
-internal data class HollowIdeProjectMenuEntry(
-    val action: HollowIdeProjectAction,
-    val enabled: Boolean,
-)
-
 internal data class ProjectContextMenu(
     val path: String,
     val x: Float,
     val y: Float,
-    val canCreateSoundEvents: Boolean = false,
     val canCreateScripts: Boolean = false,
+    val canCreateSoundEvents: Boolean = false,
 )
 
 internal data class ProjectNameDialog(
@@ -157,7 +180,7 @@ internal data class ProjectNameDialog(
 ) {
     val title: String
         get() = when (action) {
-            ProjectNameAction.CreateFile -> "New File"
+            ProjectNameAction.CreateFile -> template?.let { "New ${it.label}" } ?: "New File"
             ProjectNameAction.CreateFolder -> "New Folder"
             ProjectNameAction.Rename -> "Rename"
         }
@@ -172,8 +195,22 @@ internal enum class ProjectNameAction {
 internal fun HollowIdeFileOperationResult.statusText(): String {
     return when (this) {
         HollowIdeFileOperationResult.Success -> ""
-        HollowIdeFileOperationResult.InvalidName -> "Invalid file name"
-        HollowIdeFileOperationResult.AlreadyExists -> "File already exists"
-        HollowIdeFileOperationResult.NotFound -> "File not found"
+        HollowIdeFileOperationResult.InvalidName -> "hollowengine.gui.ide.file.invalid_name".lang
+        HollowIdeFileOperationResult.AlreadyExists -> "hollowengine.gui.ide.file.already_exists".lang
+        HollowIdeFileOperationResult.NotFound -> "hollowengine.gui.ide.file.not_found".lang
     }
+}
+
+/** The icons of the project menu, drawn in the family of the rest of the IDE. */
+private object ProjectMenuIcons {
+    private const val ROOT = "hollowengine:textures/gui/icons/actions/"
+
+    const val NEW_FILE = ROOT + "new_file.svg"
+    const val NEW_FOLDER = ROOT + "new_folder.svg"
+    const val RENAME = ROOT + "rename.svg"
+    const val COPY = ROOT + "copy.svg"
+    const val CUT = ROOT + "cut.svg"
+    const val PASTE = ROOT + "paste.svg"
+    const val REVEAL = ROOT + "reveal.svg"
+    const val DELETE = ROOT + "delete.svg"
 }

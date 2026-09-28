@@ -1,5 +1,8 @@
 package ru.hollowhorizon.hollowengine.client.ui.docking
 
+import androidx.compose.runtime.compositionLocalOf
+import ru.hollowhorizon.hollowengine.client.ui.Modifier
+
 data class DockItem(
     val id: String,
     val title: String,
@@ -8,8 +11,8 @@ data class DockItem(
     val minWidth: Float = 48f,
     val minHeight: Float = 32f,
     val dirty: Boolean = false,
-    val singleTabPresentation: DockSingleTabPresentation = DockSingleTabPresentation.BAR,
     val pinnable: Boolean = false,
+    val titleInToolbar: Boolean = false,
 )
 
 /** Which edge of the dock space a pinned item's stripe button sits on. */
@@ -22,19 +25,40 @@ enum class DockSide {
     val opposite: DockSide get() = if (this == LEFT) RIGHT else LEFT
 }
 
+/**
+ * Which part of a stripe a tool window sits in.
+ *
+ * [TOP] opens beside the editor, above the bottom area. [SPLIT] opens in the same side panel, under
+ * the [TOP] window, so the two show at once with a splitter between them. [BOTTOM] opens into the
+ * area under the editor and the side panels, the full width between the stripes.
+ */
+enum class DockStripeGroup {
+    TOP,
+    SPLIT,
+    BOTTOM,
+}
+
+/** Where on the stripes a tool window is parked; one window per anchor is open at a time. */
+data class DockAnchor(val side: DockSide, val group: DockStripeGroup = DockStripeGroup.TOP) {
+    companion object {
+        val all: List<DockAnchor> = DockSide.entries.flatMap { side ->
+            DockStripeGroup.entries.map { group -> DockAnchor(side, group) }
+        }
+    }
+}
+
 data class DockPinnedItem(
     val item: DockItem,
     val side: DockSide,
     val width: Float = DefaultPinnedWidth,
-)
+    val group: DockStripeGroup = DockStripeGroup.TOP,
+) {
+    val anchor: DockAnchor get() = DockAnchor(side, group)
+}
 
 /** Width a tool window's panel takes the first time it is pinned. */
 const val DefaultPinnedWidth = 260f
-
-enum class DockSingleTabPresentation {
-    BAR,
-    OVERLAY,
-}
+const val DefaultBottomHeight = 220f
 
 sealed interface DockNode {
     val id: String
@@ -73,6 +97,13 @@ data class DockTabDragState(
     val pointerX: Float,
     val grabX: Float,
     val layouts: List<DockTabLayout> = emptyList(),
+)
+
+/** A stripe button in the hand: the pointer's place along its stripe, and how far down the button it took hold. */
+data class DockStripeDrag(
+    val itemId: String,
+    val along: Float,
+    val grab: Float,
 )
 
 data class DockTabGrabState(
@@ -306,3 +337,16 @@ internal class DockIdGenerator {
 
     fun nextWindowId(): String = "dock-window-${nextWindow++}"
 }
+
+/**
+ * The title a parked window is expected to show itself, when it asked for [DockItem.titleInToolbar].
+ */
+class DockPanelTitle(
+    val title: String,
+    val icon: String?,
+    val headerId: String,
+    val dragHandle: Modifier,
+)
+
+/** Set for the content of a parked window that draws its own title; null everywhere else. */
+val LocalDockPanelTitle = compositionLocalOf<DockPanelTitle?> { null }

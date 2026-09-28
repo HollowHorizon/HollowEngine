@@ -74,26 +74,15 @@ object DockLayoutCalculator {
     }
 }
 
-object DockDropResolver {
-    private const val EdgeRatio = 0.12f
+fun dockPreviewRect(target: DockTarget, layouts: List<DockNodeLayout>, bounds: DockRect): DockRect? {
+    val base = if (target.anchorId == null) bounds else layouts.firstOrNull { it.nodeId == target.anchorId }?.rect
+    return base?.part(target.placement)
+}
 
-    fun resolve(layouts: List<DockNodeLayout>, x: Float, y: Float): DockTarget? {
-        val stack = layouts.asReversed().firstOrNull { it.stack && it.rect.contains(x, y) }
-        if (stack != null) return DockTarget(stack.nodeId, placementFor(stack.rect, x, y))
-
-        val node = layouts.asReversed().firstOrNull { it.rect.contains(x, y) } ?: return null
-        return DockTarget(node.nodeId, placementFor(node.rect, x, y))
-    }
-
-    private fun placementFor(rect: DockRect, x: Float, y: Float): DockPlacement {
-        val localX = ((x - rect.x) / rect.width.coerceAtLeast(1f)).coerceIn(0f, 1f)
-        val localY = ((y - rect.y) / rect.height.coerceAtLeast(1f)).coerceIn(0f, 1f)
-        return when {
-            localX < EdgeRatio -> DockPlacement.LEFT
-            localX > 1f - EdgeRatio -> DockPlacement.RIGHT
-            localY < EdgeRatio -> DockPlacement.TOP
-            localY > 1f - EdgeRatio -> DockPlacement.BOTTOM
-            else -> DockPlacement.CENTER
-        }
-    }
+private fun DockRect.part(placement: DockPlacement): DockRect = when (placement) {
+    DockPlacement.CENTER -> this
+    DockPlacement.LEFT -> copy(width = width * 0.5f)
+    DockPlacement.RIGHT -> copy(x = x + width * 0.5f, width = width * 0.5f)
+    DockPlacement.TOP -> copy(height = height * 0.5f)
+    DockPlacement.BOTTOM -> copy(y = y + height * 0.5f, height = height * 0.5f)
 }

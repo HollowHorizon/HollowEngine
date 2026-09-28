@@ -65,17 +65,14 @@ class CutsceneEditorSession {
     }
 
     private fun writeChannels(property: AnimProperty<*>, time: Float, values: List<Float>) {
-        val layer = layerFor(property) ?: return
-        if (timeline.isLocked(layer)) return
-        val created = layer.channels.mapIndexedNotNull { channel, curve ->
+        if (timeline.isLocked(property)) return
+        val created = property.curves.mapIndexedNotNull { channel, curve ->
             val value = values.getOrNull(channel) ?: return@mapIndexedNotNull null
             val unwrapped = curve.spec.unwrap(value, curve.valueAt(time, value))
             timeline.setKey(curve, time, unwrapped, selectKey = false)
         }
         timeline.select(created, additive = true)
     }
-
-    fun layerFor(property: AnimProperty<*>): AnimLayer? = timeline.targetLayer(property)
 
     fun moveOrigin(position: Vec3f, yaw: Float, keepWorld: Boolean) {
         timeline.edit(if (keepWorld) "Re-anchor cutscene" else "Move cutscene") {
@@ -93,97 +90,9 @@ class CutsceneEditorSession {
     }
 
     fun onHollowUiKey(key: Int, modifiers: Int): Boolean {
-        val ctrl = modifiers and GLFW.GLFW_MOD_CONTROL != 0
-        val shift = modifiers and GLFW.GLFW_MOD_SHIFT != 0
-        val handled = when {
-            ctrl && key == GLFW.GLFW_KEY_Z -> {
-                if (shift) timeline.redo() else timeline.undo()
-                true
-            }
-
-            ctrl && key == GLFW.GLFW_KEY_Y -> {
-                timeline.redo()
-                true
-            }
-
-            ctrl && key == GLFW.GLFW_KEY_TAB -> {
-                if (timeline.viewMode == TimelineViewMode.CURVES) timeline.viewMode = TimelineViewMode.DOPE_SHEET
-                else timeline.enterCurveView()
-                true
-            }
-
-            key == GLFW.GLFW_KEY_F -> {
-                timeline.frameCurves()
-                true
-            }
-
-            key == GLFW.GLFW_KEY_S -> {
-                timeline.smoothSelectedKeyframes()
-                true
-            }
-
-            key == GLFW.GLFW_KEY_DELETE || key == GLFW.GLFW_KEY_BACKSPACE -> {
-                timeline.deleteSelectedKeyframes()
-                true
-            }
-
-            ctrl && key == GLFW.GLFW_KEY_D -> {
-                timeline.duplicateSelectedKeyframes()
-                true
-            }
-
-            ctrl && key == GLFW.GLFW_KEY_C -> {
-                timeline.copySelectedKeyframes()
-                true
-            }
-
-            ctrl && key == GLFW.GLFW_KEY_X -> {
-                timeline.cutSelectedKeyframes()
-                true
-            }
-
-            ctrl && key == GLFW.GLFW_KEY_V -> {
-                timeline.pasteKeyframes()
-                true
-            }
-
-            key == GLFW.GLFW_KEY_LEFT -> {
-                moveSelectionOrPlayhead(if (shift) -KEYFRAME_NUDGE_LARGE else -KEYFRAME_NUDGE_SMALL)
-                true
-            }
-
-            key == GLFW.GLFW_KEY_RIGHT -> {
-                moveSelectionOrPlayhead(if (shift) KEYFRAME_NUDGE_LARGE else KEYFRAME_NUDGE_SMALL)
-                true
-            }
-
-            key == GLFW.GLFW_KEY_ESCAPE -> {
-                timeline.clearSelection()
-                true
-            }
-
-            key == GLFW.GLFW_KEY_HOME -> {
-                timeline.applyCurrentTime(0f)
-                true
-            }
-
-            key == GLFW.GLFW_KEY_SPACE -> {
-                timeline.togglePlayback()
-                true
-            }
-
-            else -> false
-        }
+        val handled = TimelineKeys.handle(timeline, key, modifiers)
         if (handled) invalidateUi()
         return handled
-    }
-
-    private fun moveSelectionOrPlayhead(deltaSeconds: Float) {
-        if (timeline.selectedKeyframes.isEmpty()) {
-            timeline.applyCurrentTime(timeline.currentTime + deltaSeconds)
-        } else {
-            timeline.nudgeSelectedKeyframes(deltaSeconds)
-        }
     }
 
     fun syncPlaybackFromTimeline() {
@@ -216,8 +125,6 @@ class CutsceneEditorSession {
     fun channelValues(property: AnimProperty<*>): List<Float> = property.decomposeAt(timeline.currentTime).toList()
 }
 
-private const val KEYFRAME_NUDGE_SMALL = 0.05f
-private const val KEYFRAME_NUDGE_LARGE = 0.25f
 
 object CutsceneEditorSessions {
     val default = CutsceneEditorSession()

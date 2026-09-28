@@ -9,12 +9,20 @@ import kotlin.test.assertEquals
  */
 class BundledStylesheetDiagnosticsTest {
     private val stylesheets = listOf(
+        "animator-editor.hss",
         "asset-manager.hss",
         "docking.hss",
+        "entity-editor.hss",
+        "graph.hss",
         "ide.hss",
         "image-editor.hss",
+        "inspector.hss",
         "model-editor.hss",
+        "notifications.hss",
+        "shader-graph.hss",
         "sounds-editor.hss",
+        "theme.hss",
+        "timeline.hss",
         "widgets.hss",
     )
 

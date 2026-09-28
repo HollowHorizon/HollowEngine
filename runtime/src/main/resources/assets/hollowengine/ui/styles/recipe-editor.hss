@@ -1,0 +1,260 @@
+@import "hollowengine:ui/styles/theme.hss";
+
+/*
+ * The recipe editor shown as a recipe file's preview. The panel itself is `.ide-file-panel`, the one
+ * the text editor sits in; the recipe and the palette are cards set into it, a shade darker.
+ */
+.recipe-editor {
+    padding: 8px;
+    gap: 8px;
+}
+
+.recipe-editor-header {
+    size: 100% fit;
+    gap: 8px;
+}
+
+.recipe-editor-type {
+    size: fit fit;
+    foreground: $text-faint;
+    font-size: $font-size-small;
+    text-wrap: false;
+}
+
+.recipe-editor-body {
+    size: 100% fit;
+    gap: 7px;
+    padding: 10px;
+    border-radius: $radius;
+    background: $bg-panel;
+    @apply $thin-scroll;
+}
+
+.recipe-note {
+    size: 100% fit;
+    foreground: $text-muted;
+    text-wrap: true;
+}
+
+/* ---- the recipe itself ---- */
+
+.recipe-layout {
+    size: 100% fit;
+    gap: 8px;
+    align-items: center center;
+    padding: 4px 0px 8px 0px;
+}
+
+.recipe-grid,
+.recipe-grid-row {
+    size: fit fit;
+    gap: 2px;
+}
+
+.recipe-slot {
+    size: 22px 22px;
+    border-radius: $radius-small;
+    background: $bg-window;
+    border: 1px $divider;
+    transition: background 110ms ease-out, border 110ms ease-out;
+}
+
+.recipe-slot.large {
+    size: 30px 30px;
+}
+
+.recipe-slot:hover {
+    background: $bg-hover;
+}
+
+.recipe-slot.selected {
+    border: 1px $accent;
+    background: $accent-soft;
+}
+
+/* An item dragged over a slot that takes it. */
+.recipe-slot.drop {
+    border: 1px $accent;
+    background: $bg-selected;
+}
+
+.recipe-slot.unknown {
+    border: 1px $warning;
+}
+
+.recipe-slot-unknown {
+    size: fit fit;
+    foreground: $warning;
+}
+
+.recipe-result {
+    size: fit fit;
+    gap: 6px;
+}
+
+.recipe-result .insp-field {
+    size: 56px fit;
+}
+
+.recipe-arrow,
+.recipe-plus,
+.recipe-flame {
+    size: 16px 16px;
+    tint: $text-faint;
+}
+
+.recipe-flame {
+    tint: $warning;
+}
+
+/* ---- change of type ---- */
+
+.recipe-type {
+    size: fit 22px;
+}
+
+.recipe-warning {
+    size: 100% fit;
+    gap: 5px;
+    padding: 8px 10px;
+    border-radius: $radius;
+    background: alpha($warning, 0.08);
+    border: 1px alpha($warning, 0.35);
+}
+
+.recipe-warning-title {
+    size: 100% fit;
+    foreground: $warning;
+    text-wrap: true;
+}
+
+.recipe-warning-text {
+    size: 100% fit;
+    foreground: $text-soft;
+    font-size: $font-size-small;
+    text-wrap: true;
+}
+
+.recipe-warning-actions {
+    size: fit fit;
+    gap: 6px;
+}
+
+/* ---- the palette ---- */
+
+.recipe-palette {
+    gap: 6px;
+    padding: 6px;
+    border-radius: $radius;
+    background: $bg-panel;
+    min-height: 110px;
+}
+
+.recipe-palette-header {
+    size: 100% fit;
+    gap: 2px;
+}
+
+.recipe-palette-tab {
+    size: fit 22px;
+    padding: 0px 8px;
+    align-items: center center;
+    border-radius: $radius-small;
+    background: alpha($bg-hover, 0);
+    foreground: $text-muted;
+    transition: background 110ms ease-out, foreground 110ms ease-out;
+}
+
+.recipe-palette-tab:hover {
+    background: $bg-hover;
+    foreground: $text;
+}
+
+.recipe-palette-tab.selected {
+    background: $bg-selected;
+    foreground: $text-strong;
+}
+
+.recipe-palette-tab-label {
+    size: fit fit;
+    text-wrap: false;
+}
+
+/* A search field has to look like one: a sunken frame, a magnifier, the hint inside. */
+.recipe-search {
+    margin: 0px 0px 0px 6px;
+    padding: 0px 6px;
+    gap: 5px;
+    border-radius: $radius-small;
+    background: $bg-window;
+    border: 1px $border;
+    transition: border 110ms ease-out;
+}
+
+.recipe-search:hover {
+    border: 1px $border-strong;
+}
+
+.recipe-search-icon {
+    size: 11px 11px;
+    tint: $text-faint;
+}
+
+.recipe-search-input {
+    padding: 4px 0px;
+    background: transparent;
+    foreground: $text-strong;
+    caret-color: $caret;
+    selection-color: $selection;
+}
+
+.recipe-palette-hint {
+    size: 100% fit;
+    foreground: $text-faint;
+    font-size: $font-size-small;
+    text-wrap: true;
+}
+
+.recipe-palette-grid {
+    @apply $thin-scroll;
+}
+
+/* The fade-in starts from the hover color at zero alpha, not from `transparent`, i.e. black. */
+.recipe-palette-cell {
+    padding: 2px;
+    border-radius: $radius-small;
+    background: alpha($bg-hover, 0);
+    transition: background 100ms ease-out;
+}
+
+.recipe-palette-cell:hover {
+    background: $bg-hover;
+}
+
+.recipe-palette-cell.tag {
+    background: $accent-soft;
+}
+
+/* ---- the picked slot in the IDE's inspector ---- */
+
+.recipe-alternative {
+    size: 100% fit;
+    gap: 5px;
+}
+
+.recipe-alternative-icon {
+    size: 20px 20px;
+    padding: 2px;
+    border-radius: $radius-small;
+    background: $bg-window;
+}
+
+.recipe-json {
+    size: 100% fit;
+    padding: 6px;
+    border-radius: $radius-small;
+    background: $bg-window;
+    foreground: $text-soft;
+    font-size: $font-size-small;
+    text-wrap: true;
+}
