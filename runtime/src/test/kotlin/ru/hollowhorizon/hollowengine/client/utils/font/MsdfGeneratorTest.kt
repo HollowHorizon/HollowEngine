@@ -5,7 +5,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * The distance-field generator behind `ttf:` fonts, exercised on shapes whose exact distances are
+ * The distance-field generator behind `.ttf` fonts, exercised on shapes whose exact distances are
  * known by hand. Everything here is pure geometry, so it runs without a game or a GL context, which
  * is the only place the baking maths can be pinned down at all.
  */

@@ -37,18 +37,19 @@ object ShaderNodeLibrary {
     )
 
     private fun inputs() = listOf(
-        engineInput("uv", ShaderInput.UV, "UV"),
-        engineInput("texture_uv", ShaderInput.TEXTURE_UV, "UV"),
-        engineInput("position", ShaderInput.POSITION, "Position"),
-        engineInput("object_position", ShaderInput.OBJECT_POSITION, "Position"),
+        engineInput("uv", ShaderInput.UV, "UV", "coordinates"),
+        engineInput("texture_uv", ShaderInput.TEXTURE_UV, "UV", "coordinates"),
+        engineInput("position", ShaderInput.POSITION, "Position", "coordinates"),
+        engineInput("object_position", ShaderInput.OBJECT_POSITION, "Position", "coordinates"),
         engineInput("normal", ShaderInput.NORMAL, "Normal"),
         engineInput("view_direction", ShaderInput.VIEW_DIRECTION, "Direction"),
-        engineInput("screen_uv", ShaderInput.SCREEN_UV, "UV"),
+        engineInput("screen_uv", ShaderInput.SCREEN_UV, "UV", "coordinates"),
 
         shaderNode("hollowengine:input/vertex_color", INPUT) {
             group("surface")
             noPreview()
             reads(ShaderInput.COLOR)
+            icon(graphIcon("color"))
             output("RGBA", VEC4) { ShaderInput.COLOR.glsl }
             output("RGB", VEC3) { "${ShaderInput.COLOR.glsl}.rgb" }
             output("A", FLOAT) { "${ShaderInput.COLOR.glsl}.a" }
@@ -56,6 +57,7 @@ object ShaderNodeLibrary {
 
         shaderNode("hollowengine:input/time", INPUT) {
             group("time")
+            icon(graphIcon("time"))
             noPreview()
             reads(ShaderInput.TIME)
             output("Time", FLOAT) { ShaderInput.TIME.glsl }
@@ -76,6 +78,7 @@ object ShaderNodeLibrary {
             group("scene")
             noPreview()
             reads(ShaderInput.SCENE_COLOR)
+            icon(graphIcon("color"))
             fragmentOnly()
             val uv = input("UV", type = VEC2, fallback = ShaderInput.SCREEN_UV)
             output("RGB", VEC3) { "${ShaderInput.SCENE_COLOR.glsl}(${uv.code})" }
@@ -88,6 +91,7 @@ object ShaderNodeLibrary {
         shaderNode("hollowengine:input/color", INPUT) {
             group("value")
             noPreview()
+            icon(graphIcon("color"))
             val color = input("Color", 1f, 1f, 1f, 1f, type = VEC4, color = true)
             output("RGBA", VEC4) { color.code }
             output("RGB", VEC3) { "${output("RGBA")}.rgb" }
@@ -96,6 +100,7 @@ object ShaderNodeLibrary {
             group("value")
             noPreview()
             property("property")
+            icon(graphIcon("property"))
             output("Out", { graph.property(node.options["property"].orEmpty())?.type?.let(ShaderPinType::of) }) {
                 propertyUniform(option("property"))
             }
@@ -103,6 +108,7 @@ object ShaderNodeLibrary {
         shaderNode("hollowengine:input/main_texture", INPUT) {
             group("value")
             reads(ShaderInput.MAIN_TEXTURE)
+            icon(graphIcon("texture"))
             output("Texture", ShaderPinType.TEXTURE) { ShaderInput.MAIN_TEXTURE.glsl }
         },
     )
@@ -177,9 +183,10 @@ object ShaderNodeLibrary {
     )
 
     /** A node that hands out one thing the engine gives every graph. */
-    private fun engineInput(name: String, input: ShaderInput, output: String) =
+    private fun engineInput(name: String, input: ShaderInput, output: String, iconName: String? = null) =
         shaderNode("hollowengine:input/$name", INPUT) {
             group("surface")
+            iconName?.let { icon(graphIcon(it)) }
             reads(input)
             if (input.fragmentOnly) fragmentOnly()
             if (input == ShaderInput.NORMAL || input == ShaderInput.VIEW_DIRECTION) preview(ShaderPreviewStyle.SIGNED)

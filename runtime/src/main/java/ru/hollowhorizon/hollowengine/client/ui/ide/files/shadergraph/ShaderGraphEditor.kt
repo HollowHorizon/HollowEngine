@@ -265,6 +265,11 @@ internal fun ShaderGraphEditor(file: HollowIdeOpenFile) {
             )
         }
 
+        override fun toggleCollapsed(node: String) {
+            val collapsed = document.graph.node(node)?.collapsed ?: return
+            document.edit { it.withCollapsed(node, !collapsed) }
+        }
+
         override fun pressPin(pin: ShaderPin, screenX: Float, screenY: Float) {
             menu = null
             document.beginGesture()

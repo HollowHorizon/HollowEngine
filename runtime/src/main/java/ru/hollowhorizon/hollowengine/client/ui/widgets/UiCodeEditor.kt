@@ -71,7 +71,7 @@ fun UiCodeEditor(
 }
 
 /** The font of code and logs; the rest of the interface keeps the game's own. */
-const val UiCodeFontFamily = "ttf:hollowengine:fonts/jetbrains_mono_nl.ttf"
+const val UiCodeFontFamily = "hollowengine:fonts/jetbrains_mono_nl.ttf"
 
 private val CodeEditorCaretColor = UiColor(0.941f, 0.965f, 1f, 1f)
 private val CodeEditorSelectionColor = UiColor(0.373f, 0.549f, 0.804f, 0.46f)

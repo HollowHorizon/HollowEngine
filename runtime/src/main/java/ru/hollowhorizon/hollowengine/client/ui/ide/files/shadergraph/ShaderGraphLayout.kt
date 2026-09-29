@@ -30,7 +30,7 @@ internal sealed interface ShaderNodeRow {
 
     /** An input with nothing linked to it: its name and a field per component of its value. */
     data class Value(val pin: ShaderPinSpec, val components: Int, override val top: Float) : ShaderNodeRow {
-        override val height get() = ShaderNodeLayout.ROW
+        override val height get() = ShaderNodeLayout.FIELD_ROW
     }
 }
 
@@ -47,7 +47,7 @@ internal class ShaderNodeBox(
     val rect: GraphRect get() = GraphRect(node.x, node.y, width, height)
 
     val pins: List<ShaderPin>
-        get() = rows.mapNotNull { row ->
+        get() = if (node.collapsed) collapsedPins() else rows.mapNotNull { row ->
             val y = node.y + row.top + row.height / 2f
             when (row) {
                 is ShaderNodeRow.Output -> ShaderPin(node.id, row.name, true, node.x + width, y)
@@ -56,22 +56,33 @@ internal class ShaderNodeBox(
                 is ShaderNodeRow.Option -> null
             }
         }
+
+    /** A collapsed node has no rows, so what is linked to it reaches the middle of its title bar. */
+    private fun collapsedPins(): List<ShaderPin> {
+        val y = node.y + ShaderNodeLayout.COLLAPSED / 2f
+        return kind.outputs.map { ShaderPin(node.id, it.name, true, node.x + width, y) } +
+                kind.inputs(node).map { ShaderPin(node.id, it.name, false, node.x, y) }
+    }
 }
 
 internal object ShaderNodeLayout {
-    const val WIDTH = 176f
-    const val OUTPUT_WIDTH = 196f
-    const val HEADER = 22f
-    const val ROW = 18f
-    const val OPTION_ROW = 20f
-    const val EXPRESSION_ROW = 24f
-    const val PADDING = 5f
-    const val PREVIEW = 116f
-    const val OUTPUT_PREVIEW = 176f
-    const val PIN = 10f
+    const val WIDTH = 216f
+
+    /** The title bar of a collapsed node, which is all of it; an open node has a line under it too. */
+    const val COLLAPSED = 32f
+    const val HEADER = COLLAPSED + 1f
+
+    /** A row that is a name alone; one with a field to edit is [FIELD_ROW] tall. */
+    const val ROW = 21f
+    const val FIELD_ROW = 27f
+
+    /** How far the rows sit from the edges of the node, sideways and above the first and under the last. */
+    const val INSET = 12f
+    const val PADDING = 10f
+    const val PIN = 9f
 
     fun of(graph: ShaderGraph, node: ShaderGraphNode, kind: ShaderNodeType, types: ShaderGraphTypes): ShaderNodeBox {
-        val width = if (kind.master != null) OUTPUT_WIDTH else WIDTH
+        if (node.collapsed) return ShaderNodeBox(node, kind, WIDTH, COLLAPSED, emptyList(), 0f, 0f)
         val rows = ArrayList<ShaderNodeRow>()
         var y = HEADER + PADDING
         kind.outputs.forEach { output ->
@@ -79,24 +90,24 @@ internal object ShaderNodeLayout {
             y += ROW
         }
         kind.options.forEach { option ->
-            val height = if (option.kind == ShaderOptionKind.EXPRESSION) EXPRESSION_ROW else OPTION_ROW
-            rows += ShaderNodeRow.Option(option.name, option.kind, y, height)
-            y += height
+            rows += ShaderNodeRow.Option(option.name, option.kind, y, FIELD_ROW)
+            y += FIELD_ROW
         }
         kind.inputs(node).forEach { pin ->
             val linked = graph.linkInto(node.id, pin.name) != null
-            rows += if (linked || pin.fallback != null || pin.type.fixed == ShaderType.TEXTURE) {
+            val row = if (linked || pin.fallback != null || pin.type.fixed == ShaderType.TEXTURE) {
                 ShaderNodeRow.Input(pin, y)
             } else {
                 ShaderNodeRow.Value(pin, components(node, pin, types), y)
             }
-            y += ROW
+            rows += row
+            y += row.height
         }
         y += PADDING
-        val preview = if (kind.showsPreview(node)) (if (kind.master != null) OUTPUT_PREVIEW else PREVIEW) else 0f
+        val preview = if (kind.showsPreview(node)) WIDTH - INSET * 2 else 0f
         val previewTop = y
         if (preview > 0f) y += preview + PADDING
-        return ShaderNodeBox(node, kind, width, y, rows, preview, previewTop)
+        return ShaderNodeBox(node, kind, WIDTH, y, rows, preview, previewTop)
     }
 
     private fun components(node: ShaderGraphNode, pin: ShaderPinSpec, types: ShaderGraphTypes): Int {
@@ -107,15 +118,37 @@ internal object ShaderNodeLayout {
     }
 }
 
+/** The colors of the pins and of the links between them; the pin rules of `shader-graph.hss` use the same. */
 internal fun ShaderType.color(): UiColor = when (this) {
-    ShaderType.FLOAT -> UiColor(0.62f, 0.66f, 0.74f)
-    ShaderType.VEC2 -> UiColor(0.47f, 0.80f, 0.56f)
-    ShaderType.VEC3 -> UiColor(0.96f, 0.82f, 0.38f)
-    ShaderType.VEC4 -> UiColor(0.90f, 0.52f, 0.78f)
-    ShaderType.TEXTURE -> UiColor(0.95f, 0.55f, 0.35f)
+    ShaderType.FLOAT -> rgb(0xA5ABC0)
+    ShaderType.VEC2 -> rgb(0x44BC74)
+    ShaderType.VEC3 -> rgb(0xF0CF60)
+    ShaderType.VEC4 -> rgb(0xC774AA)
+    ShaderType.TEXTURE -> rgb(0xC9874A)
 }
 
-internal val GraphLinkColor = UiColor(0.60f, 0.64f, 0.72f)
+private fun rgb(value: Int) = UiColor.fromArgb(OPAQUE or value)
+
+private const val OPAQUE = 0xFF shl 24
+
+internal val GraphLinkColor = rgb(0xA5ABC0)
 internal val GraphSelectedColor = UiColor(0.43f, 0.61f, 0.86f)
 
 internal fun ShaderType.tag(): String = "sg-type-${name.lowercase()}"
+
+/** The icon of the nodes of a category that have none of their own. */
+internal fun ShaderNodeCategory.icon(): String = graphIcon(
+    when (this) {
+        ShaderNodeCategory.INPUT -> "object"
+        ShaderNodeCategory.MATH -> "math"
+        ShaderNodeCategory.VECTOR -> "coordinates"
+        ShaderNodeCategory.NORMAL -> "material"
+        ShaderNodeCategory.UV -> "coordinates"
+        ShaderNodeCategory.TEXTURE -> "texture"
+        ShaderNodeCategory.PROCEDURAL -> "noise"
+        ShaderNodeCategory.OUTPUT -> "output"
+    }
+)
+
+/** The icon of a kind in the title bar of its nodes and in the add menu. */
+internal fun ShaderNodeType.displayIcon(): String = icon ?: category.icon()

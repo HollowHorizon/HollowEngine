@@ -38,6 +38,7 @@ internal object ShaderMathNodes {
         unary("floor", "range") { "floor($it)" },
         unary("fraction", "range") { "fract($it)" },
         shaderNode("hollowengine:math/remap", MATH) {
+            icon(graphIcon("gradient"))
             group("range")
             val value = input("In", 0.5f)
             val inMin = input("In Min", 0f)
@@ -50,6 +51,7 @@ internal object ShaderMathNodes {
         },
 
         shaderNode("hollowengine:math/lerp", MATH) {
+            icon(graphIcon("blend"))
             group("interpolation")
             val a = input("A", 0f)
             val b = input("B", 1f)
@@ -57,12 +59,14 @@ internal object ShaderMathNodes {
             output("Out") { "mix(${a.code}, ${b.code}, ${t.code})" }
         },
         shaderNode("hollowengine:math/step", MATH) {
+            icon(graphIcon("gradient"))
             group("interpolation")
             val edge = input("Edge", 0.5f)
             val value = input("In", 0f)
             output("Out") { "step(${edge.code}, ${value.code})" }
         },
         shaderNode("hollowengine:math/smoothstep", MATH) {
+            icon(graphIcon("gradient"))
             group("interpolation")
             val from = input("Edge 1", 0f)
             val to = input("Edge 2", 1f)
@@ -145,6 +149,7 @@ internal object ShaderMathNodes {
             output("Out") { "normalize(${value.code})" }
         },
         shaderNode("hollowengine:vector/split", VECTOR) {
+            icon(graphIcon("split"))
             group("channels")
             noPreview()
             val value = input("In", 0f, 0f, 0f, 0f, type = VEC4)
@@ -154,6 +159,7 @@ internal object ShaderMathNodes {
             output("A", FLOAT) { "${value.code}.w" }
         },
         shaderNode("hollowengine:vector/combine", VECTOR) {
+            icon(graphIcon("split"))
             group("channels")
             val r = input("R", 0f, type = FLOAT)
             val g = input("G", 0f, type = FLOAT)
@@ -164,6 +170,7 @@ internal object ShaderMathNodes {
             output("RG", VEC2) { "${output("RGBA")}.rg" }
         },
         shaderNode("hollowengine:vector/swizzle", VECTOR) {
+            icon(graphIcon("split"))
             group("channels")
             text("mask", default = "xyz")
             val value = input("In", 0f, 0f, 0f, 0f, type = VEC4)
@@ -196,6 +203,7 @@ internal object ShaderMathNodes {
         },
         shape(),
         shaderNode("hollowengine:procedural/fresnel", PROCEDURAL) {
+            icon(graphIcon("light"))
             group("lighting")
             val normal = input("Normal", type = VEC3, fallback = ShaderInput.NORMAL)
             val view = input("View", type = VEC3, fallback = ShaderInput.VIEW_DIRECTION)
@@ -211,6 +219,7 @@ internal object ShaderMathNodes {
      * height are fractions of the surface; the inputs a shape does not use are not there.
      */
     private fun shape() = shaderNode(SHAPE, PROCEDURAL) {
+        icon(graphIcon("mask"))
         group("shape")
         uses(ShaderLibrary.SHAPES)
         option("shape", "ellipse", "rectangle", "polygon", "ring")

@@ -87,7 +87,7 @@ internal fun OptionField(
             TextField(
                 value = current,
                 id = id,
-                fontSize = 8f,
+                fontSize = 9f,
                 tags = listOf("sg-field"),
                 modifier = Modifier.size(FieldsWidth.px, FieldHeight.px),
                 onChange = { actions.setOption(node.id, option.name, it) },
@@ -124,6 +124,6 @@ private fun Chip(id: String, text: String, onOpen: (Float, Float) -> Unit) {
 }
 
 /** How wide the fields of a row are together; the name takes what is left. */
-internal const val FieldsWidth = 100f
-internal const val FieldHeight = 14f
-private const val ExpressionHeight = 18f
+internal const val FieldsWidth = 112f
+internal const val FieldHeight = 20f
+private const val ExpressionHeight = FieldHeight

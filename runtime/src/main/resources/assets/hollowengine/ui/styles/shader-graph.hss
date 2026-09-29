@@ -2,69 +2,124 @@
 
 /* The shader graph editor: nodes with a title bar in the color of their category, pins in the color
    of what they carry, filled once something is linked to them, and fields to edit values in place.
-   The title bar sits 2px inside the frame, so its corners are the frame's less those 2px. */
+   A node has no frame; it is told apart by its title bar and, when picked, by a ring around it. */
 
-$category-input: #5B8FE0;
-$category-math: #7C83F0;
-$category-vector: #E0B347;
-$category-uv: #4FC48B;
-$category-texture: #F07D3A;
-$category-procedural: #B072E8;
-$category-normal: #4FB8C9;
-$category-output: #E5566A;
+$node-bg: #252525;
+$node-field: #212121;
+$node-line: alpha(#FFFFFF, 0.1);
+$node-divider: alpha(#000000, 0.2);
+$node-radius: 8px;
+$node-field-radius: 5px;
+
+/* The outline of a title bar: lighter than its color along the top and the sides, darker along the bottom.
+   Gradient angles run from the right turning clockwise, so 90deg is downwards. */
+$head-light: alpha(#FFFFFF, 0.14);
+$head-dark: alpha(#000000, 0.28);
+
+$category-input: #BF8246;
+$category-math: #3B8950;
+$category-vector: #3B8950;
+$category-uv: #3E86C4;
+$category-normal: #3E86C4;
+$category-texture: #C067A4;
+$category-procedural: #5F59B1;
+$category-output: #CF5E54;
 
 .graph-node.sg-node {
-    background: $bg-panel;
-    border: 1px $border;
-    border-radius: $radius-large;
+    background: $node-bg;
+    border: 0px $node-line;
+    border-radius: $node-radius;
     shadow: 0px 3px 10px 0px $shadow;
 }
 
-.graph-node.sg-node:hover {
-    border-color: $border-strong;
-}
-
 .graph-node.sg-node.selected {
-    border-color: $accent;
-    shadow: 0px 0px 5px 0px alpha($accent, 0.22);
+    shadow: 0px 3px 10px 0px $shadow, 0px 0px 0px 1.5px $accent;
 }
 
 .graph-node.sg-node.error {
-    border-color: $danger;
+    shadow: 0px 3px 10px 0px $shadow, 0px 0px 0px 1.5px $danger;
+}
+
+.graph-node.sg-node.collapsed {
+    opacity: 0.65;
 }
 
 .sg-node-head {
-    padding: 0px 6px;
-    background: alpha($category-math, 0.34);
-    border-radius: $radius;
+    padding: 0px 10px;
+    gap: 5px;
+    background: $category-math;
+    border: 1px linear-gradient(90deg, $head-light 0%, $head-light 96.875%, $head-dark 96.875%, $head-dark 100%);
+    border-radius: $node-radius;
 }
 
-.sg-input .sg-node-head { background: alpha($category-input, 0.34); }
-.sg-vector .sg-node-head { background: alpha($category-vector, 0.3); }
-.sg-uv .sg-node-head { background: alpha($category-uv, 0.3); }
-.sg-texture .sg-node-head { background: alpha($category-texture, 0.32); }
-.sg-procedural .sg-node-head { background: alpha($category-procedural, 0.34); }
-.sg-normal .sg-node-head { background: alpha($category-normal, 0.32); }
-.sg-output .sg-node-head { background: alpha($category-output, 0.36); }
-
-.sg-node-row {
-    gap: 4px;
+/* Squares off the bottom corners of an open node's title bar, and outlines its sides again. */
+.sg-node-head-flat {
+    background: $category-math;
 }
 
-.sg-pin-label {
-    font-size: $font-size-small;
-    foreground: $text-soft;
+.sg-node-head-edge {
+    background: $head-light;
+}
+
+.sg-input .sg-node-head, .sg-input .sg-node-head-flat { background: $category-input; }
+.sg-vector .sg-node-head, .sg-vector .sg-node-head-flat { background: $category-vector; }
+.sg-uv .sg-node-head, .sg-uv .sg-node-head-flat { background: $category-uv; }
+.sg-normal .sg-node-head, .sg-normal .sg-node-head-flat { background: $category-normal; }
+.sg-texture .sg-node-head, .sg-texture .sg-node-head-flat { background: $category-texture; }
+.sg-procedural .sg-node-head, .sg-procedural .sg-node-head-flat { background: $category-procedural; }
+.sg-output .sg-node-head, .sg-output .sg-node-head-flat { background: $category-output; }
+
+.sg-node-divider {
+    background: $node-divider;
+}
+
+.sg-node-icon {
+    size: 15px 15px;
+}
+
+.sg-node-head .sg-node-title {
+    font-size: 12px;
+    foreground: $white;
     text-wrap: false;
     text-overflow: dots;
 }
 
-.sg-pin-label.output {
-    foreground: $text;
+/* Collapses the node; the arrow points up while it is open. */
+.sg-node-toggle {
+    size: 16px 16px;
+    align-items: center center;
+    border-radius: $radius;
+    cursor: hand;
+    transition: background 110ms ease-out;
+}
+
+.sg-node-toggle:hover {
+    background: alpha(#FFFFFF, 0.16);
+}
+
+.sg-node-arrow {
+    size: 7px 5px;
+    transform: rotate(180deg);
+}
+
+.collapsed .sg-node-arrow {
+    transform: rotate(0deg);
+}
+
+.sg-node-row {
+    gap: 6px;
+}
+
+.sg-pin-label {
+    font-size: 11px;
+    foreground: $white;
+    text-wrap: false;
+    text-overflow: dots;
 }
 
 /* What an unlinked input reads instead of a value, such as the UV. */
 .sg-pin-hint {
-    font-size: $font-size-small;
+    font-size: 9px;
     foreground: $text-faint;
     text-wrap: false;
 }
@@ -80,17 +135,17 @@ $category-output: #E5566A;
 }
 
 .sg-fields {
-    gap: 2px;
+    gap: 4px;
 }
 
 .sg-field {
-    padding: 1px 3px;
-    background: $bg-window;
-    border: 1px $divider;
-    border-radius: $radius-small;
-    foreground: $text;
+    padding: 3px 6px;
+    background: $node-field;
+    border: 1px $node-line;
+    border-radius: $node-field-radius;
+    foreground: #E9E9E9;
     font-family: $font;
-    font-size: $font-size-small;
+    font-size: 9px;
     caret-color: $caret;
     selection-color: $selection;
     text-shadow: none;
@@ -105,19 +160,21 @@ $category-output: #E5566A;
     border-color: $accent;
 }
 
+/* An expression is code. */
 .sg-expression {
-    font-size: $font-size;
-    padding: 2px 4px;
+    font-family: $font-code;
+    font-size: 9px;
 }
 
 /* What a choice is set to; a press opens its values. */
 .sg-chip {
-    padding: 2px 5px;
-    background: $bg-window;
-    border: 1px $divider;
-    border-radius: $radius-small;
-    foreground: $text;
-    font-size: $font-size-small;
+    padding: 3px 6px;
+    background: $node-field;
+    border: 1px $node-line;
+    border-radius: $node-field-radius;
+    foreground: $white;
+    font-family: $font;
+    font-size: 9px;
     text-wrap: false;
     text-overflow: dots;
     cursor: hand;
@@ -130,7 +187,7 @@ $category-output: #E5566A;
 }
 
 .sg-toggle {
-    gap: 5px;
+    gap: 6px;
     cursor: hand;
 }
 
@@ -142,32 +199,39 @@ $category-output: #E5566A;
 
 .sg-node-preview {
     background: $bg-window;
-    border-radius: $radius-small;
+    border-radius: $node-field-radius;
 }
 
+/* A dot on the edge of the node: a ring while nothing is linked, filled once something is. */
 .sg-pin {
-    background: $bg-panel;
-    border: 2px $text-muted;
-    border-radius: 5px;
+    background: $node-bg;
+    border: 1.5px #A5ABC0;
+    border-radius: 4.5px;
+    shadow: 0px 1px 3px 0px alpha(#000000, 0.55);
     cursor: hand;
     transition: background 150ms ease-out;
 }
 
 .sg-pin:hover {
-    background: $text-strong;
+    background: $white;
 }
 
-.sg-pin.sg-type-float { border-color: #9EA8BD; }
-.sg-pin.sg-type-vec2 { border-color: #78CC8F; }
-.sg-pin.sg-type-vec3 { border-color: #F5D161; }
-.sg-pin.sg-type-vec4 { border-color: #E685C7; }
-.sg-pin.sg-type-texture { border-color: #F28C59; }
+.sg-pin.sg-type-float { border-color: #A5ABC0; }
+.sg-pin.sg-type-vec2 { border-color: #44BC74; }
+.sg-pin.sg-type-vec3 { border-color: #F0CF60; }
+.sg-pin.sg-type-vec4 { border-color: #C774AA; }
+.sg-pin.sg-type-texture { border-color: #C9874A; }
 
-.sg-pin.connected.sg-type-float { background: #9EA8BD; }
-.sg-pin.connected.sg-type-vec2 { background: #78CC8F; }
-.sg-pin.connected.sg-type-vec3 { background: #F5D161; }
-.sg-pin.connected.sg-type-vec4 { background: #E685C7; }
-.sg-pin.connected.sg-type-texture { background: #F28C59; }
+.sg-pin.connected.sg-type-float { background: #A5ABC0; }
+.sg-pin.connected.sg-type-vec2 { background: #44BC74; }
+.sg-pin.connected.sg-type-vec3 { background: #F0CF60; }
+.sg-pin.connected.sg-type-vec4 { background: #C774AA; }
+.sg-pin.connected.sg-type-texture { background: #C9874A; }
+
+/* A texture is a reference to an object rather than a value, which the design draws as a square. */
+.sg-pin.sg-type-texture {
+    border-radius: 2px;
+}
 
 /* A number: dragged sideways it changes, clicked it is typed into. */
 .sg-number {
@@ -177,8 +241,8 @@ $category-output: #E5566A;
 }
 
 .sg-swatch {
-    border: 1px $divider;
-    border-radius: $radius-small;
+    border: 1px alpha(#FFFFFF, 0.28);
+    border-radius: $node-field-radius;
     cursor: hand;
     transition: border 110ms ease-out;
 }

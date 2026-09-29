@@ -80,6 +80,9 @@ fun ShaderGraph.withOption(node: String, option: String, value: String): ShaderG
 
 fun ShaderGraph.withPreview(node: String, shown: Boolean): ShaderGraph = mapNode(node) { it.copy(preview = shown) }
 
+fun ShaderGraph.withCollapsed(node: String, collapsed: Boolean): ShaderGraph =
+    mapNode(node) { it.copy(collapsed = collapsed) }
+
 fun ShaderGraph.withPreviewSettings(settings: ShaderGraphPreview): ShaderGraph = copy(preview = settings)
 
 /** An id no property has yet: `Property`, `Property2` and so on. */

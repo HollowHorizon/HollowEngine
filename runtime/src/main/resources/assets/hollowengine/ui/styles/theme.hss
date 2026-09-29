@@ -79,7 +79,8 @@ $icon-small: 10px;
 
 /* ---- text ---- */
 
-$font: "ttf:hollowengine:fonts/jetbrains_mono_nl.ttf";
+$font: "hollowengine:fonts/onest.ttf";
+$font-code: "hollowengine:fonts/jetbrains_mono_nl.ttf";
 $font-size: 9px;
 $font-size-small: 8px;
 $font-size-title: 11px;
@@ -103,7 +104,7 @@ $thin-scroll {
     scrollbar-thumb-radius: 4px;
 }
 
-/* A text field of the editor: the code font, no vanilla drop shadow, the accent caret. */
+/* A text field of the editor: the text font, no vanilla drop shadow, the accent caret. */
 $field-text {
     font-family: $font;
     caret-color: $caret;

@@ -66,6 +66,9 @@ fun UiDropdown(
     ContextMenu(id, anchorBounds, items, onExpandedChange = onExpandedChange)
 }
 
+/** How much of the height of the screen a menu may take before it scrolls. */
+private const val MenuHeightShare = 0.8f
+
 private val SubmenuAlignment = UiPopupAlignment(
     anchorHorizontal = UiAlign.END,
     anchorVertical = UiAlign.START,
@@ -83,6 +86,7 @@ fun ContextMenu(
     onExpandedChange: (Boolean) -> Unit = {},
 ) {
     val anyLeading = items.any { it.icon != null || it.mark != null }
+    val maxHeight = LocalUiViewport.current.height * MenuHeightShare
     var openSubmenu by remember { mutableStateOf<Int?>(null) }
     var anchors by remember { mutableStateOf(emptyMap<Int, UiRect>()) }
     Popup(
@@ -91,6 +95,7 @@ fun ContextMenu(
         layer = layer,
         id = "$id-popup",
         tags = listOf("dropdown-popup"),
+        modifier = Modifier.maxSize(height = maxHeight.px).scrollable(horizontal = false),
         onDismiss = { onExpandedChange(false) },
     ) {
         items.forEachIndexed { index, item ->

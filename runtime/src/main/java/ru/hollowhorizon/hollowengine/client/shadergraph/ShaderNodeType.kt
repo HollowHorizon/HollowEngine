@@ -109,6 +109,8 @@ class ShaderNodeType(
     val previewByDefault: Boolean,
     val previewStyle: ShaderPreviewStyle,
     private val check: ((ShaderGraphNode) -> ShaderDiagnostic?)?,
+    /** The icon in the title bar and the add menu, and the one of the category when a kind has none. */
+    val icon: String? = null,
 ) {
     val titleKey: String get() = "hollowengine.gui.shadergraph.node.${id.substringAfter(':').replace('/', '.')}"
 
@@ -175,6 +177,7 @@ class ShaderNodeBuilder internal constructor(private val id: String, private val
     private var preview = true
     private var previewStyle = ShaderPreviewStyle.VALUE
     private var master: ShaderMasterSpec? = null
+    private var icon: String? = null
 
     fun input(
         name: String,
@@ -232,6 +235,11 @@ class ShaderNodeBuilder internal constructor(private val id: String, private val
         group = name
     }
 
+    /** An SVG for the kind, as a resource location; see [graphIcon] for the ones the engine ships. */
+    fun icon(location: String) {
+        icon = location
+    }
+
     /** New nodes of this kind start with their preview off. */
     fun noPreview() {
         preview = false
@@ -273,8 +281,12 @@ class ShaderNodeBuilder internal constructor(private val id: String, private val
         previewByDefault = preview,
         previewStyle = previewStyle,
         check = check,
+        icon = icon,
     )
 }
+
+/** The icon of the engine's graph icon set called [name], such as `time` or `noise`. */
+fun graphIcon(name: String): String = "hollowengine:textures/gui/icons/graph/$name.svg"
 
 /**
  * A kind of node, declared the way it reads:

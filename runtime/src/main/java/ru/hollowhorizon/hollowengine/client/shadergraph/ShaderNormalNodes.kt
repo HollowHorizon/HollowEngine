@@ -55,6 +55,7 @@ internal object ShaderNormalNodes {
      * around the unlit side, as it does through something soft.
      */
     private fun lambert() = shaderNode("hollowengine:normal/lambert", NORMAL) {
+        icon(graphIcon("sun"))
         group("light")
         val normal = input("Normal", type = VEC3, fallback = ShaderInput.NORMAL)
         val direction = input("Direction", 0.4f, 1f, 0.3f, type = VEC3)

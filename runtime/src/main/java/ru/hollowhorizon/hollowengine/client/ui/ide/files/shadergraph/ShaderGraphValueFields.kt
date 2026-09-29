@@ -8,6 +8,7 @@ import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.layout.UiRect
 import ru.hollowhorizon.hollowengine.client.ui.style.UiPaint
 import ru.hollowhorizon.hollowengine.client.ui.widgets.ColorPicker
+import ru.hollowhorizon.hollowengine.client.ui.widgets.ColorPickerWidth
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTextInputFilter
 import java.util.*
 import kotlin.math.abs
@@ -104,7 +105,7 @@ private fun TypedNumber(id: String, value: Float, onChange: (Float) -> Unit, onD
         value = draft,
         id = id,
         filter = UiTextInputFilter.DECIMAL,
-        fontSize = 8f,
+        fontSize = 9f,
         tags = listOf("sg-field"),
         modifier = Modifier.size(0.px, FieldHeight.px).grow(1f).onUnfocus { onDone() }.onKeyInput { input ->
                 if (input.key == GLFW.GLFW_KEY_ENTER || input.key == GLFW.GLFW_KEY_KP_ENTER || input.key == GLFW.GLFW_KEY_ESCAPE) {
@@ -141,7 +142,10 @@ private fun ColorSwatch(id: String, values: List<Float>, actions: ShaderFieldAct
         id = id,
         tags = listOf("sg-swatch"),
         modifier = Modifier.size(FieldsWidth.px, FieldHeight.px)
-            .drawBehind(key = color) { drawRect(bounds, UiPaint.Color(color.clamped()), radius = 2f) }
+            .drawBehind(key = color) {
+                val inner = UiRect(bounds.x + 1f, bounds.y + 1f, bounds.width - 2f, bounds.height - 2f)
+                drawRect(inner, UiPaint.Color(color.clamped()), radius = 4f)
+            }
             .input(hoverable = true, clickable = true).onPress { event ->
                 if (event.button == GLFW.GLFW_MOUSE_BUTTON_LEFT && anchor == null) {
                     actions.beginGesture()
@@ -170,7 +174,7 @@ private fun ColorSwatch(id: String, values: List<Float>, actions: ShaderFieldAct
                     )
                 },
             )
-            Row(tags = listOf("sg-fields")) {
+            Row(tags = listOf("sg-fields"), modifier = Modifier.size(ColorPickerWidth.px, UiLength.Auto)) {
                 values.forEachIndexed { channel, value ->
                     NumberField("$id-channel-$channel", value, actions, gestures = false) { typed ->
                         onChange(values.toMutableList().also { it[channel] = typed })

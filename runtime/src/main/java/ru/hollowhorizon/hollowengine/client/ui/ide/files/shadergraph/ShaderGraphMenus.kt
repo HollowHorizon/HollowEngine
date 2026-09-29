@@ -20,12 +20,13 @@ internal fun addNodeItems(
     if (kinds.isEmpty()) return@mapNotNull null
     UiDropdownItem(
         graphText("category.${category.name.lowercase()}"),
+        icon = category.icon(),
         children = kinds.mapIndexed { index, kind ->
-            UiDropdownItem(kind.title(), separatorBefore = index > 0 && kind.group != kinds[index - 1].group) {
-                onPick(
-                    kind
-                )
-            }
+            UiDropdownItem(
+                kind.title(),
+                icon = kind.displayIcon(),
+                separatorBefore = index > 0 && kind.group != kinds[index - 1].group,
+            ) { onPick(kind) }
         },
     )
 }

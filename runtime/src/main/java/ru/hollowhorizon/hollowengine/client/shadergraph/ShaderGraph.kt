@@ -23,6 +23,7 @@ data class ShaderGraphNode(
     val values: Map<String, List<Float>> = emptyMap(),
     val options: Map<String, String> = emptyMap(),
     val preview: Boolean? = null,
+    val collapsed: Boolean = false,
 )
 
 /** What the previews of the editor draw a graph on. */

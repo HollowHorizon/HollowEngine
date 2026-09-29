@@ -103,7 +103,7 @@ class VfxFormatTests {
         assertTrue(files.isNotEmpty(), "No example effects in $EXAMPLES_PATH")
 
         files.forEach { file ->
-            val text = file.readText()
+            val text = file.readText().replace("\r\n", "\n")
             val effect = VfxFormat.read(text)
 
             assertTrue(effect.nodes.isNotEmpty(), "${file.name} has no nodes")

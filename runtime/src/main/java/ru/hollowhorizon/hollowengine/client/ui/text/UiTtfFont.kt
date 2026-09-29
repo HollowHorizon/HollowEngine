@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicLong
  * TrueType/OpenType fonts, drawn from an atlas page that fills up as characters are met.
  */
 object UiTtfFont {
-    const val FamilyPrefix = "ttf"
+    private const val Extension = ".ttf"
 
     private const val PageSize = 2048
     private const val BakeQueueCapacity = 64
@@ -53,7 +53,8 @@ object UiTtfFont {
 
     private fun bake(urgent: Boolean, action: () -> Unit) = bakers.execute(BakeTask(urgent, action))
 
-    fun isTtfFamily(family: String): Boolean = family.startsWith("$FamilyPrefix:")
+    /** A family is a TrueType font when the file it names, ahead of any `?` options, ends in `.ttf`. */
+    fun isTtfFamily(family: String): Boolean = family.substringBefore('?').trim().endsWith(Extension, ignoreCase = true)
 
     fun metrics(family: String): UiMsdfFontMetrics? = (request(family) as? FamilyState.Open)?.face?.metrics
 
@@ -80,23 +81,27 @@ object UiTtfFont {
         families.clear()
     }
 
+    /**
+     * The face is opened right here, on the first ask. Text is measured with its metrics, and a
+     * stand-in used until it opened would leave every node laid out in that time at the stand-in's
+     * widths, with nothing to lay it out again. Only the baking of glyphs is left to other threads.
+     */
     private fun request(family: String): FamilyState? {
         families[family]?.let { return it }
         if (!isTtfFamily(family)) return null
+        return families.computeIfAbsent(family) { open(family) }
+    }
+
+    private fun open(family: String): FamilyState {
         val request = UiTtfFontRequest.parse(family) ?: run {
             HollowEngine.LOGGER.warn("Malformed TrueType font family '{}'", family)
-            families[family] = FamilyState.Failed
             return FamilyState.Failed
         }
-        if (families.putIfAbsent(family, FamilyState.Pending) != null) return families[family]
-        bake(urgent = true) {
-            val opened = openFace(family, request)
-            families[family] = opened
-            (opened as? FamilyState.Open)?.let { open ->
-                for (codepoint in open.spec.codepoints) bake(urgent = false) { open.prebake(family, codepoint) }
-            }
+        val opened = openFace(family, request)
+        (opened as? FamilyState.Open)?.let { open ->
+            for (codepoint in open.spec.codepoints) bake(urgent = false) { open.prebake(family, codepoint) }
         }
-        return FamilyState.Pending
+        return opened
     }
 
     private fun openFace(family: String, request: UiTtfFontRequest): FamilyState = runCatching {
@@ -108,7 +113,6 @@ object UiTtfFont {
     }
 
     private sealed interface FamilyState {
-        data object Pending : FamilyState
         data object Failed : FamilyState
 
         class Open(val face: OpenFace, val spec: MsdfBakeSpec) : FamilyState {
@@ -245,10 +249,9 @@ internal class UiTtfFontRequest(
             runCatching { HollowEngineConfig.fontPreloadCharset }.getOrDefault(FallbackCharset)
 
         fun parse(family: String): UiTtfFontRequest? {
-            val body = family.removePrefix("${UiTtfFont.FamilyPrefix}:")
-            val source = body.substringBefore('?').trim()
+            val source = family.substringBefore('?').trim()
             if (source.isEmpty()) return null
-            val options = body.substringAfter('?', "").split('&')
+            val options = family.substringAfter('?', "").split('&')
                 .mapNotNull { option ->
                     val name = option.substringBefore('=').trim().lowercase()
                     if (name.isEmpty()) null else name to option.substringAfter('=', "").trim()

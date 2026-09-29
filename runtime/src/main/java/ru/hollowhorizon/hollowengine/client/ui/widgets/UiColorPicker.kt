@@ -11,6 +11,9 @@ import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 
+/** How wide a [ColorPicker] is, for whatever is laid out under it to match. */
+const val ColorPickerWidth = 180f
+
 /** HSV color picker with an optional alpha channel, controlled by a single [UiColor] value. */
 @Composable
 fun ColorPicker(
@@ -39,7 +42,7 @@ fun ColorPicker(
     Column(
         id = id,
         tags = tags + "color-picker",
-        modifier = Modifier.size(180.px, 154.px).gap(4.px).then(modifier ?: Modifier),
+        modifier = Modifier.size(ColorPickerWidth.px, 154.px).gap(4.px).then(modifier ?: Modifier),
     ) {
         Box(
             mode = UiBoxMode.STACK,
