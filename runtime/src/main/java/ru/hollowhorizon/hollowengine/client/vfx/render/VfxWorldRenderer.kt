@@ -25,6 +25,9 @@ object VfxWorldRenderer {
     /** The view of the frame, while its surfaces wait for the shader pack to finish. */
     private var deferred: VfxView? = null
 
+    /** The view the effects of the frame were drawn with, which its post effects read the depth back with. */
+    private var frameView: VfxView? = null
+
     @SubscribeEvent
     fun onRenderLevel(event: RenderLevelStageEvent) {
         if (event.stage == RenderStage.AFTER_WEATHER) drawEffects(event)
@@ -34,7 +37,8 @@ object VfxWorldRenderer {
     @SubscribeEvent(10)
     fun onLevelDone(event: RenderLevelStageEvent) {
         if (event.stage != RenderStage.AFTER_LEVEL || deferred != null || frame.posts.isEmpty()) return
-        VfxPostProcessor.apply(frame.posts, Minecraft.getInstance().mainRenderTarget)
+        val view = frameView ?: return
+        VfxPostProcessor.apply(frame.posts, Minecraft.getInstance().mainRenderTarget, view)
         frame.posts.clear()
     }
 
@@ -46,7 +50,7 @@ object VfxWorldRenderer {
         val main = Minecraft.getInstance().mainRenderTarget
         main.bindWrite(true)
         VfxFrameRenderer.renderSurfaces(frame, view, main)
-        VfxPostProcessor.apply(frame.posts, main)
+        VfxPostProcessor.apply(frame.posts, main, view)
         frame.posts.clear()
     }
 
@@ -63,6 +67,7 @@ object VfxWorldRenderer {
         val bones = VfxBoneBindings.drain(camera)
         frame.clear()
         deferred = null
+        frameView = null
         if (scene == null && bones.isEmpty()) {
             shake.fill(0f)
             return
@@ -79,6 +84,7 @@ object VfxWorldRenderer {
         if (frame.isEmpty) return
 
         val view = VfxView.ofCamera(RenderSystem.getModelViewMatrix(), RenderSystem.getProjectionMatrix())
+        frameView = view
         val main = Minecraft.getInstance().mainRenderTarget
         val depthWrite = GL33.glGetBoolean(GL33.GL_DEPTH_WRITEMASK)
         try {

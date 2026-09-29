@@ -123,5 +123,12 @@
   "node.normal.surface": "Surface Normal",
   "node.normal.lambert": "Lambert Light",
   "node.procedural.fresnel": "Fresnel",
-  "node.output.surface": "Surface Output"
+  "node.output.surface": "Surface Output",
+  "node.output.post": "Post Effect Output",
+  "target": "Draws",
+  "target.surface": "Surface",
+  "target.post": "Post processing",
+  "target.surface.hint": "Particles, meshes and ribbons of an effect: the Shader field of a material.",
+  "target.post.hint": "The whole frame after the level: the Shader field of a Post Effect node. UV runs across the screen, the main texture is the frame itself, and the position is read back from the depth. Alpha is how much the color replaces the frame.",
+  "preview_scene": "Preview screenshot"
 }

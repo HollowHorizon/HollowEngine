@@ -51,6 +51,14 @@ object ShaderGraphTemplates {
         available = ShaderInput.entries.toSet(),
     )
 
+    /** Post effects: a quad over the whole frame, reading the frame and its depth. */
+    val POST = ShaderGraphTemplate(
+        name = "post",
+        vertexPath = ROOT + "post.vsh",
+        fragmentPath = ROOT + "post.fsh",
+        available = ShaderTarget.POST.inputs,
+    )
+
     /** The previews of the editor: a quad over a small target per node. */
     val PREVIEW = ShaderGraphTemplate(
         name = "preview",
@@ -81,6 +89,19 @@ object ShaderGraphTemplates {
         return ShaderGraphSources(
             vertex = fill(vertexSource, code.properties, code.vertexLibraries, "//#vertex" to vertex),
             fragment = fill(template.fragmentSource, code.properties, code.fragmentLibraries, "//#fragment" to fragment),
+        )
+    }
+
+    /** [code] of a post effect graph put into the post template; it has no vertex code of its own. */
+    fun post(code: ShaderGraphCode): ShaderGraphSources {
+        val fragment = buildString {
+            appendLine(code.fragment.text)
+            appendLine("sg_out_color = ${code.outputs.getValue(PostOutputs.COLOR)};")
+            append("sg_out_alpha = ${code.outputs.getValue(PostOutputs.ALPHA)};")
+        }
+        return ShaderGraphSources(
+            vertex = requireNotNull(POST.vertexSource),
+            fragment = fill(POST.fragmentSource, code.properties, code.fragmentLibraries, "//#fragment" to fragment),
         )
     }
 

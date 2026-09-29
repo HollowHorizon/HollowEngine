@@ -20,7 +20,10 @@ data class VfxPostEffectSpec(
     override val enabled: Boolean = true,
     override val transform: VfxTransform = VfxTransform.IDENTITY,
     override val children: List<VfxNodeSpec> = emptyList(),
-    /** `namespace:path` of `assets/namespace/shaders/core/path.json`. */
+    /**
+     * `namespace:path` of `assets/namespace/shaders/core/path.json`, or the location of a post effect
+     * made in the shader graph editor, `namespace:materials/post/vignette.material`.
+     */
     val shader: String = "hollowengine:vfx/post/grayscale",
     val uniforms: List<VfxUniformSpec> = listOf(VfxUniformSpec("Strength", VfxUniformValue.Scalar(VfxValue.ONE))),
     val samplers: List<VfxSamplerSpec> = emptyList(),

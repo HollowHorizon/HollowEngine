@@ -3,11 +3,19 @@ package ru.hollowhorizon.hollowengine.client.shadergraph
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-/** What a graph shades, which decides its output node and what the engine hands it. */
+/** What a graph shades, which decides its output node and the engine [inputs] it can read. */
 @Serializable
-enum class ShaderTarget {
+enum class ShaderTarget(val inputs: Set<ShaderInput>) {
     /** The surface of a particle, a mesh or a ribbon of an effect. */
-    SURFACE,
+    SURFACE(ShaderInput.entries.toSet()),
+
+    POST(
+        setOf(
+            ShaderInput.UV, ShaderInput.TEXTURE_UV, ShaderInput.FRAME_UV, ShaderInput.SCREEN_UV, ShaderInput.TIME,
+            ShaderInput.POSITION, ShaderInput.VIEW_DIRECTION, ShaderInput.MAIN_TEXTURE, ShaderInput.SCENE_DEPTH,
+            ShaderInput.FRAGMENT_DEPTH, ShaderInput.SCENE_COLOR,
+        )
+    ),
 }
 
 /**
@@ -41,9 +49,13 @@ data class ShaderGraphPreview(
     val mesh: ShaderPreviewMesh = ShaderPreviewMesh.SPHERE,
     val rotate: Boolean = true,
     val texture: String = DEFAULT_TEXTURE,
+    val scene: String = DEFAULT_SCENE,
 ) {
     companion object {
         const val DEFAULT_TEXTURE = "hollowengine:textures/particle/circle.png"
+        const val DEFAULT_SCENE = "hollowengine:textures/gui/preview/sampler_preview.png"
+
+        const val SCREEN_ASPECT = 0.65f
     }
 }
 

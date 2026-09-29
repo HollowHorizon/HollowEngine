@@ -126,11 +126,13 @@ object VfxSkyRenderer {
 }
 
 /**
- * Draws the full-screen passes of the frame, each over the result of the one before it.
+ * Draws the full-screen passes of the frame, each over the result of the one before it. [view] is the
+ * one the frame was drawn with, which a post effect graph needs to read positions back from the depth.
  */
 object VfxPostProcessor {
-    fun apply(posts: List<VfxPostDraw>, target: RenderTarget) {
+    fun apply(posts: List<VfxPostDraw>, target: RenderTarget, view: VfxView) {
         if (posts.isEmpty()) return
+        val toView = Matrix4f(view.projection).mul(view.modelView).invert()
 
         RenderSystem.disableDepthTest()
         RenderSystem.depthMask(false)
@@ -138,12 +140,15 @@ object VfxPostProcessor {
         RenderSystem.disableCull()
         try {
             posts.forEach { post ->
-                val shader = VfxShaders.get(post.shader, DefaultVertexFormat.POSITION_TEX) ?: return@forEach
+                val shader = VfxShaders.post(post.shader) ?: return@forEach
                 VfxSceneTextures.capture(target)
 
                 VfxScreenQuad.draw(shader) { bound ->
                     VfxSceneTextures.bind(bound)
                     bound.safeGetUniform("ScreenSize").set(target.width.toFloat(), target.height.toFloat())
+                    bound.safeGetUniform("SceneProjMat").set(view.projection)
+                    bound.safeGetUniform("InvViewProjMat").set(toView)
+                    bound.safeGetUniform("ViewEye").set(view.eye.x, view.eye.y, view.eye.z)
                     post.uniforms.apply(bound)
                 }
             }

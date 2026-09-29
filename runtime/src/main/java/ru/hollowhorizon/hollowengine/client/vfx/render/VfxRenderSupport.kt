@@ -4,6 +4,7 @@ import com.mojang.blaze3d.pipeline.RenderTarget
 import com.mojang.blaze3d.pipeline.TextureTarget
 import com.mojang.blaze3d.platform.GlStateManager
 import com.mojang.blaze3d.systems.RenderSystem
+import com.mojang.blaze3d.vertex.DefaultVertexFormat
 import com.mojang.blaze3d.vertex.MeshData
 import com.mojang.blaze3d.vertex.VertexBuffer
 import com.mojang.blaze3d.vertex.VertexFormat
@@ -122,6 +123,10 @@ object VfxShaders {
     /** What [surface] draws with when its material names [location]: a core shader, or a material graph. */
     fun surface(location: String, surface: VfxSurface): ShaderInstance? =
         if (VfxGraphMaterials.isGraph(location)) VfxGraphMaterials.program(location, surface) else get(location, surface.format)
+
+    /** What a post effect naming [location] draws the frame with: a core shader, or a post effect graph. */
+    fun post(location: String): ShaderInstance? =
+        if (VfxGraphMaterials.isGraph(location)) VfxGraphMaterials.postProgram(location) else get(location, DefaultVertexFormat.POSITION_TEX)
 
     /** Resource packs changed: every shader is read again the next time it is drawn. */
     fun clear() {

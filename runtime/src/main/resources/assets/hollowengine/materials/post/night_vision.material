@@ -1,0 +1,109 @@
+{
+    "target": "POST",
+    "nodes": [
+        {
+            "id": "scene",
+            "type": "hollowengine:input/scene_color",
+            "x": -780.0,
+            "y": -260.0
+        },
+        {
+            "id": "luma",
+            "type": "hollowengine:vector/dot",
+            "x": -540.0,
+            "y": -260.0,
+            "values": {
+                "B": [0.2126, 0.7152, 0.0722]
+            }
+        },
+        {
+            "id": "grain_uv",
+            "type": "hollowengine:math/expression",
+            "x": -1020.0,
+            "y": 60.0,
+            "options": {
+                "expression": "uv + floor(time * 24.0) * vec2(0.37, 0.71)",
+                "type": "vec2"
+            }
+        },
+        {
+            "id": "grain",
+            "type": "hollowengine:procedural/value_noise",
+            "x": -780.0,
+            "y": 60.0,
+            "values": {
+                "Scale": [480.0]
+            }
+        },
+        {
+            "id": "lines",
+            "type": "hollowengine:math/expression",
+            "x": -540.0,
+            "y": 160.0,
+            "options": {
+                "expression": "0.85 + 0.15 * sin(uv.y * 900.0)",
+                "type": "float"
+            }
+        },
+        {
+            "id": "tint",
+            "type": "hollowengine:input/property",
+            "x": -300.0,
+            "y": 280.0,
+            "options": {
+                "property": "Tint"
+            }
+        },
+        {
+            "id": "gain",
+            "type": "hollowengine:input/property",
+            "x": -300.0,
+            "y": 370.0,
+            "options": {
+                "property": "Gain"
+            }
+        },
+        {
+            "id": "strength",
+            "type": "hollowengine:input/property",
+            "x": -300.0,
+            "y": 460.0,
+            "options": {
+                "property": "Strength"
+            }
+        },
+        {
+            "id": "shade",
+            "type": "hollowengine:math/expression",
+            "x": -60.0,
+            "y": -60.0,
+            "options": {
+                "expression": "mix(rgb, tint * (luma * gain + (grain - 0.5) * 0.25) * lines, strength)",
+                "type": "vec3"
+            }
+        },
+        {
+            "id": "output",
+            "type": "hollowengine:output/post",
+            "x": 180.0,
+            "y": -60.0
+        }
+    ],
+    "links": [
+        { "from": "scene", "output": "RGB", "to": "luma", "input": "A" },
+        { "from": "grain_uv", "output": "Out", "to": "grain", "input": "UV" },
+        { "from": "scene", "output": "RGB", "to": "shade", "input": "rgb" },
+        { "from": "luma", "output": "Out", "to": "shade", "input": "luma" },
+        { "from": "grain", "output": "Out", "to": "shade", "input": "grain" },
+        { "from": "lines", "output": "Out", "to": "shade", "input": "lines" },
+        { "from": "tint", "output": "Out", "to": "shade", "input": "tint" },
+        { "from": "gain", "output": "Out", "to": "shade", "input": "gain" },
+        { "from": "strength", "output": "Out", "to": "shade", "input": "strength" },
+        { "from": "shade", "output": "Out", "to": "output", "input": "Color" }
+    ],
+    "properties": [
+        { "name": "Strength", "default": [1.0] },
+        { "name": "Tint", "type": "VEC3", "default": [0.35, 1.0, 0.45] },
+        { "name": "Gain", "default": [2.2] }
+    ]
+}

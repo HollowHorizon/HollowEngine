@@ -115,16 +115,30 @@ private fun ValueRow(document: HollowIdeShaderGraphDocument, node: ShaderGraphNo
 @Composable
 private fun GraphFields(document: HollowIdeShaderGraphDocument, problems: List<ShaderDiagnostic>) {
     val preview = document.graph.preview
+    Section(graphText("target")) {
+        Pills(ShaderTarget.entries, document.graph.target, { graphText("target.${it.name.lowercase()}") }) { target ->
+            document.edit { it.withTarget(target) }
+        }
+        Hint(graphText("target.${document.graph.target.name.lowercase()}.hint"))
+    }
     Section(graphText("preview")) {
-        Label(graphText("preview_mesh"))
-        Pills(ShaderPreviewMesh.entries, preview.mesh, { graphText("mesh.${it.name.lowercase()}") }) { mesh ->
-            document.edit { it.withPreviewSettings(preview.copy(mesh = mesh)) }
-        }
-        ToggleRow(graphText("preview_rotate"), preview.rotate) { rotate ->
-            document.edit { it.withPreviewSettings(preview.copy(rotate = rotate)) }
-        }
-        TextRow(graphText("preview_texture"), preview.texture, id = "sg-preview-texture") { texture ->
-            document.edit { it.withPreviewSettings(preview.copy(texture = texture)) }
+        when (document.graph.target) {
+            ShaderTarget.SURFACE -> {
+                Label(graphText("preview_mesh"))
+                Pills(ShaderPreviewMesh.entries, preview.mesh, { graphText("mesh.${it.name.lowercase()}") }) { mesh ->
+                    document.edit { it.withPreviewSettings(preview.copy(mesh = mesh)) }
+                }
+                ToggleRow(graphText("preview_rotate"), preview.rotate) { rotate ->
+                    document.edit { it.withPreviewSettings(preview.copy(rotate = rotate)) }
+                }
+                TextRow(graphText("preview_texture"), preview.texture, id = "sg-preview-texture") { texture ->
+                    document.edit { it.withPreviewSettings(preview.copy(texture = texture)) }
+                }
+            }
+
+            ShaderTarget.POST -> TextRow(graphText("preview_scene"), preview.scene, id = "sg-preview-scene") { scene ->
+                document.edit { it.withPreviewSettings(preview.copy(scene = scene)) }
+            }
         }
     }
     Section(graphText("properties")) {

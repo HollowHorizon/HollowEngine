@@ -42,6 +42,7 @@ internal class ShaderNodeBox(
     val height: Float,
     val rows: List<ShaderNodeRow>,
     val preview: Float,
+    val previewHeight: Float,
     val previewTop: Float,
 ) {
     val rect: GraphRect get() = GraphRect(node.x, node.y, width, height)
@@ -82,7 +83,7 @@ internal object ShaderNodeLayout {
     const val PIN = 9f
 
     fun of(graph: ShaderGraph, node: ShaderGraphNode, kind: ShaderNodeType, types: ShaderGraphTypes): ShaderNodeBox {
-        if (node.collapsed) return ShaderNodeBox(node, kind, WIDTH, COLLAPSED, emptyList(), 0f, 0f)
+        if (node.collapsed) return ShaderNodeBox(node, kind, WIDTH, COLLAPSED, emptyList(), 0f, 0f, 0f)
         val rows = ArrayList<ShaderNodeRow>()
         var y = HEADER + PADDING
         kind.outputs.forEach { output ->
@@ -105,9 +106,10 @@ internal object ShaderNodeLayout {
         }
         y += PADDING
         val preview = if (kind.showsPreview(node)) WIDTH - INSET * 2 else 0f
+        val previewHeight = if (graph.target == ShaderTarget.POST) preview * ShaderGraphPreview.SCREEN_ASPECT else preview
         val previewTop = y
-        if (preview > 0f) y += preview + PADDING
-        return ShaderNodeBox(node, kind, WIDTH, y, rows, preview, previewTop)
+        if (preview > 0f) y += previewHeight + PADDING
+        return ShaderNodeBox(node, kind, WIDTH, y, rows, preview, previewHeight, previewTop)
     }
 
     private fun components(node: ShaderGraphNode, pin: ShaderPinSpec, types: ShaderGraphTypes): Int {

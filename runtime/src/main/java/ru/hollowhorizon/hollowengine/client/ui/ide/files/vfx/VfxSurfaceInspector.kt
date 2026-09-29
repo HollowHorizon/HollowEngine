@@ -1,6 +1,7 @@
 package ru.hollowhorizon.hollowengine.client.ui.ide.files.vfx
 
 import androidx.compose.runtime.Composable
+import ru.hollowhorizon.hollowengine.client.shadergraph.ShaderTarget
 import ru.hollowhorizon.hollowengine.client.ui.*
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeVfxDocument
 import ru.hollowhorizon.hollowengine.client.ui.inspector.AssetPathField
@@ -234,7 +235,7 @@ private fun MaterialFields(document: HollowIdeVfxDocument, state: VfxEditorState
             is VfxPlaneSpec -> "shader_plane_hint"
             else -> "shader_ribbon_hint"
         }
-        VfxShaderRow(material.shader, vfxText(attributes), "vfx-material-shader", materials = true) { shader ->
+        VfxShaderRow(material.shader, vfxText(attributes), "vfx-material-shader", graphs = ShaderTarget.SURFACE) { shader ->
             update(material.copy(shader = shader, uniforms = alignUniforms(shader, material.uniforms)))
         }
         VfxShaderFields(

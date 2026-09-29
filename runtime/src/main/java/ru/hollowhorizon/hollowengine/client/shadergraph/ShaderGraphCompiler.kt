@@ -83,8 +83,8 @@ class ShaderGraphTypes(private val outputs: Map<Pair<String, String>, ShaderType
  * on it, and in the fragment stage when any other does; a node both depend on is computed in both.
  */
 object ShaderGraphCompiler {
-    /** Compiles [graph] for a place that offers [available] of the engine inputs. */
-    fun compile(graph: ShaderGraph, available: Set<ShaderInput> = ShaderInput.entries.toSet()): ShaderGraphCode {
+    /** Compiles [graph] for a place that offers [available] of the engine inputs, by default what its target offers. */
+    fun compile(graph: ShaderGraph, available: Set<ShaderInput> = graph.target.inputs): ShaderGraphCode {
         val resolved = ResolvedGraph(graph, values = null)
         val diagnostics = resolved.diagnostics
         val master = resolved.master
@@ -154,9 +154,14 @@ object ShaderGraphCompiler {
                 pin.name to resolved.inputCode(master, pin, vertex = false, sink = ArrayList())
             }
             previewIndex[master.id] = previewIndex.size
-            branches += "if (PreviewNode == ${previewIndex.getValue(master.id)}) fragColor = sg_surface(" +
-                    "${code[SurfaceOutputs.COLOR] ?: "vec3(1.0)"}, ${code[SurfaceOutputs.ALPHA] ?: "1.0"}, " +
-                    "${code[SurfaceOutputs.EMISSION] ?: "vec3(0.0)"}, ${code[SurfaceOutputs.ALPHA_CLIP] ?: "0.0"});"
+            val shown = when (graph.target) {
+                ShaderTarget.SURFACE -> "sg_surface(${code[SurfaceOutputs.COLOR] ?: "vec3(1.0)"}, " +
+                        "${code[SurfaceOutputs.ALPHA] ?: "1.0"}, ${code[SurfaceOutputs.EMISSION] ?: "vec3(0.0)"}, " +
+                        "${code[SurfaceOutputs.ALPHA_CLIP] ?: "0.0"})"
+
+                ShaderTarget.POST -> "sg_post(${code[PostOutputs.COLOR] ?: "vec3(1.0)"}, ${code[PostOutputs.ALPHA] ?: "1.0"})"
+            }
+            branches += "if (PreviewNode == ${previewIndex.getValue(master.id)}) fragColor = $shown;"
         }
 
         val moved = previewOffsets(graph, resolved, previewIndex)

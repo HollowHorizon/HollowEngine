@@ -10,13 +10,16 @@ internal data class GraphMenu(val x: Float, val y: Float, val items: List<UiDrop
 
 /**
  * The add menu: a submenu per category, in the order the kinds were registered, with the kinds of one
- * group together and a line between groups.
+ * group together and a line between groups. Kinds that read what [target] does not offer are left out.
  */
 internal fun addNodeItems(
+    target: ShaderTarget,
     accepts: (ShaderNodeType) -> Boolean = { true },
     onPick: (ShaderNodeType) -> Unit,
 ): List<UiDropdownItem> = ShaderNodeCategory.entries.filter { it != ShaderNodeCategory.OUTPUT }.mapNotNull { category ->
-    val kinds = ShaderNodeTypes.all.filter { it.category == category && it.master == null && accepts(it) }
+    val kinds = ShaderNodeTypes.all.filter {
+        it.category == category && it.master == null && target.inputs.containsAll(it.reads) && accepts(it)
+    }
     if (kinds.isEmpty()) return@mapNotNull null
     UiDropdownItem(
         graphText("category.${category.name.lowercase()}"),

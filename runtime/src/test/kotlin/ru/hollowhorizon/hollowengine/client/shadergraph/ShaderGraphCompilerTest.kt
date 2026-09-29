@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.shadergraph
 
+import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -191,6 +192,58 @@ class ShaderGraphCompilerTest {
 
         assertEquals(setOf("from", "out"), displaced("hollowengine:normal/offset", "Offset"))
         assertEquals(emptySet(), displaced("hollowengine:normal/surface", "Normal"))
+    }
+
+    @Test
+    fun `every post effect the engine ships compiles into the post template`() {
+        val folder = File(requireNotNull(javaClass.getResource("/assets/hollowengine/materials/post")).toURI())
+        val files = folder.listFiles { file -> file.name.endsWith(ShaderGraph.EXTENSION) }.orEmpty()
+        assertTrue(files.isNotEmpty())
+        files.forEach { file ->
+            val graph = ShaderGraphFormat.read(file.readText())
+            val code = ShaderGraphCompiler.compile(graph)
+
+            assertEquals(ShaderTarget.POST, graph.target, file.name)
+            assertEquals(emptyList(), code.diagnostics, file.name)
+            val fragment = ShaderGraphTemplates.post(code).fragment
+            assertFalse(fragment.contains("//#"), file.name)
+            graph.properties.forEach { assertTrue(fragment.contains(propertyUniform(it.name)), "${file.name}: ${it.name}") }
+        }
+    }
+
+    @Test
+    fun `what a post effect cannot read is reported`() {
+        val graph = ShaderGraph(
+            target = ShaderTarget.POST,
+            nodes = listOf(
+                ShaderGraphNode("color", "hollowengine:input/vertex_color"),
+                ShaderGraphNode("out", ShaderNodeLibrary.POST_OUTPUT),
+            ),
+            links = listOf(ShaderGraphLink("color", "RGB", "out", PostOutputs.COLOR)),
+        )
+        val problems = ShaderGraphCompiler.compile(graph).diagnostics
+
+        assertEquals(listOf(ShaderDiagnostic(ShaderProblem.UNAVAILABLE_INPUT, detail = ShaderInput.COLOR.name)), problems)
+    }
+
+    @Test
+    fun `switching the target swaps the output node and keeps what both outputs take`() {
+        val graph = graph(
+            ShaderGraphNode("noise", "hollowengine:procedural/value_noise"),
+            links = listOf(
+                ShaderGraphLink("noise", "Out", "out", SurfaceOutputs.COLOR),
+                ShaderGraphLink("noise", "Out", "out", SurfaceOutputs.ALPHA),
+                ShaderGraphLink("noise", "Out", "out", SurfaceOutputs.VERTEX_OFFSET),
+            ),
+        ).withValue("out", SurfaceOutputs.EMISSION, listOf(1f))
+        val post = graph.withTarget(ShaderTarget.POST)
+
+        assertEquals(ShaderNodeLibrary.POST_OUTPUT, post.node("out")?.type)
+        assertEquals(setOf(PostOutputs.COLOR, PostOutputs.ALPHA), post.links.map { it.input }.toSet())
+        assertEquals(emptyMap(), post.node("out")?.values)
+        assertEquals(emptyList(), ShaderGraphCompiler.compile(post).diagnostics)
+        // A graph nobody touched becomes the default of the other target, not a surface graph with its output swapped.
+        assertEquals(ShaderNodeLibrary.defaultPost(), ShaderNodeLibrary.defaultSurface().withTarget(ShaderTarget.POST))
     }
 
     @Test

@@ -85,6 +85,29 @@ fun ShaderGraph.withCollapsed(node: String, collapsed: Boolean): ShaderGraph =
 
 fun ShaderGraph.withPreviewSettings(settings: ShaderGraphPreview): ShaderGraph = copy(preview = settings)
 
+/**
+ * The graph as one of [target]: its output node swapped for the one of the target, in the same place
+ * and under the same id, keeping what is linked into and typed on the inputs both have. A graph left
+ * as it was made becomes what a new graph of the target starts as.
+ */
+fun ShaderGraph.withTarget(target: ShaderTarget): ShaderGraph {
+    if (target == this.target) return this
+    if (copy(preview = ShaderGraphPreview()) == ShaderNodeLibrary.default(this.target)) {
+        return ShaderNodeLibrary.default(target).copy(preview = preview)
+    }
+    val kind = ShaderNodeTypes.master(target) ?: return copy(target = target)
+    val masters = nodes.filter { ShaderNodeTypes.of(it.type)?.master != null }.map { it.id }.toSet()
+    if (masters.isEmpty()) return copy(target = target).withNode(ShaderGraphNode(freeNodeId(kind.id), kind.id))
+    val pins = kind.inputs(kind.prototype).map { it.name }.toSet()
+    return copy(
+        target = target,
+        nodes = nodes.map { node ->
+            if (node.id in masters) node.copy(type = kind.id, values = node.values.filterKeys { it in pins }) else node
+        },
+        links = links.filterNot { it.to in masters && it.input !in pins },
+    )
+}
+
 /** An id no property has yet: `Property`, `Property2` and so on. */
 fun ShaderGraph.freePropertyName(base: String = "Property"): String {
     if (properties.none { it.name == base }) return base

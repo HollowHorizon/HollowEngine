@@ -10,10 +10,27 @@ import ru.hollowhorizon.hollowengine.client.shadergraph.ShaderPinType.VEC4
 /** The kinds of node the engine ships, in the order the add menu lists them. */
 object ShaderNodeLibrary {
     const val SURFACE_OUTPUT = "hollowengine:output/surface"
+    const val POST_OUTPUT = "hollowengine:output/post"
     const val PROPERTY = "hollowengine:input/property"
     const val EXPRESSION = ShaderMathNodes.EXPRESSION
 
     val all: List<ShaderNodeType> by lazy { inputs() + uv() + texture() + output() + ShaderMathNodes.all + ShaderNormalNodes.all }
+
+    /** What a new graph of [target] starts as. */
+    fun default(target: ShaderTarget): ShaderGraph = when (target) {
+        ShaderTarget.SURFACE -> defaultSurface()
+        ShaderTarget.POST -> defaultPost()
+    }
+
+    /** What a new post effect starts as: the frame passed through untouched. */
+    fun defaultPost() = ShaderGraph(
+        target = ShaderTarget.POST,
+        nodes = listOf(
+            ShaderGraphNode("scene", "hollowengine:input/scene_color", x = -300f, y = 0f),
+            ShaderGraphNode("output", POST_OUTPUT, x = -60f, y = 0f),
+        ),
+        links = listOf(ShaderGraphLink("scene", "RGB", "output", PostOutputs.COLOR)),
+    )
 
     /**
      * What a new surface graph starts as: the material texture times the particle color, which is what
@@ -180,6 +197,11 @@ object ShaderNodeLibrary {
             input(SurfaceOutputs.ALPHA_CLIP, 0f, type = FLOAT)
             input(SurfaceOutputs.VERTEX_OFFSET, 0f, 0f, 0f, type = VEC3)
         },
+        shaderNode(POST_OUTPUT, OUTPUT) {
+            master(ShaderTarget.POST)
+            input(PostOutputs.COLOR, 1f, 1f, 1f, type = VEC3, color = true)
+            input(PostOutputs.ALPHA, 1f, type = FLOAT)
+        },
     )
 
     /** A node that hands out one thing the engine gives every graph. */
@@ -216,6 +238,17 @@ object SurfaceOutputs {
 
     /** Blocks the vertex moves by, in the space of the view. */
     const val VERTEX_OFFSET = "Vertex Offset"
+}
+
+/**
+ * The inputs of the post output node. They are named as the surface ones are, so switching a graph
+ * between the two keeps what is linked into them.
+ */
+object PostOutputs {
+    const val COLOR = SurfaceOutputs.COLOR
+
+    /** How much of the frame the color replaces: 0 leaves the frame as it was. */
+    const val ALPHA = SurfaceOutputs.ALPHA
 }
 
 /** The uniform a property reads, named so it cannot clash with anything of the engine's. */

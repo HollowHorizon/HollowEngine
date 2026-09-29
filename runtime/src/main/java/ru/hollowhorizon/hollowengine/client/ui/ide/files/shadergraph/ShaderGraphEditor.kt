@@ -114,7 +114,7 @@ internal fun ShaderGraphEditor(file: HollowIdeOpenFile) {
         val graphY = view.toGraphY(pending.y)
         val items = if (pending.fromOutput) {
             val carried = code.types.output(pending.node, pending.pin) ?: ShaderType.FLOAT
-            addNodeItems({ it.inputFor(carried) != null }) { kind ->
+            addNodeItems(graph.target, { it.inputFor(carried) != null }) { kind ->
                 val node = addNode(kind, graphX, graphY - ShaderNodeLayout.HEADER)
                 kind.inputFor(carried, node)
                     ?.let { pin -> document.edit { it.withLink(pending.node, pending.pin, node.id, pin.name) } }
@@ -123,7 +123,7 @@ internal fun ShaderGraphEditor(file: HollowIdeOpenFile) {
             val into =
                 graph.node(pending.node)?.let { node -> ShaderNodeTypes.of(node.type)?.input(node, pending.pin)?.type }
                     ?: return
-            addNodeItems({ it.outputFor(into) != null }) { kind ->
+            addNodeItems(graph.target, { it.outputFor(into) != null }) { kind ->
                 val node = addNode(kind, graphX - ShaderNodeLayout.WIDTH, graphY - ShaderNodeLayout.HEADER)
                 kind.outputFor(into)
                     ?.let { output -> document.edit { it.withLink(node.id, output.name, pending.node, pending.pin) } }
@@ -364,7 +364,7 @@ internal fun ShaderGraphEditor(file: HollowIdeOpenFile) {
                     GraphMenu(
                         pointer.screenX,
                         pointer.screenY,
-                        addNodeItems { kind -> addNode(kind, pointer.graphX, pointer.graphY) })
+                        addNodeItems(graph.target) { kind -> addNode(kind, pointer.graphX, pointer.graphY) })
                 }
             },
             onRelease = {

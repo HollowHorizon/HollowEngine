@@ -69,7 +69,7 @@ internal fun ShaderNodeView(
                 Box(
                     tags = listOf("sg-node-preview"),
                     modifier = Modifier.position(ShaderNodeLayout.INSET.px, box.previewTop.px)
-                        .size(box.preview.px, box.preview.px)
+                        .size(box.preview.px, box.previewHeight.px)
                         .drawBehind(key = node.id) { drawTexture(bounds, { previews.texture(node.id) }, flipY = true) },
                 )
             }

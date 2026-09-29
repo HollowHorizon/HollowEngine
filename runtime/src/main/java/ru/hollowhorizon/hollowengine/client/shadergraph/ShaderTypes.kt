@@ -87,7 +87,7 @@ enum class ShaderInput(
     val fragmentOnly: Boolean = false,
     val expressionName: String? = null,
 ) {
-    /** 0 to 1 across the surface, whatever part of the texture it shows. */
+    /** 0 to 1 across the surface, whatever part of the texture it shows, or across the screen for a post effect. */
     UV("sg_uv", ShaderType.VEC2, expressionName = "uv"),
 
     /** The part of the material texture the surface shows, flipbook frame included. */
@@ -124,7 +124,7 @@ enum class ShaderInput(
     /** Where on the screen the fragment is, 0 to 1. */
     SCREEN_UV("sg_screen_uv", ShaderType.VEC2, fragmentOnly = true),
 
-    /** The texture the material names. */
+    /** The texture the material names; for a post effect, the frame it draws over. */
     MAIN_TEXTURE("Sampler0", ShaderType.TEXTURE),
 
     /** Blocks from the eye to whatever the frame had drawn behind this fragment. */

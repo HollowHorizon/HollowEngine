@@ -1,16 +1,20 @@
 #version 150
 
-// Every node of a graph in one program: PreviewNode picks whose value this draw shows. There is no
-// scene here, so the functions that read one stand in with something that still shows a change.
+// Every node of a graph in one program: PreviewNode picks whose value this draw shows. A surface has
+// no scene here, so the functions that read one stand in with something that still shows a change;
+// a post effect is drawn over a screenshot, with a made-up depth that grows toward its top.
 // Whatever has alpha is shown over a checkerboard, so what is see-through looks it.
 
 uniform sampler2D Sampler0;
+uniform sampler2D PreviewScene;
 uniform int PreviewNode;
 uniform float PreviewTime;
 // 1 on the flat quad, where the view looks straight at the surface.
 uniform float PreviewFlat;
-// The side of the target, in pixels.
-uniform float PreviewPixels;
+// 1 for a post effect: the quad is the screen.
+uniform float PreviewScreen;
+// The size of the target, in pixels.
+uniform vec2 PreviewSize;
 //#uniforms
 
 in vec2 texCoord;
@@ -20,17 +24,29 @@ in vec3 objectPosition;
 
 out vec4 fragColor;
 
+// The depth a screenshot has not got: near at the bottom of the screen, far at the top.
+float sg_screen_depth() {
+    return mix(2.0, 14.0, texCoord.y * texCoord.y);
+}
+
 float sg_scene_depth() {
-    return 8.0;
+    return PreviewScreen > 0.5 ? sg_screen_depth() : 8.0;
 }
 
 float sg_fragment_depth() {
-    return 4.0 + texCoord.y * 4.0;
+    return PreviewScreen > 0.5 ? 0.0 : 4.0 + texCoord.y * 4.0;
 }
 
 vec3 sg_scene_color(vec2 uv) {
+    if (PreviewScreen > 0.5) return texture(PreviewScene, uv).rgb;
     vec2 cell = floor(uv * 8.0);
     return mix(vec3(0.16), vec3(0.3), mod(cell.x + cell.y, 2.0));
+}
+
+vec3 sg_screen_position() {
+    vec2 ndc = texCoord * 2.0 - 1.0;
+    float depth = sg_screen_depth();
+    return vec3(ndc.x * 0.7 * PreviewSize.x / PreviewSize.y, ndc.y * 0.7, -1.0) * depth;
 }
 
 vec2 sg_frame_uv(vec2 uv) {
@@ -79,6 +95,10 @@ vec4 sg_surface(vec3 color, float alpha, vec3 emission, float clip) {
     return vec4(mix(sg_checker(), color, coverage) + emission * coverage, 1.0);
 }
 
+vec4 sg_post(vec3 color, float alpha) {
+    return vec4(mix(sg_scene_color(texCoord), color, clamp(alpha, 0.0, 1.0)), 1.0);
+}
+
 //#functions
 
 void main() {
@@ -90,7 +110,11 @@ void main() {
     vec3 sg_object_position = objectPosition;
     vec3 sg_normal = normalize(worldNormal);
     vec3 sg_view_direction = PreviewFlat > 0.5 ? vec3(0.0, 0.0, 1.0) : normalize(-relativePosition);
-    vec2 sg_screen_uv = gl_FragCoord.xy / PreviewPixels;
+    vec2 sg_screen_uv = gl_FragCoord.xy / PreviewSize;
+    if (PreviewScreen > 0.5) {
+        sg_position = sg_screen_position();
+        sg_view_direction = normalize(-sg_position);
+    }
 
     //#preview
 }

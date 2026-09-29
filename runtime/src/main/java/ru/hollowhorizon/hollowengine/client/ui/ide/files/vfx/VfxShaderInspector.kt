@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.client.ui.ide.files.vfx
 import androidx.compose.runtime.Composable
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.client.shadergraph.ShaderGraph
+import ru.hollowhorizon.hollowengine.client.shadergraph.ShaderTarget
 import ru.hollowhorizon.hollowengine.client.ui.Modifier
 import ru.hollowhorizon.hollowengine.client.ui.Row
 import ru.hollowhorizon.hollowengine.client.ui.Text
@@ -28,7 +29,7 @@ import ru.hollowhorizon.hollowengine.common.vfx.VfxUniformValue
 @Composable
 internal fun PostEffectFields(document: HollowIdeVfxDocument, state: VfxEditorState, post: VfxPostEffectSpec) {
     Folding(state, "post", vfxText("section_post"), VfxIcons.POST) {
-        VfxShaderRow(post.shader, vfxText("shader_post_hint"), "vfx-post-shader") { shader ->
+        VfxShaderRow(post.shader, vfxText("shader_post_hint"), "vfx-post-shader", graphs = ShaderTarget.POST) { shader ->
             document.replace(post.copy(shader = shader.orEmpty(), uniforms = alignUniforms(shader, post.uniforms)))
         }
         VfxShaderFields(
@@ -74,22 +75,23 @@ internal fun CameraShakeFields(document: HollowIdeVfxDocument, state: VfxEditorS
 
 /**
  * The shader a surface or a screen effect is drawn with, by its `namespace:path` name. [hint] says what
- * the geometry hands the shader, so it lives in the tooltip of the label.
+ * the geometry hands the shader, so it lives in the tooltip of the label. [graphs] is the target of the
+ * material graphs offered besides the core shaders, if any are.
  */
 @Composable
 internal fun VfxShaderRow(
     shader: String?,
     hint: String,
     id: String,
-    materials: Boolean = false,
+    graphs: ShaderTarget? = null,
     onChange: (String?) -> Unit,
 ) {
     VfxAssetRow(
-        label = vfxText(if (materials) "surface_shader" else "shader"),
+        label = vfxText(if (graphs == ShaderTarget.SURFACE) "surface_shader" else "shader"),
         value = shader.orEmpty(),
         hint = hint,
         id = id,
-        candidates = { VfxShaderAssets.list(materials) },
+        candidates = { VfxShaderAssets.list(graphs) },
         exists = VfxShaderAssets::exists,
         placeholder = vfxText("shader_placeholder"),
     ) { typed -> onChange(typed.trim().ifBlank { null }) }
@@ -102,12 +104,14 @@ internal object VfxShaderAssets {
     private const val Root = "shaders/core/"
     private const val Materials = "materials"
 
-    /** The core shaders, and before them with [materials] the material graphs, which only surfaces draw with. */
-    fun list(materials: Boolean): List<String> {
+    /** The core shaders, and before them the material graphs of [graphs], when it is given. */
+    fun list(graphs: ShaderTarget?): List<String> {
         val manager = Minecraft.getInstance().resourceManager ?: return emptyList()
         return runCatching {
-            val graphs = if (materials) {
-                manager.listResources(Materials) { it.path.endsWith(ShaderGraph.EXTENSION) }.keys.map { it.toString() }.sorted()
+            val materials = if (graphs != null) {
+                manager.listResources(Materials) { it.path.endsWith(ShaderGraph.EXTENSION) }.keys.map { it.toString() }
+                    .filter { VfxShaderDeclarations.of(it)?.target == graphs }
+                    .sorted()
             } else {
                 emptyList()
             }
@@ -115,7 +119,7 @@ internal object VfxShaderAssets {
                 .filter { it.namespace != "minecraft" }
                 .map { "${it.namespace}:${it.path.removePrefix(Root).removeSuffix(".json")}" }
                 .sorted()
-            graphs + shaders
+            materials + shaders
         }.getOrDefault(emptyList())
     }
 

@@ -1,0 +1,82 @@
+{
+    "target": "POST",
+    "nodes": [
+        {
+            "id": "uv",
+            "type": "hollowengine:input/uv",
+            "x": -780.0,
+            "y": -60.0
+        },
+        {
+            "id": "distance",
+            "type": "hollowengine:vector/distance",
+            "x": -540.0,
+            "y": -60.0,
+            "values": {
+                "B": [0.5, 0.5]
+            }
+        },
+        {
+            "id": "radius",
+            "type": "hollowengine:input/property",
+            "x": -540.0,
+            "y": 240.0,
+            "options": {
+                "property": "Radius"
+            }
+        },
+        {
+            "id": "falloff",
+            "type": "hollowengine:math/smoothstep",
+            "x": -300.0,
+            "y": -60.0,
+            "values": {
+                "Edge 2": [0.85]
+            }
+        },
+        {
+            "id": "strength",
+            "type": "hollowengine:input/property",
+            "x": -300.0,
+            "y": 260.0,
+            "options": {
+                "property": "Strength"
+            }
+        },
+        {
+            "id": "amount",
+            "type": "hollowengine:math/multiply",
+            "x": -60.0,
+            "y": 40.0
+        },
+        {
+            "id": "color",
+            "type": "hollowengine:input/property",
+            "x": -60.0,
+            "y": -120.0,
+            "options": {
+                "property": "Color"
+            }
+        },
+        {
+            "id": "output",
+            "type": "hollowengine:output/post",
+            "x": 200.0,
+            "y": -60.0
+        }
+    ],
+    "links": [
+        { "from": "uv", "output": "UV", "to": "distance", "input": "A" },
+        { "from": "radius", "output": "Out", "to": "falloff", "input": "Edge 1" },
+        { "from": "distance", "output": "Out", "to": "falloff", "input": "In" },
+        { "from": "falloff", "output": "Out", "to": "amount", "input": "A" },
+        { "from": "strength", "output": "Out", "to": "amount", "input": "B" },
+        { "from": "color", "output": "Out", "to": "output", "input": "Color" },
+        { "from": "amount", "output": "Out", "to": "output", "input": "Alpha" }
+    ],
+    "properties": [
+        { "name": "Strength", "default": [0.75] },
+        { "name": "Radius", "default": [0.3] },
+        { "name": "Color", "type": "VEC3", "default": [0.0, 0.0, 0.0] }
+    ]
+}

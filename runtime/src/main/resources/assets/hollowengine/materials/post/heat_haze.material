@@ -1,0 +1,91 @@
+{
+    "target": "POST",
+    "nodes": [
+        {
+            "id": "rise",
+            "type": "hollowengine:uv/scroll",
+            "x": -1020.0,
+            "y": -60.0,
+            "values": {
+                "Speed": [0.0, -0.35]
+            }
+        },
+        {
+            "id": "shift",
+            "type": "hollowengine:uv/tiling_offset",
+            "x": -780.0,
+            "y": 240.0,
+            "values": {
+                "Offset": [3.7, 1.3]
+            }
+        },
+        {
+            "id": "scale",
+            "type": "hollowengine:input/property",
+            "x": -1020.0,
+            "y": 300.0,
+            "options": {
+                "property": "Scale"
+            }
+        },
+        {
+            "id": "noise_x",
+            "type": "hollowengine:procedural/gradient_noise",
+            "x": -540.0,
+            "y": -120.0
+        },
+        {
+            "id": "noise_y",
+            "type": "hollowengine:procedural/gradient_noise",
+            "x": -540.0,
+            "y": 220.0
+        },
+        {
+            "id": "strength",
+            "type": "hollowengine:input/property",
+            "x": -540.0,
+            "y": 520.0,
+            "options": {
+                "property": "Strength"
+            }
+        },
+        {
+            "id": "warp",
+            "type": "hollowengine:math/expression",
+            "x": -300.0,
+            "y": -60.0,
+            "options": {
+                "expression": "uv + (vec2(nx, ny) - 0.5) * strength",
+                "type": "vec2"
+            }
+        },
+        {
+            "id": "scene",
+            "type": "hollowengine:input/scene_color",
+            "x": -60.0,
+            "y": -60.0
+        },
+        {
+            "id": "output",
+            "type": "hollowengine:output/post",
+            "x": 180.0,
+            "y": -60.0
+        }
+    ],
+    "links": [
+        { "from": "rise", "output": "Out", "to": "noise_x", "input": "UV" },
+        { "from": "rise", "output": "Out", "to": "shift", "input": "UV" },
+        { "from": "shift", "output": "Out", "to": "noise_y", "input": "UV" },
+        { "from": "scale", "output": "Out", "to": "noise_x", "input": "Scale" },
+        { "from": "scale", "output": "Out", "to": "noise_y", "input": "Scale" },
+        { "from": "noise_x", "output": "Out", "to": "warp", "input": "nx" },
+        { "from": "noise_y", "output": "Out", "to": "warp", "input": "ny" },
+        { "from": "strength", "output": "Out", "to": "warp", "input": "strength" },
+        { "from": "warp", "output": "Out", "to": "scene", "input": "UV" },
+        { "from": "scene", "output": "RGB", "to": "output", "input": "Color" }
+    ],
+    "properties": [
+        { "name": "Strength", "default": [0.012] },
+        { "name": "Scale", "default": [14.0] }
+    ]
+}

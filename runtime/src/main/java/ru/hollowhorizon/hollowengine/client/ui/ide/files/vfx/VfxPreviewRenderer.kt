@@ -68,18 +68,15 @@ internal class VfxPreviewRenderer {
             instance.collect(frame, Matrix4f())
             frame.shake.copyInto(shake)
 
-            VfxFrameRenderer.render(
-                frame,
-                VfxView(
-                    modelView = view,
-                    projection = projection,
-                    right = Vector3f(view.m00(), view.m10(), view.m20()),
-                    up = Vector3f(view.m01(), view.m11(), view.m21()),
-                    eye = eye,
-                ),
-                offscreen,
+            val camera = VfxView(
+                modelView = view,
+                projection = projection,
+                right = Vector3f(view.m00(), view.m10(), view.m20()),
+                up = Vector3f(view.m01(), view.m11(), view.m21()),
+                eye = eye,
             )
-            VfxPostProcessor.apply(frame.posts, offscreen)
+            VfxFrameRenderer.render(frame, camera, offscreen)
+            VfxPostProcessor.apply(frame.posts, offscreen, camera)
         }
     }
 
