@@ -1,0 +1,127 @@
+---
+title: Создание аддона
+order: 2
+---
+
+<center><h1>Создание аддона</h1></center>
+
+*Подпроект Gradle, `plugin.properties` и точка входа.*
+
+Эта страница описывает независимый аддон: свой jar, устанавливаемый и обновляемый отдельно от любого мода. Как поставить интеграцию внутри jar мода, см. в [Аддоны внутри мода](/docs/hollowengine/addons/mod-addons).
+
+## Настройка проекта
+
+В репозитории HollowEngine каждая папка внутри `addons/`, где есть `build.gradle.kts`, подхватывается как подпроект Gradle автоматически. Сборка аддона получает в compile classpath Minecraft, маппинги, рантайм HollowEngine, Kotlin, корутины и Koin. Собрать все аддоны:
+
+```text
+./gradlew buildAddons
+```
+
+Готовые jar складываются в `build/addon-jars/`.
+
+Чтобы собирать аддон вне репозитория, компилируйте против **development jar**. `./gradlew developmentJar` создаёт `build/development/HollowEngine-<minecraft>-<version>-dev.jar`, а `buildAndCollect` копирует его в `merged/`. Он выставляет классы движка, мост и встроенные библиотеки в compile classpath. Подключайте его как `compileOnly` с маппингами Mojang или Parchment и той версией Kotlin, которую использует HollowEngine. В игру ставьте обычный универсальный jar; development jar нужен только для компиляции.
+
+`build.gradle.kts` аддона содержит только его собственные настройки и библиотеки:
+
+```kotlin
+base.archivesName.set("MyAddon")
+
+dependencies {
+    add("addonLibraries", "com.example:library:1.0.0")
+    add("addonRuntimeLibraries", "com.example:pure-java-runtime-library:1.0.0")
+    add("addonBootstrapLibraries", "com.example:native-library:1.0.0:windows-x86_64")
+}
+```
+
+## Описание аддона
+
+Создайте `src/main/resources/META-INF/plugin.properties`:
+
+```properties
+id=my-addon
+name=My Addon
+version=${version}
+entry=com.example.myaddon.MyAddon
+dependsOn=another-addon
+environment=common
+description=What the addon does
+authors=Me, Someone Else
+license=MIT
+icon=assets/my-addon/icon.png
+```
+
+| Ключ | Значение |
+| --- | --- |
+| `id` | Идентификатор аддона. Используется в командах и как пространство имён его скриптов. |
+| `name`, `version` | Показываются в списках и сообщениях. |
+| `entry` | Класс точки входа. Аддон только из скриптов и ресурсов может его не указывать. |
+| `dependsOn` | Id других аддонов, которые должны загрузиться раньше. Нужен и для импорта их скриптов. |
+| `environment` | `common` (по умолчанию), `client` или `server`: сторона, на которой грузится аддон. |
+| `requiredClasses` | Классы, которые должны быть загружаемы до старта аддона. |
+| `description`, `authors`, `license`, `icon` | Копируются в генерируемые `fabric.mod.json` и `neoforge.mods.toml` - их показывают списки модов. |
+
+## Точка входа
+
+Точка входа реализует `HollowAddonEntrypoint`. Она получает `CoroutineScope` жизненного цикла, который отменяется при выгрузке аддона:
+
+```kotlin
+class MyAddon : HollowAddonEntrypoint {
+    override suspend fun load(context: HollowAddonContext, scope: CoroutineScope) {
+        // Запускайте корутины аддона и публикуйте сервисы здесь.
+    }
+
+    override suspend fun unload(context: HollowAddonContext) {
+        // Необязательная очистка. Scope отменяется после неё.
+    }
+
+    @SubscribeEvent
+    fun onServerTick(event: TickEvent.Server) {
+        // Обработайте событие синхронно.
+    }
+}
+```
+
+Публичные методы с `@SubscribeEvent`, объявленные на точке входа, на Kotlin `object` или как статические и top-level функции, находятся автоматически. HollowEngine регистрирует их в scope аддона, а отмена scope при выгрузке убирает все.
+
+`HollowAddonContext` даёт дескриптор аддона, его jar, class loader, экземпляр Koin и `hostServices`. Дополнительные модули Koin возвращаются из `koinModules`.
+
+### Команды
+
+Аддоны с командами используют Brigadier напрямую из `@SubscribeEvent` на `RegisterCommandsEvent`. Это событие срабатывает при каждой загрузке датапаков, а включение, отключение и перезагрузка аддона перезагружают датапаки всех запущенных серверов, поэтому дерево команд перестраивается: команды аддона появляются или пропадают. Так сделан `/he video` в аддоне видео.
+
+### Общие сервисы
+
+Аддоны могут предлагать API друг другу и движку через host services:
+
+```kotlin
+override suspend fun load(context: HollowAddonContext, scope: CoroutineScope) {
+    context.hostServices.publish<MyService>(MyServiceImpl())
+}
+
+// в другом месте
+val service = hostServices.find<MyService>()
+```
+
+Интерфейс (`MyService`) должен быть виден обеим сторонам, обычно это значит, что он лежит в движке или в аддоне, который другие указывают в `dependsOn`. Аддон видео публикует `VideoApi` именно так; виджет `Video` движка вызывает `VideoApi.find()` и показывает заглушку, если аддона нет.
+
+## Библиотеки
+
+Есть три области библиотек:
+
+| Конфигурация | Для чего | Где загружается |
+| --- | --- | --- |
+| `addonLibraries` | Обычные библиотеки. Доступны при компиляции, встраиваются вложенными jar. | В изолированном class loader аддона. |
+| `addonRuntimeLibraries` | Чистые Java-библиотеки, нужные только в рантайме. | В изолированном class loader аддона. |
+| `addonBootstrapLibraries` | Библиотеки, загружающие нативный код или держащие глобальное состояние процесса. | В стабильном рантайм-class loader HollowEngine до инициализации аддона. |
+
+Аддон с bootstrap-библиотеками намеренно не грузится на лету, потому что такую библиотеку нельзя выгрузить из работающего процесса. `HollowAddonManager.restartRequired` сообщает об этом, лог просит перезапуск, и аддон становится доступен при следующем запуске.
+
+Не встраивайте нативные стеки, принадлежащие Minecraft: LWJGL, jemalloc, GLFW, OpenAL, OpenGL, STB, Vulkan, JNA, JInput, Netty, OSHI. Сборка аддона их отклоняет, а bootstrap проверяет внешние jar аддонов перед загрузкой. Должны использоваться версии, поставляемые игрой.
+
+## Ассеты и данные
+
+Аддон несёт `assets/` и `data/` в `src/main/resources` точно как мод, а сборка добавляет `pack.mcmeta`, нужный обоим загрузчикам. Подробнее - в [Скрипты и ресурсы в аддонах](/docs/hollowengine/addons/scripts).
+
+## Проверка и перезагрузка
+
+При разработке кладите jar в `hollowengine/addons/` и после пересборки используйте `/he addons reload <id>`. Если аддон не появился, посмотрите `/he addons list`: состояние, отличное от загруженного, объясняется в столбце с подробностями.

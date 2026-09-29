@@ -1,0 +1,87 @@
+---
+title: Surfaces and materials
+order: 4
+---
+
+<center><h1>Surfaces and materials</h1></center>
+
+*Planes, meshes, models, trails, and beams, and how they blend with the world.*
+
+Renderer nodes turn simulation into pixels. A renderer directly below an [emitter](/docs/hollowengine/vfx/emitters) is drawn on every particle; anywhere else it is drawn once, where it stands.
+
+## Renderer nodes
+
+| Node | Draws |
+| --- | --- |
+| **Plane** | A textured quad. By default it faces the camera, which makes it the standard particle sprite. |
+| **Cube**, **Sphere**, **Cylinder** | A mesh primitive. Meshes are instanced, so many of them stay cheap. |
+| **Model** | A model from the project. **Start with the model** plays its animation from the start, **Turn along motion** aligns it with the particle's velocity, and **Emissive** ignores world lighting. |
+| **Trail** | A ribbon that follows the node as it moves, or every particle under an emitter. |
+| **Beam** | A ribbon between two points: this node and a **Target node**, or a fixed **End** point. |
+
+Mesh nodes have **Segments** for smoothness and **Closed ends** for cylinders.
+
+### Facing
+
+Planes choose how they turn:
+
+- **As rotated** uses only the node's and particle's rotation;
+- **Towards camera** is a billboard;
+- **Towards camera on an axis** turns around a fixed axis only, such as grass blades or tall flames;
+- **Along motion** aligns the sprite with the particle's velocity, good for sparks and rain.
+
+The axis is in the space of the particles: the emitter for local particles, the world for world ones.
+
+### Trails and beams
+
+A trail leaves points behind its head. **Length in time** is how long a point stays, **Step** is how far the head must move before a new point is added, and **Points** caps the length. **Width** is read along the ribbon: `p.progress` is `0` at the head and `1` at the tail, so `1 - p.progress` tapers it. **Tint** on a ribbon is a gradient from head to tail.
+
+A ribbon texture either **Stretches** once along the whole length or **Repeats** every **Texture length** blocks. **Texture scroll** slides the texture along the ribbon each second.
+
+A beam adds **Jitter**, noise that pushes the middle of the beam aside while the ends stay fixed, with **Detail** (waves per block) and **Jitter speed**. `hollowengine:lightning` is built from beams.
+
+## Material
+
+Every renderer has a **Material** section.
+
+| Setting | Meaning |
+| --- | --- |
+| **Texture** | A texture resource, such as `project:textures/spark.png`. |
+| **Tint** | Multiplies the color. On a particle it multiplies the particle color. |
+| **Blending** | How the surface is combined with the frame; see below. |
+| **Lit by the world** | Applies the light at the surface's position. |
+| **Hide the back face** | Skips faces that point away from the camera. |
+| **Hidden by geometry** | Depth test: blocks and entities in front hide the surface. |
+| **Writes depth** | Whether the surface hides what is drawn after it. |
+| **UV region** | The part of the texture that holds the sprite, from `0` to `1`. A [frame atlas](/docs/hollowengine/vfx/emitters#frame-atlas) is cut out of this region. |
+| **Soft intersection** | Fades the surface near geometry; see below. |
+| **Glow** | Adds a halo; see below. |
+
+### Blending
+
+| Mode | Use for |
+| --- | --- |
+| `OPAQUE` | Solid surfaces. Alpha only cuts holes. |
+| `BLEND` | Ordinary transparency: smoke, dust, clouds. Sorted by depth. |
+| `ADDITIVE` | Fire, sparks, and lasers. Adds the surface color to the frame. |
+| `MULTIPLY` | Shadows, stains, and soot. Multiplies what is behind. |
+
+### Soft particles and glow
+
+**Soft intersection** sets the distance in blocks over which the surface fades near scene geometry. This avoids a hard edge where a particle intersects the ground or a block. `0` disables the fade.
+
+**Glow** adds a blurred halo in the surface's color, respecting scene depth. `0` disables it; higher values strengthen the halo. **Additive** blending changes the surface itself and does not enable the glow pass on its own. You can use both settings together. The glow contribution is not clamped to 1 in its `RGBA16F` buffer.
+
+HollowEngine does not tone-map the frame after adding glow, so an effect looks the way its author set it. Tune the strength by eye.
+
+:::advice
+Glow uses the frame's depth, so a glowing surface stays hidden behind blocks. It costs extra passes each frame; use it on the few surfaces that need it.
+:::
+
+## Custom shaders
+
+The **Shader** section of a renderer accepts either a [material graph](/docs/hollowengine/vfx/material-graph) or a core shader. Leave it empty for the built-in one. A custom core shader participates in the glow pass only if it declares `GlowPass` and uses the `Glow` value; it must also implement soft intersections itself. See [Screen, sky, and shake](/docs/hollowengine/vfx/screen#writing-a-core-shader) for what a core shader receives.
+
+## Shader packs
+
+Effects work with Iris shader packs. When a pack is active, HollowEngine draws planes, meshes, and ribbons after the pack's final pass, on top of the finished frame with the scene depth, so they look the same whichever pack is in use. Models stay in the pack's regular pass.

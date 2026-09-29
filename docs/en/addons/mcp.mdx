@@ -1,0 +1,68 @@
+---
+title: MCP server addon
+order: 6
+---
+
+<center><h1>MCP server addon</h1></center>
+
+*Let an AI coding agent write, check, and run scripts inside the game.*
+
+The MCP addon (id `hollowengine-mcp`) starts a [Model Context Protocol](https://modelcontextprotocol.io) server in the running game. Coding agents such as Claude Code, Codex, or Cursor connect to it and get tools that only a running game can offer: the real classpath with Minecraft's classes, script diagnostics, the live world, and screenshots.
+
+:::advice
+The addon is new. Treat what an agent writes as a draft, and read scripts before you run them: an agent has the same command access you give it.
+:::
+
+## Connecting an agent
+
+1. Install `HollowEngineMcp-*.jar` and the [Kotlin compiler addon](/docs/hollowengine/addons/compiler), then start the game and open a world.
+2. Run `/he mcp`. The chat shows whether the server is running and its address, with a button for each supported client.
+3. Click the button for your agent. The connection, token included, is copied straight to the clipboard; it is never written to chat or the log:
+
+   | Button | Copies |
+   | --- | --- |
+   | **Claude Code** | A terminal command that adds the server. |
+   | **Codex** | A block for `~/.codex/config.toml`. |
+   | **JSON** | An `mcpServers` entry for Cursor and other clients that read one. |
+   | **Token** | The access token alone. |
+
+4. Paste it into your agent's terminal or config.
+
+Only the host of a local world can copy the connection, because the server listens on the computer running the game.
+
+## Configuration
+
+`config/hollowengine-mcp.toml`:
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `enabled` | on for a client, off on a dedicated server | Starts the server. |
+| `port` | `25590` | The port it listens on. It always binds to `127.0.0.1`. |
+| `token` | generated | The bearer token agents send as `Authorization: Bearer <token>`. Clear it and restart to issue a new one. |
+
+The server is reachable from your machine only, and every request needs the token. Do not share the token or commit `hollowengine-mcp.toml`.
+
+## Tools
+
+| Tool | What it does |
+| --- | --- |
+| `run_command` | Runs a command, as the host of a local world, and returns its output. |
+| `run_snippet` | Runs a short Kotlin snippet on the client or the server to inspect live state. |
+| `script_diagnostics` | Compiles a `.kts` file and reports errors. |
+| `symbol_search`, `symbol_source` | Look up the engine's API by name and read its source. |
+| `docs_search`, `docs_read` | Search and read this documentation, bundled into the addon. |
+| `screenshot` | Takes a picture of the game: the player's view, the world without the GUI, or a view from a chosen camera position. |
+
+There are no separate tools to list, compile, or reload scripts. An agent uses the same commands you do, such as `he scripting run`, `he scripting attach`, and `reload`, so anything it learns works for players too. Server snippets need a dedicated server or cheats enabled for the host.
+
+## How agents are told to work
+
+The addon sends guidelines with the connection so agents build features as **script files** rather than throw-away snippets:
+
+- a behavior of one entity goes in a node script with `@file:Attach`, attached with `he scripting attach`;
+- world logic goes in a node script or a `.reload.kts` handler;
+- items and blocks go in `.startup.kts`, applied after a restart;
+- snippets are for inspecting live state, not for delivering a feature.
+
+The agent then runs `script_diagnostics` until the script is clean, starts it with a command, and checks the result from game state. Model animation clip names are checked with `he model entity` and `he model info` instead of guessed.
+

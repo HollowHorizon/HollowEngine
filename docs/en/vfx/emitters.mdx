@@ -1,0 +1,104 @@
+---
+title: Emitters and modules
+order: 3
+---
+
+<center><h1>Emitters and modules</h1></center>
+
+*Where particles come from, how they move, and how they interact with the world.*
+
+An **Emitter** node creates and simulates particles. It draws nothing itself: the renderers directly below it ([surfaces](/docs/hollowengine/vfx/surfaces)) draw each particle.
+
+## Emission
+
+| Setting | Meaning |
+| --- | --- |
+| **Rate** | Particles per second. |
+| **Burst** | Particles released at once when each loop starts. |
+| **Duration** | Seconds the emitter keeps emitting. `0` means forever. |
+| **Loop** and **Pause** | Restart after the duration and the silence between loops. |
+| **Limit** | The emitter never has more particles alive than this. |
+| **Simulation step** | The longest simulation step in seconds. Smaller keeps fast particles and collisions accurate, at a cost. |
+
+## Space
+
+**Local** particles move with the emitter, which suits an aura around a character. **World** particles are left behind where they were born, which suits a smoke trail. For local particles, **Follow rotation** and **Follow scale** decide whether the emitter's rotation and scale carry the particles along.
+
+## Spawn shape and launch
+
+The **Shape** section picks where a particle is born:
+
+| Shape | Notes |
+| --- | --- |
+| Point | The node center. |
+| Sphere | **Radius**. **Fill** goes from `0` (surface only) to `1` (whole volume). |
+| Box | **Half size** in blocks on each axis. |
+| Cone | **Radius** and **Angle**, half of the opening angle in degrees. |
+| Disc | **Radius**. |
+| Line | An **End** point relative to the node. |
+| Model | The surface of a model in its bind pose; particles leave along the surface normal. |
+
+**Launch direction** is **From shape** (away from the shape's surface or center), **Anywhere**, or **Fixed** along a direction you set.
+
+The **At spawn** section sets each particle's **Lifetime**, starting **Speed**, an **Offset** added to the spawn point, and **Inertia**, the share (`0` to `1`) of the emitter's own velocity that a particle keeps. All of these accept [values](/docs/hollowengine/vfx/values), so a lifetime of "between 1 and 2 seconds" is a range.
+
+## Particle look
+
+The look of a particle is defined by the renderer, not the emitter, so two renderers on one emitter can draw the same particle differently. Select a renderer directly under an emitter and open its **Particle** section:
+
+- **Size**, uniform or per axis, in blocks;
+- **Spin**, in degrees. A camera-facing billboard only uses the Z angle;
+- **Color**: a solid color, a gradient, or per-channel curves.
+
+By default size and color are read over the particle's lifetime, so a gradient runs from birth to death. Pick another source (particle age, emitter age, effect time, speed, or a random number) in the field if you need different behavior. See [Values, curves, and expressions](/docs/hollowengine/vfx/values).
+
+## Modules
+
+Modules add behavior to an emitter. Use **Add module** in the emitter's Inspector. Modules can be turned off and removed without losing their settings.
+
+| Module | What it does |
+| --- | --- |
+| **Extra velocity** | Adds a velocity to the particle's motion without changing its own velocity. |
+| **Force** | Wind, a pull from a point, a vortex, or braking. |
+| **Noise** | Pushes particles around with a smooth noise field. |
+| **Collisions** | Reacts to blocks: die, bounce, or slide. |
+| **Frame atlas** | Plays a grid of frames in a texture. |
+
+The emitter itself also has **Gravity** and **Drag**: gravity in blocks per second squared (negative pulls up), drag as the share of speed lost per second.
+
+### Force
+
+The force type decides the geometry:
+
+- **Wind** pushes along a **Direction**.
+- **From a point** pushes away from a center; negative strength pulls toward it.
+- **Vortex** spins particles around the force direction, as an axis through the center.
+- **Braking** slows particles; strength is the share of speed removed per second.
+
+A **Radius** limits how far a point or vortex force reaches (`0` reaches everywhere), and **Fades to the edge** weakens it toward the radius.
+
+### Noise
+
+**Strength** sets how hard the field pushes, **Detail** how many noise cells fit in a block, **Drift** how fast the field itself moves, and **Layers** adds finer octaves. Each extra layer doubles the cost.
+
+### Collisions
+
+Particles are treated as spheres of a given **Radius**. On a hit, choose **Die**, **Bounce**, or **Slide**. **Bounciness** is the share of speed kept after a bounce, **Friction** the share kept along the surface, and **Life lost** takes seconds off the particle's remaining life on every hit. Collisions also enable the **Collision** [sub-emitter](#sub-emitters) event.
+
+### Frame atlas
+
+Set **Columns** and **Rows** for a sprite sheet. **Frames** limits how many cells are used (`0` means all). The animation either follows the particle's life (**Passes** times over its lifetime) or runs at a fixed **FPS**. **Random frame** picks a starting frame per particle. Select the region of the texture that holds the sheet in the renderer's material with the UV region fields.
+
+## Sub-emitters
+
+Place an **Emitter** directly inside another emitter and enable **Spawn from parent particles** under **Sub-emitter**. The child emitter spawns particles when a parent particle triggers the selected event instead of using its own rate and burst. Its spawn shape is centered on the event. **Limit** remains available under **Emission** to cap the number of living particles.
+
+The events are **Spawn**, **Death**, **Collision**, and **While alive**. For the first three, **Count** is the number of particles per event; for **While alive**, it is the number per second for each parent particle. **Collision** requires the Collisions module on the parent emitter. **Inertia** adds the selected fraction of the parent's velocity to new particles.
+
+For a firework, create a rocket emitter, nest a burst emitter inside it, and select **Death** for the burst. In **Count** and **Inertia** expressions, `p.` refers to the parent particle that triggered the event. Its random number is available to spawned particles as `p.parent_random` or the **Parent random** curve source, allowing the rocket and burst to share a color.
+
+:::advice
+A sub-emitter reacts to individual particles, which is why the Timeline cannot replace it: the Timeline switches a whole emitter on or off, but each parent particle has its own moment of death.
+:::
+
+Open `hollowengine:fireworks` to see this in practice.

@@ -1,0 +1,70 @@
+---
+title: The VFX editor
+order: 2
+---
+
+<center><h1>The VFX editor</h1></center>
+
+*Scene, Inspector, Timeline, and the live preview.*
+
+Opening a `.vfx` file shows a preview of the effect in the editor tab. The rest of the editor lives in three dockable windows that you can open from **Windows**: **Scene**, **Inspector**, and **Timeline**. They follow the currently open effect and can be arranged like any other IDE panel.
+
+## Scene
+
+The **Scene** window shows the effect as a tree. The root is the effect itself; selecting it edits the effect-wide settings in the Inspector.
+
+Right-click a node, or the root, for the context menu:
+
+| Action | Result |
+| --- | --- |
+| **Add node** / **Add inside** | Adds a child node of the chosen type. |
+| **Duplicate** | Copies the node with its children and its Timeline tracks. |
+| **Rename** | Renames the node. |
+| **Switch on** / **Switch off** | Enables or disables the node and everything under it. |
+| **Move up**, **Move down**, **Move out of the parent** | Reorders the node or moves it one level up. |
+| **Remove node** | Deletes the node and its children. |
+
+Drag a node onto another node to move it there. Shortcuts work while the tree is focused:
+
+| Shortcut | Action |
+| --- | --- |
+| `F2` | Rename |
+| `Ctrl + D` | Duplicate |
+| `Delete` | Remove |
+| `Alt + Up`, `Alt + Down` | Move up or down among siblings |
+
+The position of a node in the tree matters. A renderer directly below an emitter draws every particle; anywhere else it draws once. The Inspector says which case applies to the selected node.
+
+## Inspector
+
+The **Inspector** shows the selected node's settings in collapsible sections. Common sections are **Node**, **Placement** (position, rotation, scale), and **Timeline**; the rest depend on the node type: **Emission**, **Shape**, **Particle**, **Material**, **Shader**, and so on. Hover a field label for a description.
+
+Most numeric fields hold a [value](/docs/hollowengine/vfx/values): a constant, a range, a curve, or an expression. A field whose value is driven by Timeline keys is shown as read-only with a link to its track; remove the keys to edit it by hand again.
+
+## Preview
+
+The preview renders the effect in its own frame buffer, so screen effects and depth-based softness look as they do in the world.
+
+- Drag to orbit the camera and use the mouse wheel to zoom.
+- The floating preview panel plays, pauses, and restarts the effect and toggles the **floor** and the **shape and handles** overlay.
+- Selecting a node shows a transform gizmo in the preview. Its modes (move, rotate, scale) are switched in the same panel. Values are converted into the node's local space, so moving a child under a rotated parent behaves as expected.
+- An emitter also shows handles for its spawn shape (sphere radius, box half size, cone angle, and so on).
+- With a node using a shader material selected, the material has a separate small preview, so you can tune it without the full effect around it.
+
+The preview's clock is the editor's frame time, not the game's tick counter, so it keeps running when the game is paused.
+
+## Timeline
+
+The **Timeline** animates node properties over **effect time**. A property gets a track when you add its first key. Any numeric node property can be animated: transform values, material values, shader uniforms, shake strength, and so on.
+
+The effect's **Duration** is set with the root selected, together with **Loop**. Playback loops the whole effect.
+
+:::advice
+Use the Timeline to change a node's properties over the length of the effect, such as fading a shockwave sphere out. Use a curve on the property itself when something should change over each **particle's** lifetime.
+:::
+
+## Saving and reloading
+
+The editor saves a changed `.vfx` after a short pause, and `Ctrl + S` saves it immediately. If a file cannot be read, it opens read-only with an error message so a broken file is never overwritten.
+
+Saving updates the file in `hollowengine/assets`. To see the change in the game world, reload client resources with **File > Reload Client Resources** or `F3 + T`.

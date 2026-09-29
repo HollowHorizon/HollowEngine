@@ -1,0 +1,48 @@
+---
+title: Аддоны внутри мода
+order: 4
+---
+
+<center><h1>Аддоны внутри мода</h1></center>
+
+*Добавьте поддержку HollowEngine в свой мод без второго jar.*
+
+Интеграция между модом и движком может жить в jar самого мода вместо отдельного аддона. HollowEngine ищет `META-INF/hollowengine/mod-addon.properties` внутри каждого мода и запускает точку входа, только если этот мод установлен.
+
+## Чем это отличается от независимого аддона
+
+| | Независимый аддон | Аддон внутри мода |
+| --- | --- | --- |
+| Jar | Собственный | Jar мода |
+| Дескриптор | `META-INF/plugin.properties` | `META-INF/hollowengine/mod-addon.properties` |
+| Жизненный цикл | `/he addons enable`, `disable`, `reload` во время игры | Следует за модом: обновляется после перезапуска, команд времени выполнения нет |
+| Библиотеки | `addonLibraries` и другие | Не встраиваются |
+| Обновления | Отдельно от мода | Вместе с модом |
+
+Классы мода видны аддону, поэтому аддон может вызывать мод. Мод **не** должен ссылаться на аддон: HollowEngine определяет пакет аддона рядом с движком, потому что загрузчик модов не видит классы движка.
+
+## Старт из шаблона
+
+В репозитории лежит готовый шаблон в `addons/template/`.
+
+1. Скопируйте папку в репозиторий своего мода, например как `hollow-addon`.
+2. В `build.gradle.kts` **модуля мода** после блока `plugins` добавьте:
+
+   ```kotlin
+   apply(from = rootProject.file("hollow-addon/addon.gradle.kts"))
+   ```
+
+3. Положите development jar (`HollowEngine-<minecraft>-<version>-dev.jar`, из `./gradlew developmentJar` или `merged/`) в папку `libs/` шаблона. При обновлении HollowEngine заменяйте его.
+4. Переименуйте пакет и `ExampleAddon`, затем обновите `entry` в `src/main/resources/META-INF/hollowengine/mod-addon.properties`.
+5. Соберите мод как обычно: `assemble` или `build`. Устанавливать нужно только полученный jar мода.
+
+Скрипт добавляет исходники и ресурсы шаблона в `main`, подключает dev jar как `compileOnly` и проверяет производственный jar. Id мода берётся из `modId` или `mod_id` в Gradle либо из `fabric.mod.json` / `neoforge.mods.toml`.
+
+В `mod-addon.properties` `id` - идентификатор аддона в HollowEngine, а `hostModId` подставляет Gradle. Версия аддона совпадает с версией мода. В jar должен остаться обычный `fabric.mod.json` или `neoforge.mods.toml` мода.
+
+## Правила
+
+- Держите код аддона в собственном пакете: там, где находится точка входа, и во вложенных в него.
+- Компилируйте против official Mojang mappings или Parchment поверх них для Fabric. NeoForge использует official mappings.
+- HollowEngine должен быть установлен в игре как зависимость мода.
+- Если нужны включение и отключение во время игры или встроенные библиотеки, используйте независимый аддон.

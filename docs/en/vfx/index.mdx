@@ -1,0 +1,76 @@
+---
+title: Visual effects (VFX)
+order: 1
+---
+
+<center><h1>Visual effects (VFX)</h1></center>
+
+*Particles, trails, beams, screen effects, sky effects, and camera shake in one editable file.*
+
+A VFX effect is stored in a `.vfx` file and built from a tree of nodes. One effect can combine particles, geometric surfaces, trails, beams, screen effects, sky effects, and camera shake. The built-in editor opens `.vfx` files as IDE documents.
+
+![VFX editor with node tree, preview, Inspector, and Timeline](/hollowengine/pictures/vfx/editor-overview.webp)
+
+## Section map
+
+| Page | What it covers |
+| --- | --- |
+| [The VFX editor](/docs/hollowengine/vfx/editor) | Scene, Inspector, Timeline, the preview, and the transform gizmo. |
+| [Emitters and modules](/docs/hollowengine/vfx/emitters) | Emission, spawn shape, particle look, forces, noise, collisions, sub-emitters. |
+| [Surfaces and materials](/docs/hollowengine/vfx/surfaces) | Planes, meshes, models, trails, beams, blending, soft edges, and glow. |
+| [Values, curves, and expressions](/docs/hollowengine/vfx/values) | Constants, ranges, curves, gradients, and the expression variables. |
+| [Screen, sky, and shake](/docs/hollowengine/vfx/screen) | Post effects, sky shaders, camera shake, and writing your own core shader. |
+| [Material graph](/docs/hollowengine/vfx/material-graph) | The node-based `.material` editor and how an effect uses it. |
+| [Playing effects](/docs/hollowengine/vfx/playback) | Commands, Kotlin, data passed to a running effect, bone attachments. |
+
+## Creating and placing a file
+
+Create an empty `hollowengine/assets/project/vfx/sparks.vfx` file through **New File** in the **Project** panel's context menu or your file manager. An empty `.vfx` opens as a new effect; the editor writes its structure when you save it.
+
+Double-click the file in the project tree. In the **Scene** window, right-click the effect root and choose **Add Node**. Start with an **Emitter**: it is created with a child plane that draws its particles. Edit the selected node in the **Inspector**, and property animation keys in the **Timeline**. Open **Scene**, **Inspector**, and **Timeline** from the **Windows** menu if needed.
+
+The effect is available as `project:vfx/sparks.vfx`. Playback also accepts the short name `project:sparks`. After changing a resource, use **File > Reload Client Resources** or `F3 + T` to update it in-game. The editor automatically saves a changed `.vfx` after a short pause; `Ctrl + S` saves it immediately.
+
+## Node types
+
+| Node | Purpose |
+| --- | --- |
+| Group | Groups children under one transform. |
+| Emitter | Spawns and simulates particles; child nodes draw each particle. |
+| Plane, Cube, Sphere, Cylinder | Draw a flat sprite or a primitive mesh. |
+| Model | Draws a model, optionally with its animation. |
+| Trail, Beam | Draw a ribbon behind a moving node, or a beam between two points. |
+| Screen effect | Draws a full-screen shader over the frame. |
+| Sky | Draws a shader on the sky only. |
+| Camera shake | Shakes the camera of whoever sees the effect. |
+
+Every node has a name, an enabled toggle, and a transform (position, rotation, scale) relative to its parent. Disabled nodes and their children are skipped.
+
+### Who draws what
+
+An emitter only simulates particles. What you see comes from the renderers below it:
+
+- A renderer placed **directly** under an emitter is drawn on every particle. Its own placement is added to each particle, and its size, rotation, and color are taken from the **Particle** section of that renderer.
+- A renderer placed anywhere else is drawn once, where it stands. Put it under a group to draw a static sphere or a beam, for example.
+
+One emitter can have several renderers, such as a soft glow plane and a sharp core plane. Each has its own look.
+
+## Bundled examples
+
+HollowEngine ships several effects you can open, play, and copy into your own project:
+
+| Effect | Shows |
+| --- | --- |
+| `hollowengine:example` | A minimal pair of emitters with a force and noise. |
+| `hollowengine:explosion` | Emitters, a trail, a sphere shockwave, and a screen effect. |
+| `hollowengine:fireworks` | A rocket emitter with a sub-emitter that bursts on death. |
+| `hollowengine:lightning` | Beams, a trail, and a screen effect. |
+| `hollowengine:magic_shield` | Nested groups of planes, trails, and a sphere. |
+| `hollowengine:soul` | A model, a trail, and a screen effect. |
+| `hollowengine:sky_strike` | A sky shader, beams, and camera shake. |
+
+Play one with `/he vfx ~ ~1 ~ hollowengine:fireworks`.
+
+:::advice
+The effect format is not final yet. Files change between versions of HollowEngine without migrations, so re-check your effects after updating the engine.
+:::

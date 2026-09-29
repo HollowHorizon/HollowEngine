@@ -62,7 +62,6 @@ The item is only offered inside `scripts`, because the engine loads scripts and 
 
 Opening `.kts`, `.story`, `.hss`, and other supported text files starts the built-in editor. Depending on the file type, it provides syntax highlighting, diagnostics, completion, signature help, inlay hints, and navigation. Diagnostics appear in the editor and in the **Problems** tab of the **Console** window. Its **Logs** tab shows log output, filters by severity and text, and accepts commands.
 
-Opening a `.vfx` file starts a visual editor with a preview. The node tree appears in **Scene**, the selected node's settings in **Inspector**, and animation in **Timeline**. See [Visual effects (VFX)](/docs/hollowengine/vfx).
 
 ![Kotlin script completion in the code editor](/hollowengine/pictures/ide/code-editor.webp)
 
@@ -82,6 +81,23 @@ Useful editor shortcuts:
 | `Ctrl + Alt + L`   | Format the focused file                                                   |
 | `Ctrl + N`         | Search across the project; selected editor text becomes the initial query |
 
+## File editors
+
+Some file types open in a dedicated editor instead of the text editor:
+
+| Files | Editor |
+| --- | --- |
+| `.vfx` | Visual effect editor with a live preview. The node tree appears in **Scene**, the selected node's settings in **Inspector**, and animation in **Timeline**. See [Visual effects (VFX)](/docs/hollowengine/vfx). |
+| `.material` | Node graph for materials, with a preview on a mesh. See [Material graph](/docs/hollowengine/vfx/material-graph). |
+| `.animator` | Layers, state graph, and parameters of an animation controller. See [Animator Editor](/docs/hollowengine/scripting/animator-editor). |
+| `.rig` | Bone aliases, attachments, and the physical skeleton. See [Rig Editor](/docs/hollowengine/scripting/rig-editor). |
+| `.gltf`, `.glb`, `.fbx`, `.geo.json` | Model viewer. |
+| `.png`, `.jpg`, `.jpeg` | Image viewer. |
+| `.mp4` | Video player (needs the [video addon](/docs/hollowengine/addons/video)). |
+
+Some JSON resources, such as `sounds.json` and recipes, also offer **Text**, **Split**, and **Preview** buttons in the tab bar. The text is always the source of truth: the preview edits it, so undo and autosave work as usual, and a file that cannot be parsed stays in the text editor without being overwritten.
+
+Editors of nodes, such as the animator and the material graph, share the same graph canvas: drag with the right or middle mouse button to pan, use the wheel to zoom, and drag on empty space to select several nodes. Selecting an object in an editor shows its settings in the shared **Inspector**.
 ## Reloading changes
 
 Saving a file writes it to the `hollowengine` directory. What must be reloaded depends on the file:

@@ -1,0 +1,70 @@
+---
+title: Values, curves, and expressions
+order: 5
+---
+
+<center><h1>Values, curves, and expressions</h1></center>
+
+*How a field can hold more than one number.*
+
+Most numeric fields in the VFX editor hold a **value**. A small selector on the field switches its kind:
+
+| Kind | Meaning |
+| --- | --- |
+| **Number** | A constant. |
+| **Range** | A random number between two bounds. |
+| **Curve** | A curve sampled by a source such as the particle's progress. |
+| **Expression** | A formula written in the expression language. |
+
+Colors can additionally be **Solid**, a **Gradient** with stops, or **Per channel** curves for red, green, blue, and alpha.
+
+## Curves
+
+Click a curve field to open the curve editor. Add and drag keys to reshape the curve, and use the presets (**Fade out**, **Fade in**, **Flat**, **Multiplier**) as starting points.
+
+A curve reads a **source**:
+
+| Source | Runs from |
+| --- | --- |
+| **Over lifetime** | `0` at birth to `1` at death. |
+| **Age, s** | The particle's age in seconds. |
+| **Emitter age, s** | Seconds since the emitter started. |
+| **Effect time, s** | Seconds since the effect started. |
+| **Speed** | The particle's current speed. |
+| **Random per particle** | A number fixed for the particle's life. |
+| **Parent random** | The random number of the parent particle, inside a sub-emitter. `0` elsewhere. |
+
+This lets a particle shrink near the end of its life without keys on the Timeline. Use Timeline tracks to animate node properties over effect time.
+
+## Expressions
+
+Expressions use the same language as animations and dialogue conditions, with variables specific to effects:
+
+| Prefix | Variables |
+| --- | --- |
+| `p.` (`particle`) | `age`, `lifetime`, `progress` (or `t`), `x`, `y`, `z`, `velocity_x`/`velocity_y`/`velocity_z` (or `vx`, `vy`, `vz`), `speed`, `random`, `index`, `parent_random` |
+| `e.` (`emitter`) | `age`, `count`, `time`, `partial_tick`, `game_time`, `random` |
+| `n.` (`node`) | `camera_distance` |
+| `d.` (`data`) | Values sent to the running effect from a script; see [Playing effects](/docs/hollowengine/vfx/playback#passing-data-to-an-effect). |
+| `math.` | Math functions. Inside an expression the prefix can be left out. |
+
+A missing `d.` value reads as `0`.
+
+```text
+p.progress * 2                  grows twice as large by the end of life
+1 - n.camera_distance / 24      fades out with distance from the camera
+sin(p.age * 360) * 0.2          oscillates once per second
+d.charge * 4                    driven by a script
+```
+
+:::advice
+`sin`, `cos`, and `tan` take **degrees**, as in Molang. `cos(6.28 * x)` is close to `1` for every `x`; write `cos(360 * x)` instead.
+:::
+
+### Which clock to use
+
+- `p.progress` and `p.age` run per particle. On a node that is not a particle, `p.age` is the Timeline time and repeats on every loop of the effect.
+- `e.time` is the time since the effect started and does **not** restart when the effect loops. For a repeating pattern on a looping effect, use `p.age`.
+- `e.game_time` and `e.partial_tick` follow the world clock.
+
+The expression field flags mistakes as you type. An expression that cannot be read counts as `0`.

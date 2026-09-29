@@ -1,0 +1,127 @@
+---
+title: Creating an addon
+order: 2
+---
+
+<center><h1>Creating an addon</h1></center>
+
+*A Gradle subproject, a `plugin.properties`, and an entrypoint.*
+
+This page describes an independent addon: its own jar, installed and updated separately from any mod. To ship an integration inside a mod's jar, see [Addons inside a mod](/docs/hollowengine/addons/mod-addons).
+
+## Setting up the project
+
+In the HollowEngine repository, every directory under `addons/` that contains a `build.gradle.kts` is discovered automatically as a Gradle subproject. Addon builds get Minecraft, mappings, the HollowEngine runtime, Kotlin, coroutines, and Koin on their compile classpath. Build every addon with:
+
+```text
+./gradlew buildAddons
+```
+
+The resulting jars are collected in `build/addon-jars/`.
+
+To build an addon outside the repository, compile against the **development jar**. `./gradlew developmentJar` produces `build/development/HollowEngine-<minecraft>-<version>-dev.jar` and `buildAndCollect` copies it into `merged/`. It exposes the engine classes, the bridge, and bundled libraries on the compile classpath. Use it as `compileOnly` with Mojang or Parchment mappings and the Kotlin version HollowEngine uses. Install the regular universal jar in the game; the development jar is only for compiling.
+
+An addon's `build.gradle.kts` only needs its own settings and libraries:
+
+```kotlin
+base.archivesName.set("MyAddon")
+
+dependencies {
+    add("addonLibraries", "com.example:library:1.0.0")
+    add("addonRuntimeLibraries", "com.example:pure-java-runtime-library:1.0.0")
+    add("addonBootstrapLibraries", "com.example:native-library:1.0.0:windows-x86_64")
+}
+```
+
+## Declaring the addon
+
+Create `src/main/resources/META-INF/plugin.properties`:
+
+```properties
+id=my-addon
+name=My Addon
+version=${version}
+entry=com.example.myaddon.MyAddon
+dependsOn=another-addon
+environment=common
+description=What the addon does
+authors=Me, Someone Else
+license=MIT
+icon=assets/my-addon/icon.png
+```
+
+| Key | Meaning |
+| --- | --- |
+| `id` | The addon's identifier. It is used in commands and as the namespace of its scripts. |
+| `name`, `version` | Shown in lists and messages. |
+| `entry` | The entrypoint class. May be left out by an addon made only of scripts and resources. |
+| `dependsOn` | Ids of other addons that must be loaded first. Also required to import their scripts. |
+| `environment` | `common` (default), `client`, or `server`: the side the addon loads on. |
+| `requiredClasses` | Classes that must be loadable before the addon starts. |
+| `description`, `authors`, `license`, `icon` | Copied into the generated `fabric.mod.json` and `neoforge.mods.toml`, which is what mod lists show. |
+
+## The entrypoint
+
+An entrypoint implements `HollowAddonEntrypoint`. It receives a lifecycle `CoroutineScope`, which is cancelled when the addon unloads:
+
+```kotlin
+class MyAddon : HollowAddonEntrypoint {
+    override suspend fun load(context: HollowAddonContext, scope: CoroutineScope) {
+        // Start addon coroutines and publish services here.
+    }
+
+    override suspend fun unload(context: HollowAddonContext) {
+        // Optional cleanup. The scope is cancelled after this.
+    }
+
+    @SubscribeEvent
+    fun onServerTick(event: TickEvent.Server) {
+        // Handle the event synchronously.
+    }
+}
+```
+
+Public `@SubscribeEvent` methods declared on the entrypoint, on a Kotlin `object`, or as static or top-level functions are discovered automatically. HollowEngine registers them in the addon's scope, and cancelling the scope during unload removes all of them.
+
+`HollowAddonContext` gives you the addon's descriptor, its jar file, its class loader, its Koin instance, and `hostServices`. Extra Koin modules can be returned from `koinModules`.
+
+### Commands
+
+Command addons use Brigadier directly from a `@SubscribeEvent` on `RegisterCommandsEvent`. That event fires on every datapack load, and enabling, disabling, or reloading an addon reloads the datapacks of every running server, so the command tree is rebuilt with the addon's commands added or gone. The video addon does this for `/he video`.
+
+### Sharing services
+
+Addons can offer an API to each other and to the engine through host services:
+
+```kotlin
+override suspend fun load(context: HollowAddonContext, scope: CoroutineScope) {
+    context.hostServices.publish<MyService>(MyServiceImpl())
+}
+
+// elsewhere
+val service = hostServices.find<MyService>()
+```
+
+The interface (`MyService`) must be visible to both sides, usually by living in the engine or in an addon that others list in `dependsOn`. The video addon publishes `VideoApi` this way; the engine's `Video` UI widget calls `VideoApi.find()` and shows a placeholder if it is missing.
+
+## Libraries
+
+There are three library scopes:
+
+| Configuration | For | Loaded in |
+| --- | --- | --- |
+| `addonLibraries` | Ordinary libraries. Available at compile time, embedded as nested jars. | The addon's isolated class loader. |
+| `addonRuntimeLibraries` | Pure Java libraries that are needed only at runtime. | The addon's isolated class loader. |
+| `addonBootstrapLibraries` | Libraries that load native code or keep process-global state. | HollowEngine's stable runtime class loader, before the addon initializes. |
+
+An addon that contains bootstrap libraries is deliberately not hot-loaded, because such a library cannot be unloaded from a running process. `HollowAddonManager.restartRequired` reports it, the log asks for a restart, and the addon becomes available on the next launch.
+
+Do not bundle Minecraft-owned native stacks such as LWJGL, jemalloc, GLFW, OpenAL, OpenGL, STB, Vulkan, JNA, JInput, Netty, or OSHI. Addon builds reject them, and the bootstrap validates external addon jars before loading. The game-provided versions must be used.
+
+## Assets and data
+
+An addon carries `assets/` and `data/` in `src/main/resources` exactly like a mod, and the build adds the `pack.mcmeta` both loaders need. Read more in [Scripts and resources in addons](/docs/hollowengine/addons/scripts).
+
+## Testing and reloading
+
+During development, drop the jar into `hollowengine/addons/` and use `/he addons reload <id>` after rebuilding. Check `/he addons list` if the addon does not show up: a state other than loaded is explained in the details column.

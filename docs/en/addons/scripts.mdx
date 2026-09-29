@@ -1,0 +1,59 @@
+---
+title: Scripts and resources in addons
+order: 3
+---
+
+<center><h1>Scripts and resources in addons</h1></center>
+
+*Ship `.kts` scripts, assets, and data with an addon, and prepare a modpack that runs without the compiler.*
+
+## Assets and data
+
+An addon carries `assets/` and `data/` in `src/main/resources` exactly like a mod, and the build adds the `pack.mcmeta` both loaders need.
+
+- From `mods/`, the mod loader serves them.
+- From `hollowengine/addons/`, the engine serves them, below the `hollowengine` folder's own resources, so a project can still override anything an addon ships.
+
+Enabling, disabling, or reloading such an addon reloads the datapacks and, when it has assets, the client's resources. Disabling an addon that lives in `mods/` stops its code and scripts, but not its resources; those keep being served until the jar is removed.
+
+## Scripts
+
+An addon can ship `.kts` scripts of its own in `src/main/resources/scripts`. The build compiles them with the same compiler the game uses and packs both the sources and the compiled artifacts into the addon jar. The remap table covers the compiled scripts too, so they run in a modpack that never installs the [compiler addon](/docs/hollowengine/addons/compiler). A compilation error fails the build.
+
+Scripts belong to the namespace named by the addon's `id` and are addressed with it everywhere a script path is accepted:
+
+```text
+/he scripting run my-addon:nodes/quest.node.kts
+```
+
+The `hollowengine` directory is the same kind of thing, an unpacked addon. Its scripts live in `hollowengine/scripts`, and its namespace comes from an optional `hollowengine/META-INF/plugin.properties`, defaulting to `hollowengine-sandbox`, which addons may not claim. A path written without a namespace always means that directory, so existing world saves and commands keep working whatever it calls itself.
+
+Scripts compile against the classpath of the namespace that owns them and run under its class loader, so an addon's scripts see the addon's own classes and its `addonLibraries`.
+
+### Importing between namespaces
+
+`@file:Import("other-addon:shared.kts")` reaches into another namespace and requires it in `dependsOn`. A plain name is resolved next to the importing script. See [Imports](/docs/hollowengine/scripting/imports) for the general rules, including what happens when two imports declare the same name.
+
+### Lifecycle
+
+Enabling, reloading, or disabling an addon starts and stops its scripts with it. A disabled addon's nodes keep the state they were stopped with and resume from it when it returns.
+
+## Precompiled scripts
+
+Compiled scripts are also cached at runtime, in `hollowengine/cache/scripts`, keyed by the sources, the engine build, the Kotlin and Minecraft versions, and the mapping namespace. Fill the cache for a whole pack before shipping it:
+
+```text
+/he scripting compile
+```
+
+If a cached or shipped artifact no longer matches its sources and no compiler is installed, it is used anyway and the log says so; a modpack without the compiler has nothing better to fall back on.
+
+To ship compiled scripts without their sources, build the addon with:
+
+```text
+./gradlew buildAddons -Phollowengine.scripts.includeSources=false
+```
+
+## Exporting the `hollowengine` folder
+
+The Project panel of the in-game editor turns the `hollowengine` folder into the same kind of jar: its scripts, compiled as above, its `assets/`, `data/`, and `META-INF/plugin.properties`. The folder needs an id of its own for that, set in the project settings; `hollowengine-sandbox` cannot be exported. An export made with its sources can be imported back into the folder of another game, replacing the project there after zipping it into `hollowengine/backups`. See [Exporting a project](/docs/hollowengine/project-export) for the step-by-step guide.

@@ -1,0 +1,36 @@
+---
+title: Physics addon
+order: 7
+---
+
+<center><h1>Physics addon</h1></center>
+
+*Ragdolls for models, driven by the Jolt physics engine.*
+
+The physics addon (id `hollowengine-physics`) makes a model fall and go limp with real rigid-body physics. It uses [Jolt](https://github.com/jrouwe/JoltPhysics) through the official `jolt-jni` bindings, with native libraries for Windows, Linux (x64 and ARM64), and macOS (Intel and Apple Silicon).
+
+:::advice
+Because it carries native libraries, this addon is loaded at game start. After installing or updating it, restart Minecraft.
+:::
+
+## What it adds
+
+- **Rigid body** and **Joint** attachments in the [Rig Editor](/docs/hollowengine/scripting/rig-editor), and a button that fills in bodies from the model's geometry.
+- A **Ragdoll** state kind for [animator](/docs/hollowengine/scripting/animator-editor) controllers.
+- Collisions between the ragdoll and the blocks around it.
+
+Everything you need to configure is described in the [Rig Editor](/docs/hollowengine/scripting/rig-editor) page: rigid bodies, collision, joints, and building a ragdoll.
+
+## How it works
+
+A ragdoll is a state of the animation controller, not a separate layer. A transition condition decides when the model enters it, for example `!q.is_alive`, and the transition's duration is the blend between the animation and the simulation. The bodies are built when the state is entered, from the pose the controller was leaving, so a fall continues from the animation instead of snapping to a T-pose. They are destroyed when the state exits, so a model can be knocked down and stand up again without extra logic.
+
+## Limits
+
+- The simulation is client-side: every player sees a ragdoll fall on their own screen, and it does not push entities or affect gameplay.
+- Only the blocks in a radius around an active ragdoll are simulated as static bodies, and the block set is refreshed a few times a second, so a block broken beneath the ragdoll no longer holds it up.
+- Gravity is Earth's `9.81 m/s²` rather than Minecraft's faster fall, so bodies read as physical.
+- A ragdoll that is not being used is torn down after half a second.
+- Only the skin's joints become bodies. Decoration such as eyes or a second skin layer needs to be removed by hand in the Rig Editor.
+
+A model with a ragdoll setup still loads and animates normally without the addon. The rig attachments and the ragdoll state stay in the files and start working again once the addon is installed.

@@ -1,0 +1,48 @@
+---
+title: Addons inside a mod
+order: 4
+---
+
+<center><h1>Addons inside a mod</h1></center>
+
+*Add HollowEngine support to your own mod without a second jar.*
+
+An integration between a mod and the engine can live in that mod's own jar instead of a separate addon. HollowEngine looks for `META-INF/hollowengine/mod-addon.properties` inside every mod and runs the entrypoint only when the mod is installed.
+
+## How it differs from an independent addon
+
+| | Independent addon | Addon inside a mod |
+| --- | --- | --- |
+| Jar | Its own | The mod's jar |
+| Descriptor | `META-INF/plugin.properties` | `META-INF/hollowengine/mod-addon.properties` |
+| Lifecycle | `/he addons enable`, `disable`, `reload` at runtime | Follows the mod: updated after a restart, no runtime commands |
+| Libraries | `addonLibraries` and friends | None bundled |
+| Updates | Separately from the mod | With the mod |
+
+The mod's classes are visible to the addon, so the addon may call into the mod. The mod must **not** reference the addon: HollowEngine defines the addon's package next to the engine, because the mod loader cannot see the engine's classes.
+
+## Starting from the template
+
+The repository contains a ready-made template in `addons/template/`.
+
+1. Copy the folder into your mod's repository, for example as `hollow-addon`.
+2. In the `build.gradle.kts` of the **mod module**, after the `plugins` block, add:
+
+   ```kotlin
+   apply(from = rootProject.file("hollow-addon/addon.gradle.kts"))
+   ```
+
+3. Put the development jar (`HollowEngine-<minecraft>-<version>-dev.jar`, from `./gradlew developmentJar` or `merged/`) into the template's `libs/` folder. Replace it when you update HollowEngine.
+4. Rename the package and `ExampleAddon`, then update `entry` in `src/main/resources/META-INF/hollowengine/mod-addon.properties`.
+5. Build the mod normally with `assemble` or `build`. Only the resulting mod jar needs to be installed.
+
+The script adds the template's sources and resources to `main`, adds the dev jar as `compileOnly`, and checks the production jar. The mod id comes from `modId` or `mod_id` in Gradle, or from `fabric.mod.json` / `neoforge.mods.toml`.
+
+In `mod-addon.properties`, `id` is the addon's identifier in HollowEngine, and `hostModId` is filled in by Gradle. The addon's version matches the mod's version. The mod's regular `fabric.mod.json` or `neoforge.mods.toml` must stay in the jar.
+
+## Rules
+
+- Keep addon code in its own package, the one containing the entrypoint and its subpackages.
+- Compile against official Mojang mappings, or Parchment on top of them for Fabric. NeoForge uses official mappings.
+- HollowEngine must be installed in the game as a dependency of the mod.
+- Use an independent addon if you need runtime enabling and disabling, or bundled libraries.

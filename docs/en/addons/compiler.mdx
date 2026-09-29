@@ -1,0 +1,35 @@
+---
+title: Kotlin compiler addon
+order: 5
+---
+
+<center><h1>Kotlin compiler addon</h1></center>
+
+*The addon that turns `.kts` files into running scripts.*
+
+`HollowEngineCompiler-*.jar` (id `hollowengine-compiler`) embeds the Kotlin scripting compiler. It is kept separate because it is large and only authors need it.
+
+## When you need it
+
+| Situation | Compiler needed? |
+| --- | --- |
+| Writing or editing scripts, in the IDE or an external editor | Yes |
+| Running scripts that were compiled ahead of time (an addon or exported project built with the compiler) | No |
+| Code analysis, completion, and diagnostics in the IDE | Yes |
+
+Players of a finished modpack normally do not need it. See [Precompiled scripts](/docs/hollowengine/addons/scripts#precompiled-scripts) for preparing one.
+
+## Installing
+
+Install the jar from the same release as HollowEngine, into `mods/` or `hollowengine/addons/`. Use matching versions.
+
+With the compiler installed, new and edited scripts compile without restarting the game; without it, only precompiled scripts run.
+
+## Related commands
+
+```text
+/he scripting compile         compile every script and fill the cache
+/he scripting run <path>      run a script
+```
+
+The Kotlin console in the IDE and the diagnostics in the **Problems** tab use the same compiler.

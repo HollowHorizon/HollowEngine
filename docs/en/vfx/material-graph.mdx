@@ -1,0 +1,93 @@
+---
+title: Material graph
+order: 7
+---
+
+<center><h1>Material graph</h1></center>
+
+*Build a surface shader out of nodes instead of writing GLSL.*
+
+A `.material` file is a node graph that compiles to a shader. VFX renderers use it as their shader, so you can make energy orbs, dissolves, force fields, and scrolling noise without touching GLSL files.
+
+:::advice
+The material graph is new. The node set and the file format may still change, so keep an eye on the changelog when you update the engine.
+:::
+
+## Creating a material
+
+Create `hollowengine/assets/project/materials/orb.material` from **New File** in the **Project** panel and open it. A new graph starts with a **Surface Output** node.
+
+The graph canvas works like the other node editors in the IDE:
+
+- drag from an output pin to an input pin to connect them, and drag the canvas with the right or middle mouse button to pan;
+- drag on empty space to box-select nodes, and use the wheel to zoom;
+- right-click the canvas for the list of nodes to add, or a node or link for **Duplicate**, **Delete node**, and **Delete link**;
+- a node can be collapsed to its header, and each node type has its own icon and set of pins.
+
+Select a node to edit its options and input values in the **Inspector**; select nothing to edit the graph's **Properties** and preview settings.
+
+## The Surface Output node
+
+Everything ends in **Surface Output**:
+
+| Input | Meaning |
+| --- | --- |
+| **Color** | The base color of the surface. |
+| **Alpha** | Opacity. |
+| **Emission** | Extra light that ignores world lighting. If nothing is connected, the color glows by itself. |
+| **Alpha Clip** | Pixels below this alpha are discarded. |
+| **Vertex Offset** | Moves vertices; the only input that runs per vertex. |
+
+HollowEngine works out for each node whether it runs per vertex or per pixel, and fails with a message in **Problems** if a per-pixel-only node such as **Bump** feeds the vertex offset.
+
+## Nodes
+
+| Category | Nodes |
+| --- | --- |
+| **Input** | UV, Texture UV, Position, Local Position, Normal, View Direction, Screen UV, Particle Color, Time, Scene Depth, Scene Color, Main Texture, and constants: Float, Vector 2/3/4, Color, Property. |
+| **Math** | Add, Subtract, Multiply, Divide, Power, Minimum, Maximum, One Minus, Negate, Absolute, Fraction, Floor, Sine, Cosine, Square Root, Saturate, Clamp, Lerp, Step, Smoothstep, Remap, Modulo, and a free **Expression** node. |
+| **Vector** | Length, Normalize, Dot Product, Distance, Cross Product, Split, Combine, Swizzle. |
+| **UV** | Tiling and Offset, Rotate, Polar Coordinates, Scroll. |
+| **Texture** | Sample Texture. |
+| **Procedural** | Value Noise, Gradient Noise, Fractal Noise, Voronoi, Shape (ellipse, rectangle, polygon, ring), Fresnel. |
+| **Normals** | Offset Along Normal, Bump, Surface Normal, Lambert Light. |
+
+Noise nodes given a three-component input use the 3D form of the noise. Feed them **Local Position** on a sphere or cube to avoid the visible seam that 2D UV noise leaves.
+
+### Expression node
+
+The **Expression** node takes a single GLSL expression. Free names become input pins, and the names `uv`, `time`, `normal`, `view`, `position`, and `color` read the engine's own values when nothing is connected. Only an expression is accepted: statements, assignments, and preprocessor lines are rejected, and calls are limited to built-in GLSL functions. Choose **Type** to fix the result type or leave it on **From the expression**.
+
+Example from `energy_orb.material`:
+
+```text
+local * 1.6 + vec3(0.0, time * 0.35, time * 0.2)
+```
+
+### Values on nodes
+
+A number typed into an unconnected pin is baked into the shader as a literal. It is not a uniform, so it cannot be changed by an effect at runtime. To make a value adjustable, use a **Property**.
+
+## Properties
+
+The graph's **Properties** are the values an effect can set. Add a property with nothing selected, name it, and pick its type: a float, vector, color, or texture. Place it in the graph with a **Property** node.
+
+A property shows up as an entry in the effect renderer's **Uniforms** (or **Textures**) section under its own name, where it takes any [value](/docs/hollowengine/vfx/values), including expressions and Timeline animation. In the generated GLSL the property is named `p_<name>`.
+
+## Preview
+
+The **Preview** panel shows the selected node's output, or the final surface if the Surface Output is selected. Choose the **Shown on** mesh (quad, sphere, or cube), turn it with **Turn the mesh**, and set the **Main texture in previews**. Values typed on nodes are shown live in the preview. Nodes that need geometry, such as normals or position, are drawn on the chosen mesh; the rest are drawn on a flat quad, with colors over a checkerboard.
+
+The **Problems** list shows a graph that does not compile, including shader compile errors mapped to the node that caused them.
+
+## Using a material in an effect
+
+Select a plane, mesh, or ribbon in a VFX effect and enter the material in **Shader**:
+
+```text
+project:materials/orb.material
+```
+
+Its properties appear below the field. Saving the material in the IDE updates every effect that uses it.
+
+On particles the graph output is treated as premultiplied color, so a graph with emission glows even with **Glow** set to `0`. Local position is normalized to `-1..1` on every mesh.

@@ -1,0 +1,58 @@
+---
+title: Addons
+order: 1
+---
+
+<center><h1>Addons</h1></center>
+
+*Extend HollowEngine with your own code, scripts, and resources, or install ones other people made.*
+
+An addon is a jar that HollowEngine loads on its own, next to the engine. It can add commands, events, editors, libraries, scripts, and assets. The same jar works on Fabric and NeoForge.
+
+## Bundled addons
+
+These addons ship with HollowEngine releases:
+
+| Addon | Id | What it adds |
+| --- | --- | --- |
+| [Kotlin compiler](/docs/hollowengine/addons/compiler) | `hollowengine-compiler` | Compiles `.kts` scripts. Required to write or edit scripts. |
+| [MCP server](/docs/hollowengine/addons/mcp) | `hollowengine-mcp` | Lets AI coding agents work with scripts inside the running game. |
+| [Physics](/docs/hollowengine/addons/physics) | `hollowengine-physics` | Ragdoll physics for models, powered by Jolt. |
+| [Video](/docs/hollowengine/addons/video) | `hollowengine-video` | Video playback in screens, UI, and by command. |
+
+## Installing an addon
+
+Copy the addon jar to either directory:
+
+- `mods/` is the usual choice for distributed addons and modpacks;
+- `hollowengine/addons/` is useful during development or when you want to keep addons apart from mods.
+
+HollowEngine scans and watches both directories. If the same addon id is present in both at startup, the newest version wins; when the versions are equal, the copy in `hollowengine/addons/` has priority. Do not keep duplicates unless you are deliberately testing version selection.
+
+An addon without native libraries can be copied in and loaded while Minecraft is running. An addon that bundles libraries which load native code (Physics and Video do) is deliberately not hot-loaded: the log asks for a restart and the addon becomes available on the next launch.
+
+## Managing addons
+
+Operators (permission level 2) manage addons with commands:
+
+```text
+/he addons list
+/he addons enable <addon-id>
+/he addons disable <addon-id>
+/he addons reload <addon-id>
+```
+
+`list` shows each addon's id, version, state, and file name. Disabled ids are remembered in `hollowengine/addons/.disabled-addons`.
+
+Enabling, disabling, or reloading an addon starts or stops its code, commands, and scripts. The datapacks of every running server are reloaded so its commands appear or disappear, and if the addon carries `assets/`, the client's resources reload too.
+
+Disabling an addon that lives in `mods/` stops its code and scripts, but not its resources: the mod loader owns those and keeps serving them until the jar is removed.
+
+## Where to go next
+
+| I want to... | Read |
+| --- | --- |
+| Write an addon in Kotlin | [Creating an addon](/docs/hollowengine/addons/creating) |
+| Ship scripts or assets in an addon | [Scripts and resources in addons](/docs/hollowengine/addons/scripts) |
+| Add engine support to my own mod | [Addons inside a mod](/docs/hollowengine/addons/mod-addons) |
+| Package my `hollowengine` folder | [Exporting a project](/docs/hollowengine/project-export) |

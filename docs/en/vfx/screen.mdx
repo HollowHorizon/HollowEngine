@@ -1,0 +1,71 @@
+---
+title: Screen, sky, and shake
+order: 6
+---
+
+<center><h1>Screen, sky, and shake</h1></center>
+
+*Effects that act on the whole frame, the sky, or the camera.*
+
+These nodes do not draw particles. They change how the world looks while the node is enabled, so switch them on and off with the node's **Enabled** track on the Timeline.
+
+## Screen effect
+
+A **Screen effect** node draws a full-screen shader over the frame. Its **Shader** field takes the `namespace:path` of a core shader (`assets/namespace/shaders/core/path.json`). Bundled shaders:
+
+| Shader | Effect |
+| --- | --- |
+| `hollowengine:vfx/post/grayscale` | Fades the frame to black and white. |
+| `hollowengine:vfx/post/chromatic_aberration` | Splits the color channels apart. |
+| `hollowengine:vfx/post/impact` | An impact distortion. |
+
+The **Uniforms** section lists the shader's uniforms, read from its json, and each takes a [value](/docs/hollowengine/vfx/values). Nothing fades automatically with distance; write the falloff yourself, such as `1 - n.camera_distance / 32` for **Strength**, so a distant explosion barely tints the screen.
+
+## Sky
+
+A **Sky** node draws a shader on the far plane, so it only shows where nothing else stands in front: terrain, entities, and clouds stay on top. The node's position sets the sky direction the shader aims at.
+
+Use the vertex shader `hollowengine:vfx/sky/sky`, which hands the fragment shader `skyDirection`, the view ray. The engine also provides:
+
+| Uniform | Meaning |
+| --- | --- |
+| `SkyCenter` | Direction towards the node. |
+| `NodeOffset` | The node relative to the camera, in blocks. |
+| `EffectTime` | Seconds since the effect started. |
+| `InvViewProjMat` | Inverse view-projection matrix, used by `sky.vsh`. |
+
+`hollowengine:sky_strike` is a complete example: a shockwave ring and stars drawn on the sky.
+
+## Camera shake
+
+A **Camera shake** node shakes the camera of everyone who sees the effect.
+
+| Setting | Meaning |
+| --- | --- |
+| **Strength** | Multiplies the swing. Put a distance falloff here, such as `1 - n.camera_distance / 24`. |
+| **Frequency** | Shakes per second. |
+| **Swing** | The widest swing in degrees for pitch, yaw, and roll. |
+
+## Writing a core shader
+
+Screen, sky, and surface shaders are ordinary Minecraft core shaders: a `.json` next to a vertex and fragment shader under `assets/<namespace>/shaders/core/`. Put them in `hollowengine/assets/project/shaders/core/` for your project and use `project:` in the field. After changing a shader, reload with `F3 + T`.
+
+The uniforms and samplers you declare in the json show up in the **Uniforms** and **Textures** sections of the node, with the json's default values. The json is looked up every time the effect loads, and a missing file is reported in the Inspector.
+
+What each kind of node provides:
+
+| Node | Attributes | Samplers |
+| --- | --- | --- |
+| Screen effect | `Position`, `UV0` | `SceneColor`, `SceneDepth`; `ScreenSize` is the size of the frame |
+| Sky | `Position` | none by default; the engine sets the uniforms above |
+| Plane | `Position`, `UV0`, `InstanceCenter`, `InstanceRight`, `InstanceUp`, `InstanceColor`, `InstanceUv`, `InstanceLight`, `InstanceBlend`, `InstanceMaterial` | `Sampler0`, `Sampler2`, `SceneColor`, `SceneDepth` |
+| Cube, Sphere, Cylinder, Model | `Position`, `UV0`, `Normal`, `InstanceX`, `InstanceY`, `InstanceZ`, `InstanceOrigin`, `InstanceColor`, `InstanceUv`, `InstanceLight` | same as Plane |
+| Trail, Beam | the vanilla particle format: `Position`, `UV0`, `Color`, `UV2` | same as Plane |
+
+Mesh and ribbon shaders receive the material's **Soft intersection** and **Glow** values in the `Softness` and `Glow` uniforms. Include `hollowengine_vfx.glsl` with `#moj_import <hollowengine_vfx.glsl>` to get `hollowengine_soft_fade`, which computes the soft-intersection factor for you.
+
+To make a custom shader glow, declare `GlowPass` in its json and use `Glow`. A shader without it does not take part in the glow pass.
+
+:::advice
+Prefer the [material graph](/docs/hollowengine/vfx/material-graph) unless you need a shader the graph cannot express. It handles the attributes, instancing, and glow for you.
+:::
