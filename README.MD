@@ -21,14 +21,19 @@ HollowEngine is a content creation engine for Minecraft. It combines Kotlin scri
 
 ## What It Provides
 
-- In-game IDE with syntax highlighting and code analysis
-- Kotlin Scripting with full access to the game's classes without having to re-enter the game
+- In-game IDE with syntax highlighting, code analysis, dockable tool windows, an embedded game viewport, a console (commands and Kotlin), and file previews
+- Kotlin Scripting with full access to the game's classes without having to re-enter the game, including client/server-side scripts, startup scripts, shared scripts, and `.mixin.kts` mixin scripts
 - A custom language for writing dialogues in the style of Ink / Yarn Spinner
 - Advanced model system (.gltf, .obj, .fbx, .geo.json)
-- Advanced UI framework that includes a Compose-like DSL, a CSS-like styling system, 3D transformations, masks, and effects
-- NPC tooling with models, textures, animations, and interactions
+- Animator with layers and a visual state graph editor
+- VFX system with a particle editor, renderers, sub-emitters, glow, and sky effects
+- Shader graph: node-based `.material` editor connected to VFX and previews
+- Advanced UI framework that includes a Compose-like DSL, a CSS-like styling system (HSS with imports and theme variables), 3D transformations, masks, effects, and a reusable node graph canvas
+- NPC tooling with models, textures, animations, interactions, and trades
 - Scene and camera tooling for cinematic workflows
 - Embedded asset, resource pack, and datapack loading
+- Addons in a universal jar (Fabric and NeoForge), including addons embedded in other mods, and project import/export
+- MCP server addon that lets AI agents inspect and drive the running game
 
 ## Current Platform Support
 
