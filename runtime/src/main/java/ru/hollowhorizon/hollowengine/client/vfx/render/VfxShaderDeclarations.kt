@@ -66,7 +66,7 @@ class VfxShaderDeclaration(
             "ModelViewMat", "ProjMat", "IViewRotMat", "TextureMat", "ColorModulator", "Light0_Direction",
             "Light1_Direction", "FogStart", "FogEnd", "FogColor", "FogShape", "LineWidth", "GameTime",
             "ScreenSize", "GlintAlpha", "ChunkOffset", "Shaded", "BlendMode", "SkyCenter", "NodeOffset", "EffectTime",
-            "Softness", "Glow", "GlowPass",
+            "Softness", "Glow", "GlowPass", "ShaderTime",
         )
 
         /** The material texture, the light map and the scene copies. */

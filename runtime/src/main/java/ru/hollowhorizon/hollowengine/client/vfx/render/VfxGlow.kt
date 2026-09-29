@@ -177,7 +177,7 @@ object VfxGlow {
 
 /** A quad over the whole target, for the passes that work on a picture rather than on geometry. */
 internal object VfxScreenQuad {
-    private val SCREEN = VfxView(Matrix4f(), Matrix4f(), Vector3f(1f, 0f, 0f), Vector3f(0f, 1f, 0f), Vector3f())
+    private val SCREEN = VfxView(Matrix4f(), Matrix4f(), Vector3f(1f, 0f, 0f), Vector3f(0f, 1f, 0f), Vector3f(), 0f)
 
     fun draw(shader: ShaderInstance, prepare: (ShaderInstance) -> Unit) {
         val builder = Tesselator.getInstance().begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX)

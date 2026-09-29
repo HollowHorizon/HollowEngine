@@ -26,6 +26,7 @@ class VfxView(
     val right: Vector3f,
     val up: Vector3f,
     val eye: Vector3f,
+    val time: Float,
 ) {
     companion object
 }

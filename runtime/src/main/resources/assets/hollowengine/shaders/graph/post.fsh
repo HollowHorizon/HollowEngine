@@ -13,7 +13,7 @@ uniform mat4 SceneProjMat;
 uniform mat4 InvViewProjMat;
 // The eye in that space: the origin in the world, somewhere else in the preview of an effect.
 uniform vec3 ViewEye;
-uniform float GameTime;
+uniform float ShaderTime;
 //#uniforms
 
 in vec2 texCoord;
@@ -49,7 +49,7 @@ void main() {
     vec2 sg_uv = texCoord;
     vec2 sg_texture_uv = texCoord;
     vec2 sg_screen_uv = texCoord;
-    float sg_time = GameTime * 1200.0;
+    float sg_time = ShaderTime;
     vec3 sg_position = sg_pixel_position();
     vec3 sg_view_direction = normalize(-sg_position);
 

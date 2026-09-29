@@ -22,7 +22,7 @@ uniform mat4 ModelViewMat;
 uniform mat4 ProjMat;
 uniform int FogShape;
 uniform float Shaded;
-uniform float GameTime;
+uniform float ShaderTime;
 //#uniforms
 
 out vec4 vertexColor;
@@ -60,7 +60,7 @@ void main() {
     float shade = mix(1.0, 0.72 + 0.28 * (sg_normal.y * 0.5 + 0.5), Shaded);
     vec4 light = texelFetch(Sampler2, ivec2(InstanceLight) / 16, 0);
     vec4 sg_color = InstanceColor * vec4(light.rgb * shade, light.a);
-    float sg_time = GameTime * 1200.0;
+    float sg_time = ShaderTime;
     vec3 sg_view_direction = normalize(eye - sg_position);
     vec3 sg_out_vertex_offset = vec3(0.0);
 

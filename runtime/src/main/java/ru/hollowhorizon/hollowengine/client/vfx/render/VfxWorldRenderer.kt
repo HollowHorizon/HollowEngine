@@ -19,6 +19,9 @@ import ru.hollowhorizon.hollowengine.common.events.client.render.RenderStage
  */
 @ClientOnly
 object VfxWorldRenderer {
+    /** The shader game time of the render system is the share of a day gone, and a day is this many seconds. */
+    private const val SECONDS_PER_DAY = 1200f
+
     private val frame = VfxDrawList()
     private val shake = FloatArray(3)
 
@@ -83,7 +86,8 @@ object VfxWorldRenderer {
         frame.shake.copyInto(shake)
         if (frame.isEmpty) return
 
-        val view = VfxView.ofCamera(RenderSystem.getModelViewMatrix(), RenderSystem.getProjectionMatrix())
+        val time = RenderSystem.getShaderGameTime() * SECONDS_PER_DAY
+        val view = VfxView.ofCamera(RenderSystem.getModelViewMatrix(), RenderSystem.getProjectionMatrix(), time)
         frameView = view
         val main = Minecraft.getInstance().mainRenderTarget
         val depthWrite = GL33.glGetBoolean(GL33.GL_DEPTH_WRITEMASK)

@@ -149,6 +149,7 @@ object VfxPostProcessor {
                     bound.safeGetUniform("SceneProjMat").set(view.projection)
                     bound.safeGetUniform("InvViewProjMat").set(toView)
                     bound.safeGetUniform("ViewEye").set(view.eye.x, view.eye.y, view.eye.z)
+                    bound.safeGetUniform("ShaderTime").set(view.time)
                     post.uniforms.apply(bound)
                 }
             }

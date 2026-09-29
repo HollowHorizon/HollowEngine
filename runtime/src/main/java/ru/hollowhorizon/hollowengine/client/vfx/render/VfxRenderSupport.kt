@@ -204,6 +204,15 @@ object VfxSceneTextures {
 }
 
 /**
+ * What the render system sets on every program, but with the matrices and the clock of this view
+ * rather than the ones it holds, which in the editor preview are the panel's and the paused world's.
+ */
+internal fun VfxView.setDefaultUniforms(shader: ShaderInstance, mode: VertexFormat.Mode) {
+    shader.setDefaultUniforms(mode, modelView, projection, Minecraft.getInstance().window)
+    shader.safeGetUniform("ShaderTime").set(time)
+}
+
+/**
  * Draws a finished buffer with [shader] and the matrices of [view], rather than whatever the render
  * system holds, which in the editor preview is the matrices of the panel.
  */
@@ -211,7 +220,7 @@ internal fun VfxView.drawImmediate(mesh: MeshData, shader: ShaderInstance, prepa
     val buffer = mesh.drawState().format().immediateDrawVertexBuffer
     buffer.bind()
     buffer.upload(mesh)
-    shader.setDefaultUniforms(mesh.drawState().mode(), modelView, projection, Minecraft.getInstance().window)
+    setDefaultUniforms(shader, mesh.drawState().mode())
     prepare(shader)
     shader.apply()
     buffer.draw()

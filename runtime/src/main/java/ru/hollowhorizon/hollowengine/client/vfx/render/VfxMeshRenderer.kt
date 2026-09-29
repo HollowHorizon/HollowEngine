@@ -3,7 +3,6 @@ package ru.hollowhorizon.hollowengine.client.vfx.render
 import com.mojang.blaze3d.platform.GlStateManager
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.VertexFormat
-import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.ShaderInstance
 import net.minecraft.util.Mth
 import org.joml.Matrix4f
@@ -203,9 +202,7 @@ object VfxMeshRenderer {
                     batch.key.shader?.let { VfxShaders.surface(it, VfxSurface.MESH) } ?: engine
                 }
                 val mesh = gpuMesh(batch.primitive)
-                shader.setDefaultUniforms(
-                    VertexFormat.Mode.TRIANGLES, view.modelView, view.projection, Minecraft.getInstance().window
-                )
+                view.setDefaultUniforms(shader, VertexFormat.Mode.TRIANGLES)
                 VfxMaterialStates.bindCommonSamplers(shader, VfxMaterialStates.texture(batch.key.texture))
                 shader.safeGetUniform("Shaded").set(if (batch.shaded) 1f else 0f)
                 shader.safeGetUniform("BlendMode").set(VfxQuadPacker.blendMode(batch.draws.first().spec.material.blend))

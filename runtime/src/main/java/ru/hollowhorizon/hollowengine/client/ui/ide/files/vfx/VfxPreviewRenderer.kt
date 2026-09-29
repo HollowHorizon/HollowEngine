@@ -33,6 +33,9 @@ internal class VfxPreviewRenderer {
     private var target: TextureTarget? = null
     private val frame = VfxDrawList()
 
+    /** When the preview opened: its shaders animate by the seconds since, whether the world runs or not. */
+    private val started = System.nanoTime()
+
     /** The camera shake of the last frame, in degrees; the next frame's camera takes it. */
     val shake = FloatArray(3)
 
@@ -74,6 +77,7 @@ internal class VfxPreviewRenderer {
                 right = Vector3f(view.m00(), view.m10(), view.m20()),
                 up = Vector3f(view.m01(), view.m11(), view.m21()),
                 eye = eye,
+                time = (System.nanoTime() - started) / NANOS_PER_SECOND,
             )
             VfxFrameRenderer.render(frame, camera, offscreen)
             VfxPostProcessor.apply(frame.posts, offscreen, camera)
@@ -119,6 +123,7 @@ internal class VfxPreviewRenderer {
     private companion object {
         val Background = AnimatorColors.Canvas
         const val MAX_SIZE = 8192
+        const val NANOS_PER_SECOND = 1_000_000_000f
         const val FLOOR_HALF_SIZE = 6
         const val GRID_COLOR = 0x40AFC4E0
         const val AXIS_COLOR = 0x80DCBF73.toInt()

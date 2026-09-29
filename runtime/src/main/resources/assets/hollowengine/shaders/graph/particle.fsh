@@ -17,7 +17,7 @@ uniform float FogEnd;
 uniform float AlphaCutoff;
 uniform vec2 ScreenSize;
 uniform float GlowPass;
-uniform float GameTime;
+uniform float ShaderTime;
 //#uniforms
 
 in vec4 vertexColor;
@@ -58,7 +58,7 @@ void main() {
     vec3 sg_object_position = vec3(sg_uv * 2.0 - 1.0, 0.0);
     vec2 sg_texture_uv = texCoord0;
     vec4 sg_color = vertexColor * ColorModulator;
-    float sg_time = GameTime * 1200.0;
+    float sg_time = ShaderTime;
     vec3 sg_position = worldPosition;
     vec3 sg_normal = normalize(faceNormal);
     vec3 sg_view_direction = normalize(eyePosition - worldPosition);

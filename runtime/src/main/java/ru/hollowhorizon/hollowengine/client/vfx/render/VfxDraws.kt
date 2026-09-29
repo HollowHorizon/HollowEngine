@@ -112,7 +112,7 @@ object VfxFrameRenderer {
 /**
  * The view of the game camera, whose space is camera-relative world space.
  */
-fun VfxView.Companion.ofCamera(modelView: Matrix4f, projection: Matrix4f): VfxView {
+fun VfxView.Companion.ofCamera(modelView: Matrix4f, projection: Matrix4f, time: Float): VfxView {
     val screenToWorld = Matrix4f(projection).mul(modelView).invert()
     val center = screenToWorld.transformProject(Vector3f(0f, 0f, 0.5f))
     return VfxView(
@@ -121,5 +121,6 @@ fun VfxView.Companion.ofCamera(modelView: Matrix4f, projection: Matrix4f): VfxVi
         right = screenToWorld.transformProject(Vector3f(1f, 0f, 0.5f)).sub(center).normalize(),
         up = screenToWorld.transformProject(Vector3f(0f, 1f, 0.5f)).sub(center).normalize(),
         eye = Vector3f(),
+        time = time,
     )
 }

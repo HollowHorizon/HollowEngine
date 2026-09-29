@@ -3,7 +3,6 @@ package ru.hollowhorizon.hollowengine.client.vfx.render
 import com.mojang.blaze3d.platform.GlStateManager
 import com.mojang.blaze3d.systems.RenderSystem
 import com.mojang.blaze3d.vertex.*
-import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.ShaderInstance
 import org.lwjgl.BufferUtils
 import org.lwjgl.opengl.GL33
@@ -88,9 +87,7 @@ object VfxQuadRenderer {
 
     private fun drawBatch(shader: ShaderInstance, engine: ShaderInstance, batch: VfxQuadBatch, view: VfxView, glow: Boolean) {
         RenderSystem.setShader { shader }
-        shader.setDefaultUniforms(
-            VertexFormat.Mode.TRIANGLES, view.modelView, view.projection, Minecraft.getInstance().window
-        )
+        view.setDefaultUniforms(shader, VertexFormat.Mode.TRIANGLES)
         VfxMaterialStates.bindCommonSamplers(shader, VfxMaterialStates.texture(batch.key.texture))
         if (shader !== engine) batch.uniforms?.apply(shader)
         shader.safeGetUniform("GlowPass").set(if (glow) 1f else 0f)
