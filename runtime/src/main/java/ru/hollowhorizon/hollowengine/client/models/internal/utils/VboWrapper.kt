@@ -25,8 +25,13 @@ class VboWrapper(val id: Int, val target: Int = GL33.GL_ARRAY_BUFFER) {
     }
 
     fun uploadData(data: IntBuffer, usage: Int = GL33.GL_STATIC_DRAW) {
-        bind()
-        GL33.glBufferData(target, data, usage)
+        uploadData(data, usage, target)
+    }
+
+    /** Index data can be uploaded through GL_ARRAY_BUFFER, so the element buffer of whichever VAO is bound stays untouched. */
+    fun uploadData(data: IntBuffer, usage: Int = GL33.GL_STATIC_DRAW, bindingTarget: Int) {
+        GL33.glBindBuffer(bindingTarget, id)
+        GL33.glBufferData(bindingTarget, data, usage)
     }
 
     /**
