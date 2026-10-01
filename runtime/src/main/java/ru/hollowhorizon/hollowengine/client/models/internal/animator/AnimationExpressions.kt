@@ -176,6 +176,8 @@ class AnimatorEvaluationContext {
     var modelToWorld: TrsTransformF? = null
 
     var partialTick: Float = 0f
+
+    var gameTicks: Long = 0L
     var gameTime: Float = 0f
     var time: Float = 0f
     var deltaTime: Float = 0f
@@ -211,7 +213,12 @@ class AnimatorEvaluationContext {
      * put in [variables] under that name, or zero.
      */
     internal fun override(name: String): Float = variables[name] ?: 0f
+
+    /** Seconds of game time since [gameTick] on the level clock; negative while it is still ahead. */
+    fun secondsSince(gameTick: Long): Float = ((gameTicks - gameTick).toFloat() + partialTick) / TICKS_PER_SECOND
 }
+
+private const val TICKS_PER_SECOND = 20f
 
 /**
  * Evaluates the expressions of an [Animator].

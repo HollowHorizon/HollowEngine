@@ -12,13 +12,14 @@ import kotlin.math.abs
  * Fills [context] with what an animation expression can read this frame.
  */
 fun fillAnimationVariables(context: AnimatorEvaluationContext, entity: Entity?, partialTick: Float) {
-    val gameTime = Minecraft.getInstance().level?.gameTime?.toFloat() ?: 0f
+    val gameTicks = entity?.level()?.gameTime ?: Minecraft.getInstance().level?.gameTime ?: 0L
 
     context.temporaries.clear()
     context.entity = entity
     context.partialTick = partialTick
-    context.gameTime = gameTime + partialTick
-    context.time = (entity?.tickCount?.toFloat() ?: gameTime) + partialTick
+    context.gameTicks = gameTicks
+    context.gameTime = gameTicks.toFloat() + partialTick
+    context.time = (entity?.tickCount?.toFloat() ?: gameTicks.toFloat()) + partialTick
     context.data = entity?.let { AttachmentRegistry.entityDataOrNull(it)?.numericPaths() }.orEmpty()
 
     if (entity == null) return

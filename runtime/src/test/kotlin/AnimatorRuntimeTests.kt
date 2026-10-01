@@ -16,6 +16,7 @@ import ru.hollowhorizon.hollowengine.client.models.bedrock.BedrockContext
 import ru.hollowhorizon.hollowengine.common.utils.math.TrsTransformF
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.common.utils.rl
+import kotlin.math.floor
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -94,6 +95,90 @@ class AnimatorRuntimeTests {
         assertEquals(0.75f, state.time)
         assertTrue(state.reversed)
         assertFalse(state.ended)
+    }
+
+    @Test
+    fun `ping pong folds a step spanning several passes`() {
+        val state = ClipPlayback()
+
+        assertEquals(0.75f, state.advance(1f, AnimationPlayMode.PingPong, 1f, 5.25f), 0.0001f)
+        assertTrue(state.reversed)
+
+        assertEquals(0.75f, state.advance(1f, AnimationPlayMode.PingPong, 1f, 3.5f), 0.0001f)
+        assertFalse(state.reversed)
+    }
+
+    /**
+     * The server and a client that first saw the clip late pose the same frame on the same tick, however
+     * often each of them sampled it and however old the world is.
+     */
+    @Test
+    fun `clip with a start time plays the game time elapsed since it`() {
+        val start = 100_000_000L
+        val playing = clip(id = "npc:wave", animation = "wave", playMode = AnimationPlayMode.Loop)
+            .copy(startGameTime = start)
+        val target = PoseTarget(emptyMap(), mapOf("wave" to waveAnimation()))
+        val everyFrame = ModelAnimator().apply { configure(null, AnimationsComponent(clips = listOf(playing))) }
+        val lateJoiner = ModelAnimator().apply { configure(null, AnimationsComponent(clips = listOf(playing))) }
+
+        // Thirty ticks at sixty frames a second.
+        repeat(91) { frame -> everyFrame.applyTo(target, clockAt(start, frame / 3f)) }
+        lateJoiner.applyTo(target, clockAt(start, 30f))
+
+        assertEquals(0.5f, everyFrame.layerTime(playing.id)!!, 0.0001f)
+        assertEquals(0.5f, lateJoiner.layerTime(playing.id)!!, 0.0001f)
+    }
+
+    /** A client's clock runs behind the server's, so it can see a clip before the tick the clip starts on. */
+    @Test
+    fun `clip waits while its start is still ahead of the clock`() {
+        val playing = clip(id = "npc:wave", animation = "wave", playMode = AnimationPlayMode.Loop)
+            .copy(startGameTime = 100L)
+        val target = PoseTarget(emptyMap(), mapOf("wave" to waveAnimation()))
+        val animator = ModelAnimator().apply { configure(null, AnimationsComponent(clips = listOf(playing))) }
+
+        animator.applyTo(target, clockAt(90L, 0f))
+        assertEquals(0f, animator.layerTime(playing.id)!!, 0.0001f)
+
+        animator.applyTo(target, clockAt(100L, 5f))
+        assertEquals(0.25f, animator.layerTime(playing.id)!!, 0.0001f)
+    }
+
+    @Test
+    fun `a new start time restarts a clip with the same id`() {
+        val first = clip(id = "npc:wave", animation = "wave", playMode = AnimationPlayMode.Loop)
+            .copy(startGameTime = 0L)
+        val target = PoseTarget(emptyMap(), mapOf("wave" to waveAnimation()))
+        val animator = ModelAnimator().apply { configure(null, AnimationsComponent(clips = listOf(first))) }
+        animator.applyTo(target, clockAt(0L, 10f))
+
+        animator.configure(null, AnimationsComponent(clips = listOf(first.copy(fadeOut = 0.5f))))
+        animator.applyTo(target, clockAt(0L, 10f))
+        assertEquals(0.5f, animator.layerTime(first.id)!!, 0.0001f)
+
+        animator.configure(null, AnimationsComponent(clips = listOf(first.copy(startGameTime = 10L))))
+        animator.applyTo(target, clockAt(0L, 10f))
+        assertEquals(0f, animator.layerTime(first.id)!!, 0.0001f)
+    }
+
+    /** At this clock a float game time is eight ticks coarse, which would put the fade far off. */
+    @Test
+    fun `stop fade is measured exactly on an old world clock`() {
+        val start = 100_000_000L
+        val node = testNode()
+        val target = PoseTarget(mapOf(node.definition.index to node), mapOf("wave" to waveAnimation()))
+        val stopping = clip(id = "npc:wave", animation = "wave", playMode = AnimationPlayMode.Loop).copy(
+            startGameTime = start,
+            stopAtGameTime = start + 10,
+            fadeOut = 0.5f,
+            removeOnEnd = false,
+        )
+        val animator = ModelAnimator().apply { configure(null, AnimationsComponent(clips = listOf(stopping))) }
+
+        node.resetPose()
+        animator.applyTo(target, clockAt(start + 10, 5f))
+
+        assertEquals(0.5f, node.transform.translation.x, 0.0001f)
     }
 
     @Test
@@ -534,9 +619,12 @@ private fun animationContext(
     time: Float = 0f,
     values: Map<String, Float> = emptyMap(),
 ) = AnimatorEvaluationContext().also { context ->
+    val clock = values["game_time"] ?: time
     context.deltaTime = deltaTime
     context.time = time
-    context.gameTime = values["game_time"] ?: time
+    context.gameTime = clock
+    context.gameTicks = floor(clock).toLong()
+    context.partialTick = clock - floor(clock)
     context.horizontalSpeed = values["horizontal_speed"] ?: 0f
     context.signedHorizontalSpeed = values["movement_animation_speed"] ?: 0f
     context.headBodyYawDelta = values["head_body_y_delta"] ?: 0f
@@ -560,6 +648,14 @@ private fun ModelAnimator.step(node: RuntimeNode, seconds: Float) {
 }
 
 private var clockTicks = 0f
+
+/** A context [ticksAfter] ticks past [gameTick] on the level clock, split into whole ticks and a fraction. */
+private fun clockAt(gameTick: Long, ticksAfter: Float) = AnimatorEvaluationContext().also { context ->
+    val whole = floor(ticksAfter)
+    context.gameTicks = gameTick + whole.toLong()
+    context.partialTick = ticksAfter - whole
+    context.gameTime = context.gameTicks.toFloat() + context.partialTick
+}
 
 private fun waveAnimation(): AnimationClip =
     AnimationClip(

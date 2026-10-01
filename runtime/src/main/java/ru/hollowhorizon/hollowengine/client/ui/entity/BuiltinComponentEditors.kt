@@ -118,7 +118,13 @@ private fun AnimationsExtras(scope: ComponentEditorScope) {
                 val next = if (playing) {
                     component.withoutClip(name)
                 } else {
-                    component.withClip(ClipAnimationLayerSpec(animation = name, playMode = AnimationPlayMode.Loop))
+                    component.withClip(
+                        ClipAnimationLayerSpec(
+                            animation = name,
+                            playMode = AnimationPlayMode.Loop,
+                            startGameTime = Minecraft.getInstance().level?.gameTime,
+                        )
+                    )
                 }
                 ComponentJson.encode(next)?.let(scope::replace)
             }

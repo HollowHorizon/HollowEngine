@@ -110,7 +110,7 @@ abstract class SpecLayer(initialSpec: AnimatorLayerSpec) : AnimationLayer {
     }
 
     override fun weight(context: AnimatorEvaluationContext): Float {
-        age += context.deltaTime.coerceAtLeast(0f)
+        age = nextAge(context)
         context.layerAge = age
         context.layerTime = time
         val declared = evaluator.float(spec.weight, context).coerceIn(0f, 1f)
@@ -119,6 +119,9 @@ abstract class SpecLayer(initialSpec: AnimatorLayerSpec) : AnimationLayer {
         return declared * fadeIn
     }
 
+    /** The layer's age this frame: by default it grows by the frame's step. */
+    protected open fun nextAge(context: AnimatorEvaluationContext): Float = age + context.deltaTime.coerceAtLeast(0f)
+
     protected abstract fun accepts(spec: AnimatorLayerSpec): Boolean
 
     protected open fun onReconfigured(spec: AnimatorLayerSpec) = Unit
@@ -126,21 +129,34 @@ abstract class SpecLayer(initialSpec: AnimatorLayerSpec) : AnimationLayer {
     protected fun mask(target: PoseTarget): Set<Int> = target.mask(spec.mask)
 }
 
-/** Plays one clip. */
+/**
+ * Plays one clip.
+ *
+ * A clip with a start time plays the game time elapsed since that tick, so a late first frame catches up
+ * and a long stall does not lose time; a clip without one plays the animator's frame step.
+ */
 class ClipLayer(clip: ClipAnimationLayerSpec) : SpecLayer(clip) {
     private val playback = ClipPlayback()
     private val clip: ClipAnimationLayerSpec get() = spec as ClipAnimationLayerSpec
+
+    /** Seconds since the start time that playback has already covered. */
+    private var played = 0f
 
     override val time: Float get() = playback.time
     override var finished: Boolean = false
         private set
 
-    override fun accepts(spec: AnimatorLayerSpec): Boolean = spec is ClipAnimationLayerSpec
+    /** Another start time is another playback, so it gets a fresh layer rather than this one's position. */
+    override fun accepts(spec: AnimatorLayerSpec): Boolean =
+        spec is ClipAnimationLayerSpec && spec.startGameTime == clip.startGameTime
+
+    override fun nextAge(context: AnimatorEvaluationContext): Float =
+        clip.startGameTime?.let { context.secondsSince(it).coerceAtLeast(0f) } ?: super.nextAge(context)
 
     override fun sample(target: PoseTarget, context: AnimatorEvaluationContext): LayerPose? {
         val animation = target.animations[clip.animation] ?: return null
         val speed = evaluator.float(clip.speed, context, 1f)
-        val sampleTime = playback.advance(animation.duration, clip.playMode, speed, context.deltaTime)
+        val sampleTime = playback.advance(animation.duration, clip.playMode, speed, step(context))
 
         val fadeOut = fadeOutScale(context)
         if (fadeOut <= 0f && (clip.stopAtGameTime != null || (playback.ended && clip.removeOnEnd))) {
@@ -159,13 +175,24 @@ class ClipLayer(clip: ClipAnimationLayerSpec) : SpecLayer(clip) {
     }
 
     /**
+     * Seconds to play this frame. With a start time that is what the clock moved past since the last frame,
+     * and nothing while the start is still ahead or the clock steps back.
+     */
+    private fun step(context: AnimatorEvaluationContext): Float {
+        val start = clip.startGameTime ?: return context.deltaTime
+        val elapsed = context.secondsSince(start)
+        if (elapsed <= played) return 0f
+        return (elapsed - played).also { played = elapsed }
+    }
+
+    /**
      * How much of the clip is left this frame: a stop request fades from the game time it was asked at,
      * everything else fades only once a one-shot has played out.
      */
     private fun fadeOutScale(context: AnimatorEvaluationContext): Float {
         clip.stopAtGameTime?.let { stoppedAt ->
             if (clip.fadeOut <= 0f) return 0f
-            val elapsed = (context.gameTime - stoppedAt) / TICKS_PER_SECOND
+            val elapsed = context.secondsSince(stoppedAt)
             return (1f - elapsed / clip.fadeOut).coerceIn(0f, 1f)
         }
         return if (clip.playMode != AnimationPlayMode.Once || clip.fadeOut <= 0f || !playback.ended) 1f
@@ -268,24 +295,14 @@ internal fun wrapTime(time: Float, duration: Float, playMode: AnimationPlayMode,
         }
 
         AnimationPlayMode.PingPong -> {
-            var nextTime = time
-            var nextReversed = reversed
-            while (nextTime !in 0f..duration) {
-                if (nextTime > duration) {
-                    nextTime = duration - (nextTime - duration)
-                    nextReversed = !nextReversed
-                } else {
-                    nextTime = -nextTime
-                    nextReversed = !nextReversed
-                }
-            }
-            WrappedTime(nextTime, nextTime, nextReversed, ended = false)
+            val period = duration * 2f
+            val phase = (if (reversed) period - time else time).modPositive(period)
+            if (phase <= duration) WrappedTime(phase, phase, reversed = false, ended = false)
+            else WrappedTime(period - phase, period - phase, reversed = true, ended = false)
         }
     }
 
 private fun Float.modPositive(divisor: Float): Float = (this % divisor + divisor) % divisor
-
-private const val TICKS_PER_SECOND = 20f
 
 /** Every node of the hierarchy, indexed the way poses address them. */
 fun List<RuntimeNode>.byIndex(): Map<Int, RuntimeNode> =

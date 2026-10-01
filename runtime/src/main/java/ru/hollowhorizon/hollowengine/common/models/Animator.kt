@@ -71,6 +71,7 @@ data class ClipAnimationLayerSpec(
     val removeOnEnd: Boolean = playMode == AnimationPlayMode.Once,
     val removeAtGameTime: Long? = null,
     val stopAtGameTime: Long? = null,
+    val startGameTime: Long? = null,
 ) : AnimatorLayerSpec() {
     override fun withCommon(
         id: String,

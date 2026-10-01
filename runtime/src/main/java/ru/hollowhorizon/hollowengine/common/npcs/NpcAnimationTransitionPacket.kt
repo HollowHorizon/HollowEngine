@@ -78,15 +78,17 @@ object NpcAnimationRuntime {
         val updated = to
             ?.takeIf(String::isNotBlank)
             ?.let { animation ->
+                val id = "npc:$animation"
                 withoutOld.withClip(
                     ClipAnimationLayerSpec(
-                        id = "npc:$animation",
+                        id = id,
                         animation = animation,
                         playMode = playMode,
                         fadeIn = fadeIn,
                         fadeOut = fadeOut,
                         removeOnEnd = playMode == AnimationPlayMode.Once,
                         removeAtGameTime = completionGameTime(gameTime, model, animation, playMode, fadeOut),
+                        startGameTime = withoutOld.continuedStart(id, playMode) ?: gameTime,
                     )
                 )
             } ?: withoutOld
@@ -139,6 +141,15 @@ object NpcAnimationRuntime {
 
             AttachmentRegistry.componentsById(entity)[animationsId] = updated
         }
+    }
+
+    /**
+     * Where a repeating clip that is already playing started, so playing it again carries on instead of
+     * jumping back to the first frame. A one-shot always starts over.
+     */
+    private fun AnimationsComponent.continuedStart(id: String, playMode: AnimationPlayMode): Long? {
+        if (playMode == AnimationPlayMode.Once) return null
+        return clips.firstOrNull { it.id == id && it.playMode == playMode && it.stopAtGameTime == null }?.startGameTime
     }
 
     private fun AnimationsComponent.fadeOutClip(

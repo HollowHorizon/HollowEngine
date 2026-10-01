@@ -1,5 +1,6 @@
 package ru.hollowhorizon.hollowengine.client.models.internal.v2
 
+import com.mojang.blaze3d.systems.RenderSystem
 import kotlinx.coroutines.flow.StateFlow
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.world.entity.EquipmentSlot
@@ -50,7 +51,7 @@ class ModelAttachment(
     private var runtimeNodes: List<RuntimeNode> = emptyList()
     private var nodesByIndex: Map<Int, RuntimeNode> = emptyMap()
     private var runtimeMaterials = ModelInstanceMaterials(Model.EMPTY)
-    private var renderPipeline = ListRenderPipeline()
+    private var renderPipeline: ListRenderPipeline? = null
     private var target: PoseTarget? = null
     private var cachedBounds: Pair<Vec3f, Vec3f>? = null
     private val modelChangeListeners = ArrayList<() -> Unit>()
@@ -59,7 +60,12 @@ class ModelAttachment(
     val nodes: List<RuntimeNode> get() = runtimeNodes
     val animations: Collection<AnimationClip> get() = model.animations
     val materials: List<Material> get() = runtimeMaterials.values
-    val pipeline: RenderPipeline get() = renderPipeline
+    /** GPU buffers are created on the render thread, the first time something draws this instance. */
+    val pipeline: RenderPipeline
+        get() {
+            RenderSystem.assertOnRenderThread()
+            return renderPipeline ?: ListRenderPipeline().apply(this::collectCommands).also { renderPipeline = it }
+        }
     val isFrustumCullingEnabled: Boolean get() = HollowModelManager.metadata(location).frustumCulling
 
     /**
@@ -138,7 +144,7 @@ class ModelAttachment(
         } ?: emptyList()
         nodesByIndex = runtimeNodes.byIndex()
         nodesByIndex.values.forEach(::customizeNode)
-        renderPipeline = ListRenderPipeline().apply(this::collectCommands)
+        renderPipeline = null
         target = null
         cachedBounds = null
         modelChangeListeners.forEach { it() }
