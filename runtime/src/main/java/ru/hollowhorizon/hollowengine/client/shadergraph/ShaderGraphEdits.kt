@@ -10,17 +10,75 @@ fun ShaderGraph.freeNodeId(type: String): String {
 
 fun ShaderGraph.withNode(node: ShaderGraphNode): ShaderGraph = copy(nodes = nodes + node)
 
-/** Without the node and every link into or out of it. */
-fun ShaderGraph.withoutNode(id: String): ShaderGraph = copy(
-    nodes = nodes.filterNot { it.id == id },
-    links = links.filterNot { it.from == id || it.to == id },
-)
+/**
+ * Without the nodes of [ids], every link into or out of them, and their places in groups. A reroute is
+ * dissolved rather than cut: what fed it goes on feeding what it fed, so tidying a link up and taking
+ * the tidying away again leaves the graph as it was.
+ */
+fun ShaderGraph.withoutNodes(ids: Set<String>): ShaderGraph {
+    fun sourceOf(reroute: String): ShaderGraphLink? {
+        var link = linkInto(reroute, ShaderNodeLibrary.REROUTE_INPUT) ?: return null
+        while (link.from in ids && node(link.from)?.type == ShaderNodeLibrary.REROUTE) {
+            link = linkInto(link.from, ShaderNodeLibrary.REROUTE_INPUT) ?: return null
+        }
+        return link.takeIf { it.from !in ids }
+    }
 
-/** Without the nodes of [ids] and every link into or out of them. */
-fun ShaderGraph.withoutNodes(ids: Set<String>): ShaderGraph = copy(
-    nodes = nodes.filterNot { it.id in ids },
-    links = links.filterNot { it.from in ids || it.to in ids },
-)
+    val bridged = links.filter { it.from in ids && it.to !in ids && node(it.from)?.type == ShaderNodeLibrary.REROUTE }
+        .mapNotNull { out -> sourceOf(out.from)?.let { ShaderGraphLink(it.from, it.output, out.to, out.input) } }
+    return copy(
+        nodes = nodes.filterNot { it.id in ids },
+        links = links.filterNot { it.from in ids || it.to in ids } + bridged,
+        groups = groups.map { it.copy(nodes = it.nodes - ids) }.filter { it.nodes.isNotEmpty() },
+    )
+}
+
+/**
+ * A reroute [id] at ([x], [y]) put into the link at [index]: what fed the link feeds the reroute, and
+ * the reroute feeds where the link went.
+ */
+fun ShaderGraph.withReroute(index: Int, id: String, x: Float, y: Float): ShaderGraph {
+    val link = links.getOrNull(index) ?: return this
+    return withoutLinkAt(index).withNode(ShaderGraphNode(id, ShaderNodeLibrary.REROUTE, x, y))
+        .withLink(link.from, link.output, id, ShaderNodeLibrary.REROUTE_INPUT)
+        .withLink(id, ShaderNodeLibrary.REROUTE_OUTPUT, link.to, link.input)
+}
+
+/** An id no group has yet. */
+fun ShaderGraph.freeGroupId(): String {
+    var index = 1
+    while (groups.any { it.id == "group_$index" }) index++
+    return "group_$index"
+}
+
+/**
+ * The nodes of [ids] put together in a new group called [title], taken out of whatever group they
+ * were in; a group left with nothing in it goes. Returns the id of the new group too.
+ */
+fun ShaderGraph.withGroup(ids: Set<String>, title: String): Pair<ShaderGraph, String> {
+    val members = nodes.map { it.id }.filter { it in ids }
+    if (members.isEmpty()) return this to ""
+    val id = freeGroupId()
+    return withMembership(ids, group = null).let { it.copy(groups = it.groups + ShaderGraphGroup(id, title, members)) } to id
+}
+
+/**
+ * The nodes of [ids] moved into [group], or out of every group when it is null. A node is in one group
+ * at most, so they leave the ones they were in, and a group left with nothing in it goes.
+ */
+fun ShaderGraph.withMembership(ids: Set<String>, group: String?): ShaderGraph {
+    val joining = nodes.map { it.id }.filter { it in ids }
+    return copy(groups = groups.mapNotNull { each ->
+        val members = (each.nodes - ids) + if (each.id == group) joining else emptyList()
+        each.copy(nodes = members).takeIf { members.isNotEmpty() }
+    })
+}
+
+/** Without the group; its nodes stay where they are. */
+fun ShaderGraph.withoutGroup(id: String): ShaderGraph = copy(groups = groups.filterNot { it.id == id })
+
+fun ShaderGraph.withGroupChanged(id: String, change: (ShaderGraphGroup) -> ShaderGraphGroup): ShaderGraph =
+    copy(groups = groups.map { if (it.id == id) change(it) else it })
 
 fun ShaderGraph.withNodeAt(id: String, x: Float, y: Float): ShaderGraph =
     mapNode(id) { it.copy(x = x, y = y) }

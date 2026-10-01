@@ -83,6 +83,34 @@ class ShaderGraphCompilerTest {
     }
 
     @Test
+    fun `a reroute carries whatever it is given along, a texture too`() {
+        val graph = ShaderGraph(
+            nodes = listOf(
+                ShaderGraphNode("noise", ShaderNodeLibrary.PROPERTY, options = mapOf("property" to "Noise")),
+                ShaderGraphNode("carry", ShaderNodeLibrary.REROUTE),
+                ShaderGraphNode("sample", "hollowengine:texture/sample"),
+                ShaderGraphNode("color", "hollowengine:input/vertex_color"),
+                ShaderGraphNode("pass", ShaderNodeLibrary.REROUTE),
+                output,
+            ),
+            links = listOf(
+                ShaderGraphLink("noise", "Out", "carry", ShaderNodeLibrary.REROUTE_INPUT),
+                ShaderGraphLink("carry", ShaderNodeLibrary.REROUTE_OUTPUT, "sample", "Texture"),
+                ShaderGraphLink("sample", "RGB", "out", SurfaceOutputs.COLOR),
+                ShaderGraphLink("color", "A", "pass", ShaderNodeLibrary.REROUTE_INPUT),
+                ShaderGraphLink("pass", ShaderNodeLibrary.REROUTE_OUTPUT, "out", SurfaceOutputs.ALPHA),
+            ),
+            properties = listOf(ShaderGraphProperty("Noise", ShaderType.TEXTURE)),
+        )
+        val code = ShaderGraphCompiler.compile(graph)
+
+        assertEquals(emptyList(), code.diagnostics)
+        assertEquals(ShaderType.TEXTURE, code.types.output("carry", ShaderNodeLibrary.REROUTE_OUTPUT))
+        assertEquals(ShaderType.FLOAT, code.types.output("pass", ShaderNodeLibrary.REROUTE_OUTPUT))
+        assertTrue(code.fragment.text.contains("texture(p_Noise, sg_texture_uv)"), code.fragment.text)
+    }
+
+    @Test
     fun `a texture property is sampled by its uniform`() {
         val graph = ShaderGraph(
             nodes = listOf(

@@ -33,24 +33,45 @@ fun VfxColorRow(
     }
 
     if (driven != null) {
+        val authored = value.constants()
+        val shown = VfxRgba(
+            if (driven.drives(0)) driven.value(0) else authored[0],
+            if (driven.drives(1)) driven.value(1) else authored[1],
+            if (driven.drives(2)) driven.value(2) else authored[2],
+            if (driven.drives(3)) driven.value(3) else authored[3],
+        )
+        val recording = driven.recording
         Row(modifier = Modifier.size(100.percent).gap(3.px).alignItems(vertical = UiAlign.CENTER)) {
             VfxFieldLabel(label, hint)
-            val authored = value.constants()
-            val shown = VfxRgba(
-                if (driven.drives(0)) driven.value(0) else authored[0],
-                if (driven.drives(1)) driven.value(1) else authored[1],
-                if (driven.drives(2)) driven.value(2) else authored[2],
-                if (driven.drives(3)) driven.value(3) else authored[3],
-            )
             Box(
-                tags = listOf("vfx-driven"),
-                modifier = Modifier.size(0.px, CurveCellHeight.px).grow(1f).input(hoverable = true)
-                    .cursor(UiCursorShape.NOT_ALLOWED).tooltipOnHover(vfxText("driven_hint")).drawBehind(key = shown) {
+                tags = if (recording) emptyList() else listOf("vfx-driven"),
+                modifier = Modifier.size(0.px, CurveCellHeight.px).grow(1f).onPlaced { anchor = it }
+                    .input(hoverable = true, clickable = recording)
+                    .cursor(if (recording) UiCursorShape.HAND else UiCursorShape.NOT_ALLOWED)
+                    .tooltipOnHover(vfxText(if (recording) "driven_record_hint" else "driven_hint"))
+                    .drawBehind(key = shown) {
                         drawChecker(size.width, size.height)
                         drawRect(UiPaint.Color(shown.toUi()), radius = 3f)
+                    }.onClick { event ->
+                        if (!recording) return@onClick
+                        open = !open
+                        focus(property)
+                        event.consume()
                     },
             )
             InspectorIcon(KeyframeIcon, vfxText("driven_show")) { focus(property) }
+        }
+        if (open && recording) {
+            Popup(anchorBounds = anchor, id = "vfx-color-popup", tags = listOf("vfx-popup"), onDismiss = { open = false }) {
+                ColorPicker(
+                    value = shown.toUi(),
+                    onValueChange = { picked ->
+                        val was = shown.channels()
+                        val now = picked.toRgba().channels()
+                        driven.write(now.indices.filter { now[it] != was[it] }.associateWith { now[it] })
+                    },
+                )
+            }
         }
         return
     }
@@ -260,6 +281,8 @@ private fun VfxGradient.withoutStop(index: Int): VfxGradient = VfxGradient(stops
 internal fun VfxRgba.toUi(): UiColor = UiColor(r, g, b, a)
 
 internal fun UiColor.toRgba(): VfxRgba = VfxRgba(red, green, blue, alpha)
+
+private fun VfxRgba.channels(): FloatArray = floatArrayOf(r, g, b, a)
 
 private const val PaletteWidth = 26f
 private const val RemoveIcon = "hollowengine:textures/gui/icons/vfx/remove.svg"

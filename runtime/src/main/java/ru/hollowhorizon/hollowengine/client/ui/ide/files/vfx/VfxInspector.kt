@@ -42,7 +42,7 @@ internal fun vfxNodeInspector(
         val live = document.effect.node(nodeId) ?: return@InspectorTarget
         CompositionLocalProvider(
             LocalVfxFieldFocus provides { property -> state.focusProperty(nodeId, property) },
-            LocalVfxDriven provides vfxDrivenLookup(document, state.preview, nodeId),
+            LocalVfxDriven provides vfxDrivenLookup(document, state, nodeId),
         ) {
             NodeFields(document, state, live)
         }

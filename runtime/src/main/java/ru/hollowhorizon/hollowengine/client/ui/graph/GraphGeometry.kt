@@ -17,10 +17,22 @@ data class GraphRect(val x: Float, val y: Float, val width: Float, val height: F
     fun toCanvas(view: GraphViewState) =
         GraphRect(view.toCanvasX(x), view.toCanvasY(y), width * view.zoom, height * view.zoom)
 
+    /** This rectangle grown by [left], [top], [right] and [bottom] on each side. */
+    fun expanded(left: Float, top: Float, right: Float = left, bottom: Float = top) =
+        GraphRect(x - left, y - top, width + left + right, height + top + bottom)
+
     companion object {
         /** The rectangle two corners span, in whichever order they came. */
         fun between(x1: Float, y1: Float, x2: Float, y2: Float) =
             GraphRect(minOf(x1, x2), minOf(y1, y2), abs(x2 - x1), abs(y2 - y1))
+
+        /** The smallest rectangle around all of [rects], or null when there are none. */
+        fun around(rects: Collection<GraphRect>): GraphRect? {
+            if (rects.isEmpty()) return null
+            val left = rects.minOf { it.x }
+            val top = rects.minOf { it.y }
+            return GraphRect(left, top, rects.maxOf { it.x + it.width } - left, rects.maxOf { it.y + it.height } - top)
+        }
     }
 }
 

@@ -5,6 +5,7 @@
   "view.curves": "Curves",
   "view.frame_curves": "Frame curves",
   "action.capture": "Capture keyframe",
+  "action.record": "Auto-key: edits in the inspector and with the gizmo become keys at the playhead",
   "action.add_keyframe": "Add keyframe here",
   "action.delete_selected": "Delete selected",
   "action.smooth_selected": "Smooth selected",

@@ -5,6 +5,7 @@
   "view.curves": "Кривые",
   "view.frame_curves": "Показать все кривые",
   "action.capture": "Записать ключ",
+  "action.record": "Автозапись: правки в инспекторе и гизмо ставят ключи под курсором времени",
   "action.add_keyframe": "Добавить ключ здесь",
   "action.delete_selected": "Удалить выбранные",
   "action.smooth_selected": "Сгладить выбранные",

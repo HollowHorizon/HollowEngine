@@ -41,6 +41,10 @@ object HollowEngineConfig : Config() {
     @PropertyName("transform_gizmo_modes")
     var gizmoModes by property(GizmoEditMode.TRANSLATE.name)
 
+    @PropertyComment("Whether nodes dragged in a graph land on its grid")
+    @PropertyName("graph_snap_to_grid")
+    var graphSnapToGrid by property(false)
+
     @PropertyComment(
         "Characters kept ready before a TrueType font is first drawn. Anything outside this still " +
                 "renders, it just appears a frame or two after it is first met, so widen it only for " +

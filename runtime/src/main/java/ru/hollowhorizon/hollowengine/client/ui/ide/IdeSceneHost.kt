@@ -29,6 +29,7 @@ class SceneTarget(
     /** Puts the dragged item under the one it was dropped on; null when the hierarchy cannot be rearranged. */
     val onMove: ((dragged: String, target: String) -> Boolean)? = null,
     val canMove: (dragged: String, target: String) -> Boolean = { _, _ -> true },
+    val onIconClick: ((String) -> Unit)? = null,
 )
 
 /**
@@ -112,6 +113,7 @@ internal fun SceneDock() {
                     target.onSelect(null)
                 },
                 onBackgroundContextMenu = { event -> openMenu(null, event) },
+                onIconClick = target.onIconClick?.let { click -> { item -> click(item.id) } },
                 fillRowWidth = true,
                 dragItem = if (move == null) null else { item ->
                     UiDragItem(payload = SceneDrag(target.id, item.id), icon = item.icon, label = item.label)

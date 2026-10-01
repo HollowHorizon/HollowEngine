@@ -1,0 +1,12 @@
+{
+  "snap_to_grid": "Snap to grid",
+  "arrange": "Arrange",
+  "align.left": "Align left edges",
+  "align.center_x": "Center horizontally",
+  "align.right": "Align right edges",
+  "align.top": "Align top edges",
+  "align.center_y": "Center vertically",
+  "align.bottom": "Align bottom edges",
+  "distribute.horizontal": "Space evenly across",
+  "distribute.vertical": "Space evenly down"
+}

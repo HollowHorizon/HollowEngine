@@ -7,9 +7,11 @@ import kotlinx.coroutines.sync.withLock
 import net.minecraft.client.Minecraft
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.client.ui.docking.DockItem
+import ru.hollowhorizon.hollowengine.client.ui.notification.HollowNotifications
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeItem
 import ru.hollowhorizon.hollowengine.client.ui.widgets.UiTreeReveal
 import ru.hollowhorizon.hollowengine.client.utils.IconHelper
+import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.fromReadablePath
 import ru.hollowhorizon.hollowengine.common.files.DirectoryManager.toReadablePath
@@ -160,7 +162,13 @@ internal class HollowIdeModel(
     fun save(path: String): Boolean {
         val file = files[path]?.takeUnless { it.readOnly } ?: return false
         pendingSaves.remove(path)?.cancel()
-        writeIdeFile(path.fromReadablePath().toPath(), file.encode())
+        try {
+            writeIdeFile(path.fromReadablePath().toPath(), file.encode())
+        } catch (e: Exception) {
+            HollowEngine.LOGGER.error("Could not save {}", path, e)
+            HollowNotifications.error("hollowengine.gui.ide.file.save_failed".lang.format(path.substringAfterLast('/')))
+            return false
+        }
         file.markSaved()
         tree.refresh()
         return true

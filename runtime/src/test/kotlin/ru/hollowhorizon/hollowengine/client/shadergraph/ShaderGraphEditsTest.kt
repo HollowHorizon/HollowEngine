@@ -46,6 +46,28 @@ class ShaderGraphEditsTest {
     }
 
     @Test
+    fun `deleting reroutes joins the link back up, however many of them are taken out at once`() {
+        val once = graph.withLink("a", "Out", "c", "A").withReroute(0, "r1", 0f, 0f)
+        val rerouted = once.withReroute(once.links.indexOfFirst { it.to == "c" }, "r2", 0f, 0f)
+        assertEquals(3, rerouted.links.size)
+
+        assertEquals(listOf(ShaderGraphLink("a", "Out", "c", "A")), rerouted.withoutNodes(setOf("r1", "r2")).links)
+        // A reroute whose source goes too has nothing to join to: the one left keeps only its way out.
+        assertEquals(listOf(ShaderGraphLink("r2", "Out", "c", "A")), rerouted.withoutNodes(setOf("a", "r1")).links)
+    }
+
+    @Test
+    fun `a node is in one group at most, and a group left empty goes`() {
+        val (first, one) = graph.withGroup(setOf("a", "b"), "One")
+        val (second, two) = first.withGroup(setOf("a", "b", "c"), "Two")
+
+        assertEquals(listOf(two), second.groups.map { it.id })
+        assertEquals(listOf("a", "b", "c"), second.group(two)?.nodes)
+        assertTrue(one != two)
+        assertTrue(second.withoutNodes(setOf("a", "b", "c")).groups.isEmpty())
+    }
+
+    @Test
     fun `renaming a property renames what its nodes read`() {
         val withProperty = graph
             .withProperty(ShaderGraphProperty("Speed"))

@@ -53,22 +53,30 @@ class HollowIdeVfxDocument(bytes: ByteArray) : HollowIdeFileDocument {
         private set
 
     /**
+     * Told about every edit the author makes, once it is in; edits made without [edit]'s history, such
+     * as the timeline writing its tracks back, are not reported. Auto-keying listens here.
+     */
+    var onEdit: ((before: VfxEffect, after: VfxEffect) -> Unit)? = null
+
+    /**
      * Replaces the effect with what [change] makes of it.
      */
     fun edit(mergeKey: String? = null, history: Boolean = true, change: (VfxEffect) -> VfxEffect) {
         if (readOnly) return
 
-        val next = change(effect)
-        if (next == effect) return
+        val previous = effect
+        val next = change(previous)
+        if (next == previous) return
 
         if (history && gestureStart == null) {
             val now = System.nanoTime()
             val merges = mergeKey != null && mergeKey == lastMergeKey && now - lastEditNanos < MERGE_WINDOW_NANOS
-            if (!merges) remember(effect)
+            if (!merges) remember(previous)
             lastMergeKey = mergeKey
             lastEditNanos = now
         }
         apply(next)
+        if (history) onEdit?.invoke(previous, next)
     }
 
     /** Starts a gesture, such as dragging a handle, that should go back in one step. */

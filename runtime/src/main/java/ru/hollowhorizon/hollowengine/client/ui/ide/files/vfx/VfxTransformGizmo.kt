@@ -49,10 +49,11 @@ internal class VfxTransformGizmo {
 
     /**
      * The handles for [frame], the node as it is placed right now. A part of the placement that the
-     * timeline drives offers no handles: the timeline would put it back on the next frame.
+     * timeline drives offers no handles, since the timeline would put it back on the next frame, unless
+     * the timeline records: then a drag becomes a key.
      */
     fun handles(frame: VfxFrame, modes: Set<GizmoEditMode>, driven: (VfxProperty) -> VfxDrivenValue?): List<GizmoHandle> {
-        val editable = modes.filterTo(HashSet()) { mode -> driven(mode.property) == null }
+        val editable = modes.filterTo(HashSet()) { mode -> driven(mode.property)?.recording != false }
         if (editable.isEmpty()) return emptyList()
         return geometry.buildHandles(frame.position.copy(), frame.rotation.copy(), editable)
     }

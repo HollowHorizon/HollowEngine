@@ -128,7 +128,7 @@ private fun AddAttachment(document: HollowIdeRigDocument, bone: String, current:
     if (kinds.isEmpty()) return
 
     InspectorButton(
-        rigText("add_attachment"),
+        rigText("attach"),
         icon = "hollowengine:textures/gui/icons/add.svg",
         modifier = Modifier.onPlaced { anchor = it },
         tags = listOf("primary"),
@@ -142,14 +142,14 @@ private fun AddAttachment(document: HollowIdeRigDocument, bone: String, current:
         items = kinds.map { type ->
             val create = requireNotNull(type.createDefault)
             UiDropdownItem(type.title()) {
-                document.edit { it.withBone(bone, current.withAttachment(create(freeId(current, type)))) }
+                document.edit { it.withBone(bone, current.withAttachment(create(freeAttachmentId(current, type)))) }
             }
         },
         onExpandedChange = { if (!it) open = false },
     )
 }
 
-private fun freeId(bone: RigBone, type: RigAttachmentType<*>): String {
+internal fun freeAttachmentId(bone: RigBone, type: RigAttachmentType<*>): String {
     val base = type.id.substringAfterLast('/')
     if (bone.attachment(base) == null) return base
 
@@ -158,7 +158,7 @@ private fun freeId(bone: RigBone, type: RigAttachmentType<*>): String {
     return "$base$index"
 }
 
-private fun RigAttachmentType<*>?.title(): String {
+internal fun RigAttachmentType<*>?.title(): String {
     if (this == null) return rigText("unknown_kind")
     val translated = titleKey.lang
     return if (translated == titleKey) id.substringAfterLast('/') else translated

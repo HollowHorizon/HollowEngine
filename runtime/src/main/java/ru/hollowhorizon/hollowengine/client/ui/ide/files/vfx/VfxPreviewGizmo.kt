@@ -152,8 +152,9 @@ object VfxGizmos {
             return keyed?.value(channel) ?: value.constantOr(fallback)
         }
 
+        /** A keyed channel only takes a drag while the timeline records it as a key. */
         private fun editable(property: VfxProperty, channel: Int, value: VfxValue): Boolean =
-            value is VfxValue.Const && driven(property)?.drives(channel) != true
+            value is VfxValue.Const && driven(property)?.let { it.drives(channel) && !it.recording } != true
 
         fun shape(shape: VfxShape) {
             val radius = current(VfxProperty.SHAPE_RADIUS, 0, shape.radius, 0.5f)

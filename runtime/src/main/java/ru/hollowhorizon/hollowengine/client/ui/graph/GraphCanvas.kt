@@ -12,11 +12,13 @@ import ru.hollowhorizon.hollowengine.client.ui.Box
 import ru.hollowhorizon.hollowengine.client.ui.Column
 import ru.hollowhorizon.hollowengine.client.ui.Modifier
 import ru.hollowhorizon.hollowengine.client.ui.UiAlign
+import ru.hollowhorizon.hollowengine.client.ui.UiBorder
 import ru.hollowhorizon.hollowengine.client.ui.UiBoxMode
 import ru.hollowhorizon.hollowengine.client.ui.UiCanvasDrawScope
 import ru.hollowhorizon.hollowengine.client.ui.UiColor
 import ru.hollowhorizon.hollowengine.client.ui.UiDrawStyle
 import ru.hollowhorizon.hollowengine.client.ui.UiEvent
+import ru.hollowhorizon.hollowengine.client.ui.UiInsets
 import ru.hollowhorizon.hollowengine.client.ui.alignItems
 import ru.hollowhorizon.hollowengine.client.ui.background
 import ru.hollowhorizon.hollowengine.client.ui.clip
@@ -99,6 +101,12 @@ data class GraphLinkPreview(
     val curve: GraphCurve? = null,
 )
 
+/**
+ * The backdrop of a group of nodes, in graph space: drawn under the links, so they stay readable over
+ * it. Its title bar is a node of its own ([GraphGroupHeader]), since only that bar takes the pointer.
+ */
+data class GraphFrame(val rect: GraphRect, val color: UiColor)
+
 /** A node as the minimap marks it, in graph space. */
 data class GraphMiniMapItem(
     val rect: GraphRect,
@@ -116,9 +124,11 @@ fun GraphCanvas(
     modifier: Modifier = Modifier,
     edges: List<GraphEdge> = emptyList(),
     link: GraphLinkPreview? = null,
+    frames: List<GraphFrame> = emptyList(),
     minimap: List<GraphMiniMapItem> = emptyList(),
     onBackgroundClick: (GraphPointer) -> Unit = {},
     onEdgeClick: (Any) -> Unit = {},
+    onEdgeDoubleClick: ((Any, GraphPointer) -> Unit)? = null,
     onContextMenu: (GraphPointer, edge: Any?) -> Unit = { _, _ -> },
     onRelease: () -> Unit = {},
     onSelectArea: ((area: GraphRect, modifiers: Int) -> Unit)? = null,
@@ -131,6 +141,7 @@ fun GraphCanvas(
     var marquee by remember { mutableStateOf<GraphRect?>(null) }
     val grabbedAt = remember { floatArrayOf(0f, 0f) }
     val selecting = remember { booleanArrayOf(false) }
+    val lastEdgeClick = remember { EdgeClick() }
 
     LaunchedEffect(view) {
         while (true) {
@@ -160,8 +171,9 @@ fun GraphCanvas(
             .clip(true)
             .onPlaced { canvas = it }
             .input(hoverable = true, clickable = true, draggable = true)
-            .drawBehind(GraphDrawKey(view.zoom, view.panX, view.panY, edges, link, hovered)) {
+            .drawBehind(GraphDrawKey(view.zoom, view.panX, view.panY, edges, link, hovered, frames)) {
                 drawGrid(view)
+                frames.forEach { drawFrame(it, view) }
                 edges.sortedBy { it.selected }.forEach { edge ->
                     val color = when {
                         edge.selected -> GraphColors.EdgeSelected
@@ -229,6 +241,9 @@ fun GraphCanvas(
                 val edge = edgeAt(event.localX, event.localY)
                 when {
                     event.button == GLFW.GLFW_MOUSE_BUTTON_RIGHT -> onContextMenu(pointer(event), edge)
+                    edge != null && onEdgeDoubleClick != null && lastEdgeClick.repeats(edge) ->
+                        onEdgeDoubleClick(edge, pointer(event))
+
                     edge != null -> onEdgeClick(edge)
                     else -> onBackgroundClick(pointer(event))
                 }
@@ -351,6 +366,40 @@ private fun UiCanvasDrawScope.drawSegment(x1: Float, y1: Float, x2: Float, y2: F
     drawShape(shape, bounds, UiPaint.Color(color), UiDrawStyle.Stroke(width))
 }
 
+/**
+ * A frame fills its part of the canvas and outlines it, cut to the canvas by hand, since what is drawn
+ * behind a node is not bounded by the node's clip.
+ */
+private fun UiCanvasDrawScope.drawFrame(frame: GraphFrame, view: GraphViewState) {
+    val onCanvas = frame.rect.toCanvas(view)
+    val left = onCanvas.x.coerceAtLeast(0f)
+    val top = onCanvas.y.coerceAtLeast(0f)
+    val right = (onCanvas.x + onCanvas.width).coerceAtMost(size.width)
+    val bottom = (onCanvas.y + onCanvas.height).coerceAtMost(size.height)
+    if (right <= left || bottom <= top) return
+    val radius = FRAME_RADIUS * view.zoom
+    drawRect(
+        UiRect(left, top, right - left, bottom - top),
+        UiPaint.Color(frame.color.copy(alpha = frame.color.alpha * FRAME_FILL)),
+        radius = radius,
+        border = UiBorder(UiInsets.all(1.px), frame.color.copy(alpha = frame.color.alpha * FRAME_OUTLINE), radius),
+    )
+}
+
+/** When the last link was clicked, so a second click on it soon after reads as a double click. */
+private class EdgeClick {
+    private var key: Any? = null
+    private var at = 0L
+
+    fun repeats(edge: Any): Boolean {
+        val now = System.currentTimeMillis()
+        val repeated = edge == key && now - at <= DOUBLE_CLICK_MILLIS
+        key = if (repeated) null else edge
+        at = now
+        return repeated
+    }
+}
+
 private data class GraphDrawKey(
     val zoom: Float,
     val panX: Float,
@@ -358,7 +407,13 @@ private data class GraphDrawKey(
     val edges: List<GraphEdge>,
     val link: GraphLinkPreview?,
     val hovered: Any?,
+    val frames: List<GraphFrame>,
 )
+
+const val FRAME_RADIUS = 8f
+private const val FRAME_FILL = 0.12f
+private const val FRAME_OUTLINE = 0.45f
+private const val DOUBLE_CLICK_MILLIS = 400L
 
 /** How far apart the lines of the grid are, in graph units. */
 const val GRID_STEP = 32f

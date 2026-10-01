@@ -254,10 +254,11 @@ open class Vec4f(open val x: Float, open val y: Float, open val z: Float, open v
         override val descriptor: SerialDescriptor = listSerialDescriptor<Float>()
 
         override fun serialize(encoder: Encoder, value: Vec4f) {
-            encoder.encodeCollection(descriptor, 3) {
+            encoder.encodeCollection(descriptor, 4) {
                 encodeFloatElement(descriptor, 0, value.x)
                 encodeFloatElement(descriptor, 1, value.y)
-                encodeFloatElement(descriptor, 3, value.z)
+                encodeFloatElement(descriptor, 2, value.z)
+                encodeFloatElement(descriptor, 3, value.w)
             }
         }
 
@@ -611,10 +612,11 @@ open class Vec4d(open val x: Double, open val y: Double, open val z: Double, ope
         override val descriptor: SerialDescriptor = listSerialDescriptor<Double>()
 
         override fun serialize(encoder: Encoder, value: Vec4d) {
-            encoder.encodeCollection(descriptor, 3) {
+            encoder.encodeCollection(descriptor, 4) {
                 encodeDoubleElement(descriptor, 0, value.x)
                 encodeDoubleElement(descriptor, 1, value.y)
-                encodeDoubleElement(descriptor, 3, value.z)
+                encodeDoubleElement(descriptor, 2, value.z)
+                encodeDoubleElement(descriptor, 3, value.w)
             }
         }
 
@@ -905,10 +907,11 @@ open class Vec4i(open val x: Int, open val y: Int, open val z: Int, open val w: 
         override val descriptor: SerialDescriptor = listSerialDescriptor<Int>()
 
         override fun serialize(encoder: Encoder, value: Vec4i) {
-            encoder.encodeCollection(descriptor, 3) {
+            encoder.encodeCollection(descriptor, 4) {
                 encodeIntElement(descriptor, 0, value.x)
                 encodeIntElement(descriptor, 1, value.y)
-                encodeIntElement(descriptor, 3, value.z)
+                encodeIntElement(descriptor, 2, value.z)
+                encodeIntElement(descriptor, 3, value.w)
             }
         }
 

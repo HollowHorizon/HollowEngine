@@ -104,6 +104,7 @@ internal fun VfxEditorPanel(file: HollowIdeOpenFile) {
                 session.commit()
                 session.applyListing()
             },
+            recordable = true,
         )
     }
 
@@ -157,9 +158,24 @@ private fun Toolbar(state: VfxEditorState) {
 }
 
 /** What editor is looking at, as opposed to what it is editing. */
-internal class VfxEditorState(document: HollowIdeVfxDocument) {
+internal class VfxEditorState(private val document: HollowIdeVfxDocument) {
     val preview = VfxPreviewState()
     val session = VfxTimelineSession(document, preview).also { it.timeline.isPlaying = true }
+
+    init {
+        document.onEdit = session::recordEdit
+    }
+
+    /** A drag in the viewport: one step back in the file, and one in the timeline for the keys it records. */
+    fun beginGesture() {
+        document.beginGesture()
+        session.timeline.beginHistoryTransaction("Record keys")
+    }
+
+    fun endGesture() {
+        document.endGesture()
+        session.timeline.commitHistoryTransaction()
+    }
 
     var selected by mutableStateOf<String?>(null)
         private set
@@ -207,12 +223,12 @@ private fun Viewport(document: HollowIdeVfxDocument, state: VfxEditorState, sele
     val preview = state.preview
     val node = selected?.let { document.effect.node(it) }
     val runtime = selected?.let { preview.instance?.node(it) }
-    val driven = selected?.let { vfxDrivenLookup(document, preview, it) } ?: { null }
+    val driven = selected?.let { vfxDrivenLookup(document, state, it) } ?: { null }
 
     val gizmoKey = listOf(
         preview.yaw, preview.pitch, preview.distance, preview.targetX, preview.targetY, preview.targetZ,
         preview.viewportWidth, preview.viewportHeight, preview.time, preview.showShape, preview.revision, node,
-        state.gizmoModes,
+        state.gizmoModes, state.session.timeline.isRecording,
     )
     val gizmo = remember(gizmoKey) {
         if (node == null) VfxGizmo.EMPTY else VfxGizmos.build(preview, node, runtime, preview.showShape, driven)
@@ -243,7 +259,7 @@ private fun Viewport(document: HollowIdeVfxDocument, state: VfxEditorState, sele
                 state.drag = handle
                 state.transformDrag = moving
                 state.readout = null
-                if (handle != null || moving != null) document.beginGesture() else preview.beginCameraDrag()
+                if (handle != null || moving != null) state.beginGesture() else preview.beginCameraDrag()
             }.onDrag { event ->
                 val handle = state.drag
                 val moving = state.transformDrag
@@ -269,7 +285,7 @@ private fun Viewport(document: HollowIdeVfxDocument, state: VfxEditorState, sele
                 }
                 event.consume()
             }.onRelease {
-                if (state.drag != null || state.transformDrag != null) document.endGesture()
+                if (state.drag != null || state.transformDrag != null) state.endGesture()
                 state.drag = null
                 state.transformDrag = null
                 state.readout = null

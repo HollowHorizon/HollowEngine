@@ -24,17 +24,23 @@ enum class ShaderType(val glsl: String, val width: Int) {
 
 /**
  * The type a pin is declared with: a fixed one; [DYNAMIC], where every dynamic pin of the node takes
- * the widest vector any of them is given; or [ANY], which keeps whatever vector it is given as it is.
+ * the widest vector any of them is given; [ANY], which keeps whatever vector it is given as it is; or
+ * [PASS], which keeps whatever it is given, a texture too, for a node that only carries a link along.
  */
 enum class ShaderPinType(val fixed: ShaderType?) {
     FLOAT(ShaderType.FLOAT), VEC2(ShaderType.VEC2), VEC3(ShaderType.VEC3), VEC4(ShaderType.VEC4), TEXTURE(ShaderType.TEXTURE), DYNAMIC(
         null
     ),
-    ANY(null);
+    ANY(null),
+    PASS(null);
+
+    /** Whether the pin takes the type of what is linked into it, rather than the node's or its own. */
+    val keepsLinkedType: Boolean get() = this == ANY || this == PASS
 
     /** Whether a value of [type] can be linked into a pin of this type. */
-    fun accepts(type: ShaderType): Boolean = when (fixed) {
-        null -> type.isVector
+    fun accepts(type: ShaderType): Boolean = when {
+        this == PASS -> true
+        fixed == null -> type.isVector
         else -> coerce("", type, fixed) != null
     }
 

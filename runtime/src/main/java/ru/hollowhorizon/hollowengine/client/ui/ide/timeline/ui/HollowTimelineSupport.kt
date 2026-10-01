@@ -270,6 +270,11 @@ internal object TimelineColors {
     val Blue = UiColor(0.682f, 0.722f, 0.792f, 1f)
     val Border = UiColor(0.149f, 0.157f, 0.180f, 1f)
     val Danger = UiColor(0.76f, 0.23f, 0.23f, 1f)
+    val Recording = UiColor(0.878f, 0.478f, 0.478f, 1f)
     val Grid = UiColor(0.176f, 0.188f, 0.216f, 1f)
     val Handle = UiColor(0.72f, 0.74f, 0.8f, 1f)
 }
+
+/** The playhead turns red while auto-keying is on, so it is clear that edits land on it as keys. */
+internal val TimelineController.playheadColor: UiColor
+    get() = if (isRecording) TimelineColors.Recording else TimelineColors.Accent

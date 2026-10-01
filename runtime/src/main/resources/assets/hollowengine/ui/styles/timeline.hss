@@ -49,6 +49,11 @@
 
 .timeline-button.active .timeline-button-icon { tint: $accent; }
 
+/* Auto-keying reads as recording: red, not the accent of an ordinary toggle. */
+.timeline-button.record.active { background: $danger-soft; }
+
+.timeline-button.record.active .timeline-button-icon { tint: $danger; }
+
 .timeline-separator {
     size: 1px 12px;
     margin: 0px 4px;

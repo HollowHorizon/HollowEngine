@@ -267,7 +267,7 @@ open class Vec3f(open val x: Float, open val y: Float, open val z: Float) {
             encoder.encodeCollection(descriptor, 3) {
                 encodeFloatElement(descriptor, 0, value.x)
                 encodeFloatElement(descriptor, 1, value.y)
-                encodeFloatElement(descriptor, 3, value.z)
+                encodeFloatElement(descriptor, 2, value.z)
             }
         }
 
@@ -640,7 +640,7 @@ open class Vec3d(open val x: Double, open val y: Double, open val z: Double) {
             encoder.encodeCollection(descriptor, 3) {
                 encodeDoubleElement(descriptor, 0, value.x)
                 encodeDoubleElement(descriptor, 1, value.y)
-                encodeDoubleElement(descriptor, 3, value.z)
+                encodeDoubleElement(descriptor, 2, value.z)
             }
         }
 
@@ -920,7 +920,7 @@ open class Vec3i(open val x: Int, open val y: Int, open val z: Int) {
             encoder.encodeCollection(descriptor, 3) {
                 encodeIntElement(descriptor, 0, value.x)
                 encodeIntElement(descriptor, 1, value.y)
-                encodeIntElement(descriptor, 3, value.z)
+                encodeIntElement(descriptor, 2, value.z)
             }
         }
 

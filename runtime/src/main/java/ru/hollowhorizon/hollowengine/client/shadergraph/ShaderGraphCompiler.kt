@@ -297,11 +297,15 @@ private class ResolvedGraph(private val graph: ShaderGraph, private val values: 
 
     /**
      * What the rest of the graph reads for an output: its variable, or for a texture the sampler it
-     * names, since GLSL cannot hold a sampler in a local. A texture output reads no inputs.
+     * names, since GLSL cannot hold a sampler in a local. A texture output reads no inputs but the
+     * textures linked into it, which is how a reroute carries one along.
      */
-    fun variable(node: ShaderGraphNode, output: ShaderOutputSpec): String {
+    fun variable(node: ShaderGraphNode, output: ShaderOutputSpec, sink: MutableCollection<ShaderInput> = ArrayList()): String {
         if (outputType(node, output) == ShaderType.TEXTURE) {
-            val context = ShaderEmitContext(graph, node, ShaderType.FLOAT, ShaderType.TEXTURE, false, emptyMap(), emptyMap(), typeOf(node))
+            val kind = typeOf(node)
+            val textures = kind.codeInputs(node).filter { inputTypes[node.id to it.name] == ShaderType.TEXTURE }
+                .associate { pin -> pin.name to inputCode(node, pin, vertex = false, sink = sink) }
+            val context = ShaderEmitContext(graph, node, ShaderType.FLOAT, ShaderType.TEXTURE, false, textures, emptyMap(), kind)
             return output.expression(context)
         }
         return "sg_${indices.getValue(node.id)}_${output.name.filter { it.isLetterOrDigit() }}"
@@ -358,7 +362,7 @@ private class ResolvedGraph(private val graph: ShaderGraph, private val values: 
         dynamics[node.id] = dynamic
 
         pins.forEach { pin ->
-            inputTypes[node.id to pin.name] = pin.type.fixed ?: if (pin.type == ShaderPinType.ANY) incoming.getValue(pin) else dynamic
+            inputTypes[node.id to pin.name] = pin.type.fixed ?: if (pin.type.keepsLinkedType) incoming.getValue(pin) else dynamic
         }
         kind.outputs.forEach { output ->
             val declared = if (output.typeOf != null) output.typeOf.invoke(ShaderTypeContext(graph, node, typesOf(node))) else output.type
@@ -423,7 +427,7 @@ private class ResolvedGraph(private val graph: ShaderGraph, private val values: 
         val type = inputTypes[node.id to pin.name] ?: pin.type.fixed ?: ShaderType.FLOAT
         source(node, pin.name)?.let { (from, output) ->
             val fromType = outputType(from, output)
-            coerce(variable(from, output), fromType, type)?.let { return it }
+            coerce(variable(from, output, sink), fromType, type)?.let { return it }
             diagnostics += ShaderDiagnostic(ShaderProblem.TYPE_MISMATCH, node.id, "${pin.name}: $fromType -> $type")
         }
         pin.fallback?.let { input ->

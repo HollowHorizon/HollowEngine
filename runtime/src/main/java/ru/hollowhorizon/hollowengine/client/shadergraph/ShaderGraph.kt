@@ -55,7 +55,7 @@ data class ShaderGraphPreview(
         const val DEFAULT_TEXTURE = "hollowengine:textures/particle/circle.png"
         const val DEFAULT_SCENE = "hollowengine:textures/gui/preview/sampler_preview.png"
 
-        const val SCREEN_ASPECT = 0.65f
+        const val SCREEN_ASPECT = 0.8f
     }
 }
 
@@ -66,6 +66,18 @@ data class ShaderGraphLink(
     val output: String,
     val to: String,
     val input: String,
+)
+
+/**
+ * Nodes put together under a title, for the author to find their way to organize the graph.
+ */
+@Serializable
+data class ShaderGraphGroup(
+    val id: String,
+    val title: String = "",
+    val nodes: List<String> = emptyList(),
+    val collapsed: Boolean = false,
+    val color: String = "",
 )
 
 /**
@@ -93,8 +105,13 @@ data class ShaderGraph(
     val links: List<ShaderGraphLink> = emptyList(),
     val properties: List<ShaderGraphProperty> = emptyList(),
     val preview: ShaderGraphPreview = ShaderGraphPreview(),
+    val groups: List<ShaderGraphGroup> = emptyList(),
 ) {
     fun node(id: String): ShaderGraphNode? = nodes.firstOrNull { it.id == id }
+
+    fun group(id: String): ShaderGraphGroup? = groups.firstOrNull { it.id == id }
+
+    fun groupOf(node: String): ShaderGraphGroup? = groups.firstOrNull { node in it.nodes }
 
     fun linkInto(node: String, input: String): ShaderGraphLink? = links.lastOrNull { it.to == node && it.input == input }
 

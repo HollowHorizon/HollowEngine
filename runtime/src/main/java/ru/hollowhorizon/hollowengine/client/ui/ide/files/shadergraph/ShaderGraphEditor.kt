@@ -40,6 +40,9 @@ internal fun ShaderGraphEditor(file: HollowIdeOpenFile) {
     var previewError by remember(document) { mutableStateOf<ShaderDiagnostic?>(null) }
     val dragOrigins = remember(document) { HashMap<String, Pair<Float, Float>>() }
 
+    /** The node whose corner lands on the grid while a drag snaps; the rest keep their distance to it. */
+    val dragAnchor = remember(document) { arrayOfNulls<String>(1) }
+
     LaunchedEffect(document.revision) {
         file.updateDirty(document.isModified)
         if (!document.isModified) return@LaunchedEffect
@@ -66,36 +69,48 @@ internal fun ShaderGraphEditor(file: HollowIdeOpenFile) {
     val problems = diagnostics.filter { it.node != null }.groupBy { it.node!! }
     previews.show(graph, document.revision to kinds)
 
-    val selection = state.selection
-    SideEffect { state.diagnostics = diagnostics }
+    // A group taken apart, from the inspector or by undo, leaves its nodes selected on their own.
+    val selection = state.selection.let { current ->
+        if (current.group != null && graph.group(current.group) == null) current.copy(group = null) else current
+    }
+    SideEffect {
+        state.diagnostics = diagnostics
+        if (state.selection != selection) state.selection = selection
+    }
     PublishInspector(source = "shadergraph-${file.path}", key = selection) {
         shaderGraphInspectorTarget(document, selection, state)
     }
 
-    val boxes = LinkedHashMap<String, ShaderNodeBox>()
+    val all = LinkedHashMap<String, ShaderNodeBox>()
     graph.nodes.forEach { node ->
-        ShaderNodeTypes.of(node.type)?.let { boxes[node.id] = ShaderNodeLayout.of(graph, node, it, code.types) }
+        ShaderNodeTypes.of(node.type)?.let { all[node.id] = ShaderNodeLayout.of(graph, node, it, code.types) }
     }
-    val pins = boxes.values.flatMap { it.pins }
+    val scene = ShaderGraphScene.of(graph, all)
+    val boxes = scene.boxes
+    val pins = scene.pins
     val curves = graph.links.mapIndexedNotNull { index, each ->
         val from = pins.firstOrNull { it.node == each.from && it.output && it.name == each.output }
             ?: return@mapIndexedNotNull null
         val to = pins.firstOrNull { it.node == each.to && !it.output && it.name == each.input }
             ?: return@mapIndexedNotNull null
         index to GraphCurves.betweenPins(
-            view.toCanvasX(from.x), view.toCanvasY(from.y), view.toCanvasX(to.x), view.toCanvasY(to.y), view.zoom
+            view.toCanvasX(from.x), view.toCanvasY(from.y), view.toCanvasX(to.x), view.toCanvasY(to.y), view.zoom,
         )
     }
 
-    fun select(next: ShaderGraphSelection) {
-        state.selection = next
+    fun select(next: ShaderGraphSelection?) {
+        if (next != null) state.selection = next
     }
+
+    fun membersOf(group: String): Set<String> = graph.group(group)?.nodes?.filter { it in all }?.toSet().orEmpty()
 
     fun pinAt(x: Float, y: Float, outputs: Boolean): ShaderPin? =
         pins.filter { it.output == outputs }.map { it to hypot(view.toCanvasX(it.x) - x, view.toCanvasY(it.y) - y) }
             .filter { it.second <= PIN_REACH * view.zoom.coerceAtLeast(1f) }.minByOrNull { it.second }?.first
 
     fun nodeAt(x: Float, y: Float): ShaderNodeBox? = boxes.values.lastOrNull { it.rect.toCanvas(view).contains(x, y) }
+
+    fun cardAt(x: Float, y: Float): ShaderGroupCard? = scene.cards.values.lastOrNull { it.rect.toCanvas(view).contains(x, y) }
 
     /** A node of [kind] added at ([x], [y]) of the graph and selected. */
     fun addNode(kind: ShaderNodeType, x: Float, y: Float): ShaderGraphNode {
@@ -107,14 +122,19 @@ internal fun ShaderGraphEditor(file: HollowIdeOpenFile) {
 
     /**
      * A link dropped on nothing: the add menu, showing only what can take the link, and the node
-     * picked from it placed where the link was dropped and linked.
+     * picked from it placed where the link was dropped and linked. A reroute can always take it.
      */
     fun offerNodeFor(pending: PendingLink) {
         val graphX = view.toGraphX(pending.x)
         val graphY = view.toGraphY(pending.y)
+        val half = ShaderNodeLayout.REROUTE / 2f
         val items = if (pending.fromOutput) {
             val carried = code.types.output(pending.node, pending.pin) ?: ShaderType.FLOAT
-            addNodeItems(graph.target, { it.inputFor(carried) != null }) { kind ->
+            val reroute = rerouteItem {
+                val node = addNode(ShaderNodeTypes.of(ShaderNodeLibrary.REROUTE) ?: return@rerouteItem, graphX - half, graphY - half)
+                document.edit { it.withLink(pending.node, pending.pin, node.id, ShaderNodeLibrary.REROUTE_INPUT) }
+            }
+            listOf(reroute) + addNodeItems(graph.target, { it.inputFor(carried) != null }) { kind ->
                 val node = addNode(kind, graphX, graphY - ShaderNodeLayout.HEADER)
                 kind.inputFor(carried, node)
                     ?.let { pin -> document.edit { it.withLink(pending.node, pending.pin, node.id, pin.name) } }
@@ -123,18 +143,22 @@ internal fun ShaderGraphEditor(file: HollowIdeOpenFile) {
             val into =
                 graph.node(pending.node)?.let { node -> ShaderNodeTypes.of(node.type)?.input(node, pending.pin)?.type }
                     ?: return
-            addNodeItems(graph.target, { it.outputFor(into) != null }) { kind ->
+            val reroute = rerouteItem {
+                val node = addNode(ShaderNodeTypes.of(ShaderNodeLibrary.REROUTE) ?: return@rerouteItem, graphX - half, graphY - half)
+                document.edit { it.withLink(node.id, ShaderNodeLibrary.REROUTE_OUTPUT, pending.node, pending.pin) }
+            }
+            listOf(reroute) + addNodeItems(graph.target, { it.outputFor(into) != null }) { kind ->
                 val node = addNode(kind, graphX - ShaderNodeLayout.WIDTH, graphY - ShaderNodeLayout.HEADER)
                 kind.outputFor(into)
                     ?.let { output -> document.edit { it.withLink(node.id, output.name, pending.node, pending.pin) } }
             }
         }
-        menu = GraphMenu(pending.screenX, pending.screenY, items)
+        menu = GraphMenu(pending.screenX, pending.screenY, items.mapIndexed { index, item -> if (index == 1) item.copy(separatorBefore = true) else item })
     }
 
     /**
      * Ends a link being drawn: dropped on a pin, it links to it; on a node, to the first of its pins
-     * that takes it; on nothing, it offers the nodes that could.
+     * that takes it; on a collapsed group, nowhere; on nothing, it offers the nodes that could.
      */
     fun finishLink() {
         val pending = link ?: return
@@ -155,7 +179,15 @@ internal fun ShaderGraphEditor(file: HollowIdeOpenFile) {
                 if (target != null) document.edit { it.withLink(pending.node, pending.pin, node.node.id, target.name) }
             }
 
-            node == null -> offerNodeFor(pending)
+            node != null -> {
+                val into = graph.node(pending.node)
+                    ?.let { owner -> ShaderNodeTypes.of(owner.type)?.input(owner, pending.pin)?.type }
+                val output = into?.let { node.kind.outputFor(it) }
+                if (output != null) document.edit { it.withLink(node.node.id, output.name, pending.node, pending.pin) }
+            }
+
+            cardAt(pending.x, pending.y) != null -> Unit
+            else -> offerNodeFor(pending)
         }
         document.endGesture()
     }
@@ -180,35 +212,60 @@ internal fun ShaderGraphEditor(file: HollowIdeOpenFile) {
         if (dragOrigins.isEmpty()) return
         insertInto?.let { index -> dragOrigins.keys.singleOrNull()?.let { insert(index, it) } }
         insertInto = null
+        joinFrame(document, scene, all, dragOrigins)
         dragOrigins.clear()
         document.endGesture()
     }
 
+    /** Takes hold of the selected nodes for a drag that [anchor] leads. */
+    fun beginDrag(anchor: String?) {
+        dragOrigins.clear()
+        state.selection.nodes.forEach { id -> document.graph.node(id)?.let { dragOrigins[id] = it.x to it.y } }
+        dragAnchor[0] = anchor
+        document.beginGesture()
+    }
+
+    /** A group taken by its title bar leaves the nodes; the nodes themselves go, the output node excepted. */
     fun deleteSelection() {
         val index = selection.link
-        if (index != null) {
-            document.edit { it.withoutLinkAt(index) }
-        } else {
-            val removable = selection.nodes.filter { boxes[it]?.kind?.master == null }.toSet()
-            if (removable.isEmpty()) return
-            document.edit { it.withoutNodes(removable) }
+        val group = selection.group
+        when {
+            index != null -> document.edit { it.withoutLinkAt(index) }
+            group != null -> document.edit { it.withoutGroup(group) }
+            else -> {
+                val removable = selection.nodes.filter { all[it]?.kind?.master == null }.toSet()
+                if (removable.isEmpty()) return
+                document.edit { it.withoutNodes(removable) }
+            }
         }
         select(ShaderGraphSelection.None)
     }
 
+    fun deleteGroupWithNodes(group: String) {
+        val removable = membersOf(group).filter { all[it]?.kind?.master == null }.toSet()
+        document.edit { it.withoutGroup(group).withoutNodes(removable) }
+        select(ShaderGraphSelection.None)
+    }
+
     fun duplicateSelection() {
-        val copied = selection.nodes.filter { boxes[it]?.kind?.master == null }.toSet()
+        val copied = selection.nodes.filter { all[it]?.kind?.master == null }.toSet()
         if (copied.isEmpty()) return
         val (next, copies) = document.graph.withDuplicates(copied)
         document.edit { next }
         select(ShaderGraphSelection(copies.toSet()))
     }
 
+    fun flipGroup(group: String) = document.edit { graph -> graph.withGroupChanged(group) { it.copy(collapsed = !it.collapsed) } }
+
     fun handleKey(input: UiKeyInput): Boolean {
         when {
             input.key == GLFW.GLFW_KEY_DELETE -> deleteSelection()
             input.control && input.key == GLFW.GLFW_KEY_D -> duplicateSelection()
-            input.control && input.key == GLFW.GLFW_KEY_A -> select(ShaderGraphSelection(boxes.keys.toSet()))
+            input.control && input.key == GLFW.GLFW_KEY_A -> select(ShaderGraphSelection(all.keys.toSet()))
+            input.control && input.key == GLFW.GLFW_KEY_G -> select(
+                if (input.shift) document.ungroup(selection) else document.groupNodes(selection.nodes)
+            )
+
             input.control && input.key == GLFW.GLFW_KEY_Z && !input.shift -> document.undo()
             input.control && (input.key == GLFW.GLFW_KEY_Y || input.shift && input.key == GLFW.GLFW_KEY_Z) -> document.redo()
             input.key == GLFW.GLFW_KEY_ESCAPE -> if (link != null) {
@@ -232,17 +289,32 @@ internal fun ShaderGraphEditor(file: HollowIdeOpenFile) {
                     select(ShaderGraphSelection(nodes))
                 }
 
-                node !in selection -> select(ShaderGraphSelection.of(node))
+                node !in selection || selection.group != null -> select(ShaderGraphSelection.of(node))
             }
-            dragOrigins.clear()
-            state.selection.nodes.forEach { id -> document.graph.node(id)?.let { dragOrigins[id] = it.x to it.y } }
-            document.beginGesture()
+            beginDrag(node)
+        }
+
+        override fun pressGroup(group: String, gesture: GraphNodeGesture) {
+            menu = null
+            val members = membersOf(group)
+            when {
+                gesture.shift || gesture.control -> {
+                    val nodes = if (members.all { it in selection }) selection.nodes - members else selection.nodes + members
+                    select(ShaderGraphSelection(nodes))
+                }
+
+                selection.group != group -> select(ShaderGraphSelection(members, group = group))
+            }
+            beginDrag(members.firstOrNull())
         }
 
         override fun dragNode(node: String, gesture: GraphNodeGesture) {
             if (link != null || dragOrigins.isEmpty()) return
+            val anchor = dragAnchor[0]?.let(dragOrigins::get) ?: dragOrigins.values.first()
+            val dx = GraphPreferences.place(anchor.first + gesture.graphDeltaX) - anchor.first
+            val dy = GraphPreferences.place(anchor.second + gesture.graphDeltaY) - anchor.second
             document.edit { graph ->
-                graph.withNodesAt(dragOrigins.mapValues { (_, at) -> at.first + gesture.graphDeltaX to at.second + gesture.graphDeltaY })
+                graph.withNodesAt(dragOrigins.mapValues { (_, at) -> at.first + dx to at.second + dy })
             }
             val lone = dragOrigins.keys.singleOrNull()
                 ?.takeIf { id -> document.graph.links.none { it.from == id || it.to == id } }
@@ -253,7 +325,8 @@ internal fun ShaderGraphEditor(file: HollowIdeOpenFile) {
 
         override fun nodeMenu(node: String, screenX: Float, screenY: Float) {
             if (node !in selection) select(ShaderGraphSelection.of(node))
-            val box = boxes[node] ?: return
+            val box = all[node] ?: return
+            val chosen = state.selection
             menu = GraphMenu(
                 screenX, screenY,
                 nodeItems(
@@ -261,6 +334,30 @@ internal fun ShaderGraphEditor(file: HollowIdeOpenFile) {
                     onPreview = { shown -> document.edit { it.withPreview(node, shown) } },
                     onDuplicate = ::duplicateSelection,
                     onDelete = ::deleteSelection,
+                    organize = organizeItems(
+                        canGroup = chosen.nodes.isNotEmpty(),
+                        grouped = chosen.nodes.any { graph.groupOf(it) != null },
+                        onGroup = { select(document.groupNodes(chosen.nodes)) },
+                        onUngroup = { select(document.ungroup(chosen)) },
+                        onLeave = { document.edit { it.withMembership(chosen.nodes, group = null) } },
+                        arrange = document.arrangeItem(boxes, chosen.nodes),
+                    ),
+                ),
+            )
+        }
+
+        override fun groupMenu(group: String, screenX: Float, screenY: Float) {
+            val found = graph.group(group) ?: return
+            val members = membersOf(group)
+            if (selection.group != group) select(ShaderGraphSelection(members, group = group))
+            menu = GraphMenu(
+                screenX, screenY,
+                groupItems(
+                    found,
+                    onToggle = { flipGroup(group) },
+                    onUngroup = { select(document.ungroup(ShaderGraphSelection(members, group = group))) },
+                    onDelete = { deleteGroupWithNodes(group) },
+                    arrange = if (found.collapsed) null else document.arrangeItem(boxes, members),
                 ),
             )
         }
@@ -269,6 +366,8 @@ internal fun ShaderGraphEditor(file: HollowIdeOpenFile) {
             val collapsed = document.graph.node(node)?.collapsed ?: return
             document.edit { it.withCollapsed(node, !collapsed) }
         }
+
+        override fun toggleGroup(group: String) = flipGroup(group)
 
         override fun pressPin(pin: ShaderPin, screenX: Float, screenY: Float) {
             menu = null
@@ -339,32 +438,42 @@ internal fun ShaderGraphEditor(file: HollowIdeOpenFile) {
                     else GraphCurves.betweenPins(pending.x, pending.y, fromX, fromY, view.zoom)
                 GraphLinkPreview(fromX, fromY, pending.x, pending.y, type?.color() ?: GraphLinkColor, curve)
             },
+            frames = scene.frames.mapNotNull { (id, rect) ->
+                graph.group(id)?.let { GraphFrame(rect, GraphGroupColors.of(it.color)) }
+            },
             minimap = boxes.values.map { box ->
                 GraphMiniMapItem(
                     box.rect, if (box.node.id in selection) GraphSelectedColor else GraphLinkColor, box.kind.title()
                 )
+            } + scene.cards.values.map { card ->
+                GraphMiniMapItem(card.rect, GraphGroupColors.of(card.group.color), card.group.title.ifBlank { graphText("group") })
             },
             onBackgroundClick = {
                 menu = null
                 select(ShaderGraphSelection.None)
             },
             onEdgeClick = { index -> select(ShaderGraphSelection.ofLink(index as Int)) },
+            onEdgeDoubleClick = { index, pointer -> select(document.addReroute(index as Int, pointer.graphX, pointer.graphY)) },
             onContextMenu = { pointer, edge ->
                 menu = if (edge is Int) {
                     select(ShaderGraphSelection.ofLink(edge))
                     GraphMenu(
                         pointer.screenX,
                         pointer.screenY,
-                        listOf(UiDropdownItem(graphText("delete_link"), shortcut = "Del") {
-                            document.edit { it.withoutLinkAt(edge) }
-                            select(ShaderGraphSelection.None)
-                        })
+                        listOf(
+                            rerouteItem { select(document.addReroute(edge, pointer.graphX, pointer.graphY)) },
+                            UiDropdownItem(graphText("delete_link"), shortcut = "Del") {
+                                document.edit { it.withoutLinkAt(edge) }
+                                select(ShaderGraphSelection.None)
+                            },
+                        ),
                     )
                 } else {
                     GraphMenu(
                         pointer.screenX,
                         pointer.screenY,
-                        addNodeItems(graph.target) { kind -> addNode(kind, pointer.graphX, pointer.graphY) })
+                        addNodeItems(graph.target) { kind -> addNode(kind, pointer.graphX, pointer.graphY) } + graphViewItems(),
+                    )
                 }
             },
             onRelease = {
@@ -372,26 +481,14 @@ internal fun ShaderGraphEditor(file: HollowIdeOpenFile) {
                 finishDrag()
             },
             onSelectArea = { area, modifiers ->
-                val covered = boxes.values.filter { it.rect.intersects(area) }.map { it.node.id }.toSet()
+                val covered = boxes.values.filter { it.rect.intersects(area) }.map { it.node.id } +
+                        scene.cards.values.filter { it.rect.intersects(area) }.flatMap { membersOf(it.group.id) }
                 val additive = modifiers and (GLFW.GLFW_MOD_SHIFT or GLFW.GLFW_MOD_CONTROL) != 0
-                select(ShaderGraphSelection(if (additive) selection.nodes + covered else covered))
+                select(ShaderGraphSelection(if (additive) selection.nodes + covered else covered.toSet()))
             },
             onKey = ::handleKey,
         ) {
-            boxes.values.sortedBy { it.node.id in selection }.forEach { box ->
-                key(box.node.id) {
-                    ShaderNodeView(
-                        graph = graph,
-                        box = box,
-                        types = code.types,
-                        view = view,
-                        selected = box.node.id in selection,
-                        problem = problems[box.node.id]?.joinToString("\n") { problemText(it) },
-                        previews = previews,
-                        actions = actions,
-                    )
-                }
-            }
+            ShaderGraphSceneView(graph, scene, code.types, view, selection, problems, previews, actions)
         }
 
         menu?.let { open ->

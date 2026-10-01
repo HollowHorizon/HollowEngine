@@ -6,6 +6,7 @@ import ru.hollowhorizon.hollowengine.client.utils.lang
 import ru.hollowhorizon.hollowengine.common.utils.Color
 import ru.hollowhorizon.hollowengine.common.utils.math.Vec3f
 import ru.hollowhorizon.hollowengine.common.vfx.*
+import kotlin.math.abs
 
 /**
  * Puts the effect timeline into the editor timeline and takes it back out.
@@ -79,6 +80,50 @@ class VfxTimelineSession(
         pinned += id
         hidden -= id
         applyListing()
+    }
+
+    /**
+     * While auto-keying, turns an edit of the effect into keys at the playhead: every channel of an
+     * animatable property the edit changed, and that does not already hold that value there. The edit
+     * itself stays, since the value it changed is only what the track falls back to.
+     */
+    fun recordEdit(before: VfxEffect, after: VfxEffect) {
+        if (!timeline.isRecording) return
+        val time = timeline.currentTime
+        after.walk().forEach { node ->
+            val old = before.node(node.id)?.takeIf { it != node } ?: return@forEach
+            VfxAnimatables.forNode(node).forEach animatable@{ animatable ->
+                val was = VfxAnimatables.of(old, animatable.property)?.read() ?: return@animatable
+                val now = animatable.read()
+                val property = propertyOf(node.id, animatable.property) ?: return@animatable
+                val shown = FloatArray(property.curves.size) { channel ->
+                    property.curves[channel].valueAt(time, was.getOrElse(channel) { 0f })
+                }
+                val changed = property.curves.indices.filter { channel ->
+                    val value = now.getOrNull(channel) ?: return@filter false
+                    value != was.getOrNull(channel) && abs(value - shown[channel]) > RecordEpsilon
+                }
+                if (changed.isEmpty()) return@animatable
+                focus(node.id, animatable.property)
+                timeline.recordKeys(property, changed.associateWith { now[it] }, shown)
+            }
+        }
+    }
+
+    /**
+     * While auto-keying, keys [changes] (channel to value) of [property] of [nodeId] at the playhead;
+     * [previous] is what the property showed before, for a channel that gets its first key.
+     */
+    fun record(nodeId: String, property: VfxProperty, changes: Map<Int, Float>, previous: FloatArray) {
+        if (!timeline.isRecording) return
+        val track = propertyOf(nodeId, property) ?: return
+        focus(nodeId, property)
+        timeline.recordKeys(track, changes, previous)
+    }
+
+    private fun propertyOf(nodeId: String, property: VfxProperty): AnimProperty<*>? {
+        val id = propertyId(nodeId, property)
+        return timeline.allProperties().firstOrNull { it.id == id }
     }
 
     /** Keeps the row of [nodeId] once it has been selected. */
@@ -265,3 +310,6 @@ internal fun Keyframe.toStored(curve: ChannelCurve): VfxKey {
         outValue = tangents.outgoing.value,
     )
 }
+
+/** How far apart an edited value and what the track already holds must be to be worth a key. */
+private const val RecordEpsilon = 1.0e-5f

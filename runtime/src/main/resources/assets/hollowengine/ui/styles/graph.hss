@@ -83,3 +83,49 @@
     foreground: $text-strong;
     border-color: $accent;
 }
+
+.graph-node.graph-group-head {
+    background: transparent;
+    border: 0px transparent;
+    border-radius: $radius-large;
+    shadow: 0px 0px 0px 0px transparent;
+}
+
+.graph-node.graph-group-head.selected {
+    shadow: 0px 0px 0px 1.5px $accent;
+}
+
+.graph-group-bar {
+    padding: 0px 8px;
+    gap: 5px;
+    border-radius: $radius-large;
+}
+
+.graph-group-title {
+    font-size: 11px;
+    foreground: $text-strong;
+    text-wrap: false;
+    text-overflow: dots;
+}
+
+/* Collapses a group into one node; the arrow points up while it is open, like a node's. */
+.graph-group-toggle {
+    size: 16px 16px;
+    align-items: center center;
+    border-radius: $radius;
+    cursor: hand;
+    transition: background 110ms ease-out;
+}
+
+.graph-group-toggle:hover {
+    background: alpha(#FFFFFF, 0.16);
+}
+
+.graph-group-arrow {
+    size: 7px 5px;
+    transform: rotate(180deg);
+}
+
+.graph-group-toggle.collapsed .graph-group-arrow {
+    transform: rotate(0deg);
+}

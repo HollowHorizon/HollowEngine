@@ -13,7 +13,10 @@ import ru.hollowhorizon.hollowengine.client.ui.graph.GraphViewState
 
 internal const val ShaderGraphCanvasId = "shader-graph-canvas"
 
-/** What a node and its pins do when pressed and dragged. */
+/**
+ * What a node and its pins do when pressed and dragged. A group, by its title bar or as the node it
+ * collapses into, is pressed on its own and then dragged and released like the nodes it holds.
+ */
 internal interface ShaderNodeActions : ShaderFieldActions {
     fun pressNode(node: String, gesture: GraphNodeGesture)
     fun dragNode(node: String, gesture: GraphNodeGesture)
@@ -23,6 +26,9 @@ internal interface ShaderNodeActions : ShaderFieldActions {
     fun pressPin(pin: ShaderPin, screenX: Float, screenY: Float)
     fun dragPin(canvasX: Float, canvasY: Float, screenX: Float, screenY: Float)
     fun releasePin()
+    fun pressGroup(group: String, gesture: GraphNodeGesture)
+    fun groupMenu(group: String, screenX: Float, screenY: Float)
+    fun toggleGroup(group: String)
 }
 
 /**
@@ -70,7 +76,9 @@ internal fun ShaderNodeView(
                     tags = listOf("sg-node-preview"),
                     modifier = Modifier.position(ShaderNodeLayout.INSET.px, box.previewTop.px)
                         .size(box.preview.px, box.previewHeight.px)
-                        .drawBehind(key = node.id) { drawTexture(bounds, { previews.texture(node.id) }, flipY = true) },
+                        .drawBehind(key = node.id) {
+                            drawTexture(bounds, { previews.texture(node.id) }, flipY = true, radius = PreviewRadius)
+                        },
                 )
             }
             if (!node.collapsed) box.pins.forEach { pin ->
@@ -125,7 +133,7 @@ private fun NodeRow(
 
 /** A pin on the edge of its node, in the color of what it carries, filled once something is linked. */
 @Composable
-private fun ShaderPinView(
+internal fun ShaderPinView(
     pin: ShaderPin,
     nodeX: Float,
     nodeY: Float,
@@ -158,3 +166,6 @@ private fun ShaderPinView(
             },
     )
 }
+
+/** The corners of a preview, the same as of the fields on a node; a frame of a post effect fills it to them. */
+private const val PreviewRadius = 5f

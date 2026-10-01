@@ -12,6 +12,7 @@ internal object CutsceneLang {
     const val FRAME_TIME = ROOT + "view.frame_time"
 
     const val CAPTURE_KEYFRAME = ROOT + "action.capture"
+    const val RECORD = ROOT + "action.record"
     const val ADD_KEYFRAME = ROOT + "action.add_keyframe"
     const val DELETE_SELECTED = ROOT + "action.delete_selected"
     const val SMOOTH_SELECTED = ROOT + "action.smooth_selected"

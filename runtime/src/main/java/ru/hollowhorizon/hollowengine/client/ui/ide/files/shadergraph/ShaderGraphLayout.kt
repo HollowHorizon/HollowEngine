@@ -47,16 +47,34 @@ internal class ShaderNodeBox(
 ) {
     val rect: GraphRect get() = GraphRect(node.x, node.y, width, height)
 
+    val isReroute: Boolean get() = kind.id == ShaderNodeLibrary.REROUTE
+
     val pins: List<ShaderPin>
-        get() = if (node.collapsed) collapsedPins() else rows.mapNotNull { row ->
-            val y = node.y + row.top + row.height / 2f
-            when (row) {
-                is ShaderNodeRow.Output -> ShaderPin(node.id, row.name, true, node.x + width, y)
-                is ShaderNodeRow.Input -> ShaderPin(node.id, row.pin.name, false, node.x, y)
-                is ShaderNodeRow.Value -> ShaderPin(node.id, row.pin.name, false, node.x, y)
-                is ShaderNodeRow.Option -> null
-            }
+        get() = when {
+            isReroute -> reroutePins()
+            node.collapsed -> collapsedPins()
+            else -> rowPins()
         }
+
+    /** A reroute is a dot, and a link goes in and comes out of its middle. */
+    private fun reroutePins(): List<ShaderPin> {
+        val x = node.x + width / 2f
+        val y = node.y + height / 2f
+        return listOf(
+            ShaderPin(node.id, ShaderNodeLibrary.REROUTE_INPUT, false, x, y),
+            ShaderPin(node.id, ShaderNodeLibrary.REROUTE_OUTPUT, true, x, y),
+        )
+    }
+
+    private fun rowPins(): List<ShaderPin> = rows.mapNotNull { row ->
+        val y = node.y + row.top + row.height / 2f
+        when (row) {
+            is ShaderNodeRow.Output -> ShaderPin(node.id, row.name, true, node.x + width, y)
+            is ShaderNodeRow.Input -> ShaderPin(node.id, row.pin.name, false, node.x, y)
+            is ShaderNodeRow.Value -> ShaderPin(node.id, row.pin.name, false, node.x, y)
+            is ShaderNodeRow.Option -> null
+        }
+    }
 
     /** A collapsed node has no rows, so what is linked to it reaches the middle of its title bar. */
     private fun collapsedPins(): List<ShaderPin> {
@@ -82,7 +100,11 @@ internal object ShaderNodeLayout {
     const val PADDING = 10f
     const val PIN = 9f
 
+    /** How wide a reroute dot is. */
+    const val REROUTE = 12f
+
     fun of(graph: ShaderGraph, node: ShaderGraphNode, kind: ShaderNodeType, types: ShaderGraphTypes): ShaderNodeBox {
+        if (kind.id == ShaderNodeLibrary.REROUTE) return ShaderNodeBox(node, kind, REROUTE, REROUTE, emptyList(), 0f, 0f, 0f)
         if (node.collapsed) return ShaderNodeBox(node, kind, WIDTH, COLLAPSED, emptyList(), 0f, 0f, 0f)
         val rows = ArrayList<ShaderNodeRow>()
         var y = HEADER + PADDING

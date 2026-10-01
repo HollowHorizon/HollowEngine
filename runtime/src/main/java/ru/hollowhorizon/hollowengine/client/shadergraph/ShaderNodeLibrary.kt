@@ -13,8 +13,13 @@ object ShaderNodeLibrary {
     const val POST_OUTPUT = "hollowengine:output/post"
     const val PROPERTY = "hollowengine:input/property"
     const val EXPRESSION = ShaderMathNodes.EXPRESSION
+    const val REROUTE = "hollowengine:reroute"
+    const val REROUTE_INPUT = "In"
+    const val REROUTE_OUTPUT = "Out"
 
-    val all: List<ShaderNodeType> by lazy { inputs() + uv() + texture() + output() + ShaderMathNodes.all + ShaderNormalNodes.all }
+    val all: List<ShaderNodeType> by lazy {
+        inputs() + uv() + texture() + output() + ShaderMathNodes.all + ShaderNormalNodes.all + reroute()
+    }
 
     /** What a new graph of [target] starts as. */
     fun default(target: ShaderTarget): ShaderGraph = when (target) {
@@ -186,6 +191,16 @@ object ShaderNodeLibrary {
             return "vec2($x, $y)"
         }
         return if (linked) flip("($uv)") else "${ShaderInput.FRAME_UV.glsl}(${flip(ShaderInput.UV.glsl)})"
+    }
+
+    /**
+     * A point a link passes through, to lead it around other nodes: whatever comes in goes out as it
+     * is, a texture too. The editor draws it as a dot and leaves it out of the categories of the add menu.
+     */
+    private fun reroute() = shaderNode(REROUTE, INPUT) {
+        noPreview()
+        val value = input(REROUTE_INPUT, 0f, type = ShaderPinType.PASS)
+        output(REROUTE_OUTPUT, typeOf = { input(REROUTE_INPUT)?.let(ShaderPinType::of) }) { value.code }
     }
 
     private fun output() = listOf(

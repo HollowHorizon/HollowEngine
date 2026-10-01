@@ -3,12 +3,14 @@ package ru.hollowhorizon.hollowengine.client.ui.ide.files.shadergraph
 import androidx.compose.runtime.Composable
 import ru.hollowhorizon.hollowengine.client.shadergraph.*
 import ru.hollowhorizon.hollowengine.client.ui.*
+import ru.hollowhorizon.hollowengine.client.ui.graph.GraphGroupColors
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeShaderGraphDocument
 import ru.hollowhorizon.hollowengine.client.ui.inspector.*
 import ru.hollowhorizon.hollowengine.client.utils.lang
 
 private const val GraphIcon = "hollowengine:textures/gui/icons/files/shader.svg"
 private const val RemoveIcon = "hollowengine:textures/gui/icons/remove.svg"
+private const val GroupIcon = "hollowengine:textures/gui/icons/actions/group.svg"
 
 /**
  * What the inspector shows for [selection]: the one node selected, or the graph with its properties,
@@ -20,8 +22,18 @@ internal fun shaderGraphInspectorTarget(
     selection: ShaderGraphSelection,
     state: ShaderGraphEditorState,
 ): InspectorTarget {
+    selection.group?.let(document.graph::group)?.let { group ->
+        return InspectorTarget(id = "shadergraph-group-${group.id}", title = graphText("group"), subtitle = group.id, icon = GroupIcon) {
+            document.graph.group(group.id)?.let { GroupFields(document, it) }
+        }
+    }
     val selected = selection.single?.let(document.graph::node)
     val selectedKind = selected?.let { ShaderNodeTypes.of(it.type) }
+    if (selected != null && selectedKind?.id == ShaderNodeLibrary.REROUTE) {
+        return InspectorTarget(id = "shadergraph-node-${selected.id}", title = graphText("reroute"), subtitle = selected.id, icon = GraphIcon) {
+            Hint(graphText("reroute_hint"))
+        }
+    }
     if (selected != null && selectedKind != null) {
         return InspectorTarget(
             id = "shadergraph-node-${selected.id}", title = selectedKind.title(), subtitle = selected.id, icon = GraphIcon
@@ -87,6 +99,20 @@ private fun NodeFields(document: HollowIdeShaderGraphDocument, node: ShaderGraph
                 node.id, shown
             )
         }
+    }
+}
+
+/** What a group is called, its color, and whether it is collapsed into one node. */
+@Composable
+private fun GroupFields(document: HollowIdeShaderGraphDocument, group: ShaderGraphGroup) {
+    fun change(update: (ShaderGraphGroup) -> ShaderGraphGroup) = document.edit { it.withGroupChanged(group.id, update) }
+    Section(graphText("group")) {
+        TextRow(graphText("group_title"), group.title, id = "sg-group-title-${group.id}") { title -> change { it.copy(title = title) } }
+        Label(graphText("group_color"))
+        val current = group.color.takeIf { it in GraphGroupColors.all } ?: GraphGroupColors.all.keys.first()
+        Pills(GraphGroupColors.all.keys.toList(), current, { graphText("color.$it") }) { color -> change { it.copy(color = color) } }
+        ToggleRow(graphText("collapse_group"), group.collapsed) { collapsed -> change { it.copy(collapsed = collapsed) } }
+        InspectorButton(graphText("ungroup")) { document.edit { it.withoutGroup(group.id) } }
     }
 }
 

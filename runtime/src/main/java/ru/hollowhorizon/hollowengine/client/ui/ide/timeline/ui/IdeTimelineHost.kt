@@ -40,8 +40,10 @@ class TimelineTarget(
     /** Called when the editor changed something the owner has to write down. */
     val refresh: () -> Unit,
     val onKeyInput: (Int, Int) -> Boolean = { _, _ -> false },
-    /** What the record button does, or null when this target has nothing to capture. */
+    /** What the capture button does, or null when this target has nothing to capture. */
     val onCapture: (() -> Unit)? = null,
+    /** Whether the owner turns edits into keys while [TimelineController.isRecording] is on. */
+    val recordable: Boolean = false,
     val onSave: (() -> Unit)? = null,
     val onLoad: (() -> Unit)? = null,
     /** Advances whatever the timeline is driving, in seconds, while it is playing. */
@@ -150,6 +152,7 @@ fun TimelineDock(keyboardActive: Boolean = true) {
                     capture = target.onCapture != null,
                     storage = target.onSave != null,
                     cameraPreview = false,
+                    record = target.recordable,
                 ),
             )
             target.overlay?.invoke()

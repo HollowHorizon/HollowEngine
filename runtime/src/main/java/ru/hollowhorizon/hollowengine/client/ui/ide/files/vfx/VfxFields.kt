@@ -33,11 +33,24 @@ val LocalVfxFieldFocus = staticCompositionLocalOf<(VfxProperty) -> Unit> { {} }
  */
 val LocalVfxDriven = staticCompositionLocalOf<(VfxProperty) -> VfxDrivenValue?> { { null } }
 
-/** The value a timeline track holds right now, and which of its channels track has keys on. */
-class VfxDrivenValue(val values: FloatArray, private val channels: Set<Int>) {
+/**
+ * The value a timeline track holds right now, and which of its channels track has keys on. While the
+ * timeline records, [write] keys new values (channel to value) at the playhead, so the fields stay editable.
+ */
+class VfxDrivenValue(
+    val values: FloatArray,
+    private val channels: Set<Int>,
+    private val record: ((Map<Int, Float>) -> Unit)? = null,
+) {
+    val recording: Boolean get() = record != null
+
     fun drives(channel: Int): Boolean = channel in channels
 
     fun value(channel: Int): Float = values.getOrElse(channel) { 0f }
+
+    fun write(changes: Map<Int, Float>) {
+        if (changes.isNotEmpty()) record?.invoke(changes)
+    }
 }
 
 /**
@@ -116,7 +129,7 @@ fun VfxValueRow(
     Row(modifier = Modifier.size(100.percent).gap(3.px).alignItems(vertical = UiAlign.CENTER)) {
         VfxFieldLabel(label, hint)
         if (driven != null) {
-            DrivenCell(driven.value(channel))
+            DrivenCell(driven, property, channel)
             DrivenMark(property)
         } else {
             ValueCells(value, property, onChange)
@@ -255,7 +268,7 @@ private fun AxisNumber(
     Row(modifier = Modifier.size(0.px, UiLength.Fit).grow(1f).gap(2.px).alignItems(vertical = UiAlign.CENTER)) {
         Text(axis, modifier = Modifier.fontSize(8f).foreground(axisColor(axis)))
         if (driven != null && driven.drives(channel)) {
-            DrivenCell(driven.value(channel))
+            DrivenCell(driven, property, channel)
         } else {
             NumberCell(value, property, whole = false, onChange = onChange)
         }
@@ -268,8 +281,14 @@ private fun axisColor(axis: String): UiColor = when (axis) {
     else -> UiColor(0.45f, 0.62f, 0.95f, 1f)
 }
 
+/** What a keyed channel holds at the playhead: read-only, unless the timeline records, when a typed value becomes a key. */
 @Composable
-private fun DrivenCell(value: Float) {
+private fun DrivenCell(driven: VfxDrivenValue, property: VfxProperty?, channel: Int) {
+    val value = driven.value(channel)
+    if (driven.recording) {
+        NumberCell(value, property, whole = false) { driven.write(mapOf(channel to it)) }
+        return
+    }
     Box(
         tags = listOf("insp-input", "insp-inline-input", "vfx-driven"),
         modifier = Modifier.size(0.px, UiLength.Fit).grow(1f).input(hoverable = true).cursor(UiCursorShape.NOT_ALLOWED)

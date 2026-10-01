@@ -1,6 +1,7 @@
 {
   "already_exists": "A file by that name is already there",
   "deleted": "Deleted: %s",
+  "save_failed": "Could not save %s, see the log",
   "invalid_name": "That file name cannot be used",
   "no_permissions_reload_server": "You don't have permissions to reload server resources!",
   "not_found": "No such file",

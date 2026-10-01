@@ -21,8 +21,10 @@ import ru.hollowhorizon.hollowengine.client.ui.graph.GraphEdge
 import ru.hollowhorizon.hollowengine.client.ui.graph.GraphLinkPreview
 import ru.hollowhorizon.hollowengine.client.ui.graph.GraphMiniMapItem
 import ru.hollowhorizon.hollowengine.client.ui.graph.GraphNode
+import ru.hollowhorizon.hollowengine.client.ui.graph.GraphPreferences
 import ru.hollowhorizon.hollowengine.client.ui.graph.GraphRect
 import ru.hollowhorizon.hollowengine.client.ui.graph.GraphViewState
+import ru.hollowhorizon.hollowengine.client.ui.graph.graphViewItems
 import ru.hollowhorizon.hollowengine.client.ui.grow
 import ru.hollowhorizon.hollowengine.client.ui.ide.files.HollowIdeAnimatorDocument
 import ru.hollowhorizon.hollowengine.client.ui.input
@@ -206,7 +208,10 @@ internal fun AnimatorGraphCanvas(
                             it.withNodeAt(
                                 layerId,
                                 stateId,
-                                GraphPoint(dragOrigin[0] + gesture.graphDeltaX, dragOrigin[1] + gesture.graphDeltaY),
+                                GraphPoint(
+                                    GraphPreferences.place(dragOrigin[0] + gesture.graphDeltaX),
+                                    GraphPreferences.place(dragOrigin[1] + gesture.graphDeltaY),
+                                ),
                             )
                         }
                     }
@@ -337,7 +342,7 @@ private fun CanvasContextMenu(
             })
 
             CanvasMenuTarget.Empty -> addStateItems(document, layerId, controller, menu.at, onSelect) +
-                    UiDropdownItem(animatorText("reset_view")) { view.reset() }
+                    UiDropdownItem(animatorText("reset_view")) { view.reset() } + graphViewItems()
         },
         onExpandedChange = { if (!it) onDismiss() },
     )

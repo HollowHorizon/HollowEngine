@@ -18,7 +18,8 @@ import ru.hollowhorizon.hollowengine.client.ui.size
 
 /**
  * A press, drag or release on a node: how far the pointer has gone since the press, in graph units,
- * and where it is on the canvas, for handlers that follow it, such as a link being drawn out.
+ * and where it is on the canvas and on the screen, for handlers that follow it, such as a link being
+ * drawn out and the menu it opens when it is dropped on nothing.
  */
 data class GraphNodeGesture(
     val graphDeltaX: Float,
@@ -26,9 +27,12 @@ data class GraphNodeGesture(
     val canvasX: Float,
     val canvasY: Float,
     val modifiers: Int,
+    val screenX: Float = 0f,
+    val screenY: Float = 0f,
 ) {
     val control: Boolean get() = modifiers and GLFW.GLFW_MOD_CONTROL != 0
     val shift: Boolean get() = modifiers and GLFW.GLFW_MOD_SHIFT != 0
+    val alt: Boolean get() = modifiers and GLFW.GLFW_MOD_ALT != 0
 }
 
 /**
@@ -60,6 +64,8 @@ fun GraphNode(
             canvasX = canvas?.x ?: 0f,
             canvasY = canvas?.y ?: 0f,
             modifiers = event.modifiers,
+            screenX = event.x,
+            screenY = event.y,
         )
     }
 

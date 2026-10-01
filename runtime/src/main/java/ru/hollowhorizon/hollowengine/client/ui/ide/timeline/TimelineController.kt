@@ -51,6 +51,12 @@ class TimelineController {
     var isWorkAreaSelected by mutableStateOf(false)
     var isCameraPreviewEnabled by mutableStateOf(false)
 
+    /**
+     * Auto-keying: while it is on, the owner writes what the author changes in the inspector or with
+     * a gizmo as keys at the playhead through [recordKeys], instead of into the value the tracks start from.
+     */
+    var isRecording by mutableStateOf(false)
+
     val history = TimelineHistory(this)
 
     var onChanged: (() -> Unit)? = null
@@ -311,6 +317,26 @@ class TimelineController {
             property.curves.mapIndexed { channel, curve ->
                 setKey(curve, time, curve.valueAt(time, defaultChannel(property, channel)), selectKey = false)
             }.also { select(it, additive = false) }
+        }
+    }
+
+    /**
+     * Keys [values] (channel to value) of [property] at the playhead, the way auto-keying records an
+     * edit. A channel keyed for the first time away from the start also gets a key at zero holding
+     * [previous], what it was before the edit, so the edit animates from there rather than jumping.
+     */
+    fun recordKeys(property: AnimProperty<*>, values: Map<Int, Float>, previous: FloatArray? = null) {
+        if (values.isEmpty() || isLocked(property)) return
+        val time = currentTime
+        edit("Record keys") {
+            values.forEach { (channel, value) ->
+                val curve = property.curves.getOrNull(channel) ?: return@forEach
+                val before = previous?.getOrNull(channel) ?: curve.valueAt(time, defaultChannel(property, channel))
+                if (curve.keyframes.isEmpty() && time > KEYFRAME_TIME_EPSILON) {
+                    setKey(curve, 0f, before, selectKey = false)
+                }
+                setKey(curve, time, curve.spec.unwrap(value, curve.valueAt(time, before)), selectKey = false)
+            }
         }
     }
 

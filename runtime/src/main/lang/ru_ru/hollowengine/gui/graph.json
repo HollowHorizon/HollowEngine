@@ -1,0 +1,12 @@
+{
+  "snap_to_grid": "Привязка к сетке",
+  "arrange": "Выровнять",
+  "align.left": "По левому краю",
+  "align.center_x": "По центру по горизонтали",
+  "align.right": "По правому краю",
+  "align.top": "По верхнему краю",
+  "align.center_y": "По центру по вертикали",
+  "align.bottom": "По нижнему краю",
+  "distribute.horizontal": "Равномерно по горизонтали",
+  "distribute.vertical": "Равномерно по вертикали"
+}

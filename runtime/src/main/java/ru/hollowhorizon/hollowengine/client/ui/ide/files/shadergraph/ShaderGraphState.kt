@@ -6,8 +6,11 @@ import androidx.compose.runtime.setValue
 import ru.hollowhorizon.hollowengine.client.shadergraph.ShaderDiagnostic
 import ru.hollowhorizon.hollowengine.client.ui.graph.GraphViewState
 
-/** What is selected: some nodes, or one link, by its position among the links. */
-internal data class ShaderGraphSelection(val nodes: Set<String> = emptySet(), val link: Int? = null) {
+/**
+ * What is selected: some nodes, or one link, by its position among the links. A group taken by its
+ * title bar selects its nodes and names itself in [group], which is what inspector shows.
+ */
+internal data class ShaderGraphSelection(val nodes: Set<String> = emptySet(), val link: Int? = null, val group: String? = null) {
     val single: String? get() = nodes.singleOrNull()
 
     operator fun contains(node: String): Boolean = node in nodes

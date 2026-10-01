@@ -10,16 +10,22 @@ import ru.hollowhorizon.hollowengine.common.vfx.VfxProperty
  */
 internal fun vfxDrivenLookup(
     document: HollowIdeVfxDocument,
-    preview: VfxPreviewState,
+    state: VfxEditorState,
     nodeId: String,
 ): (VfxProperty) -> VfxDrivenValue? = lookup@{ property ->
+    val preview = state.preview
     val track = document.effect.timeline.track(nodeId, property) ?: return@lookup null
     val channels = track.curves.filter { it.visible && it.keys.isNotEmpty() }.map { it.channel }.toSet()
     if (channels.isEmpty()) return@lookup null
 
     preview.time
     preview.revision
-    VfxDrivenValue(currentValues(preview.instance?.node(nodeId), property), channels)
+    val values = currentValues(preview.instance?.node(nodeId), property)
+    val session = state.session
+    val record = if (!session.timeline.isRecording) null else { changes: Map<Int, Float> ->
+        session.record(nodeId, property, changes, values)
+    }
+    VfxDrivenValue(values, channels, record)
 }
 
 /** The values the running node has for [property] this frame. */

@@ -383,12 +383,12 @@ private fun TimeRuler(
         Box(
             modifier = Modifier.position((px - 0.5f).px, 0.px)
                 .size(1.px, TimelineRulerHeight.px)
-                .background(TimelineColors.Accent),
+                .background(controller.playheadColor),
         )
         Box(
             modifier = Modifier.position((px - 5f).px, 0.px)
                 .size(10.px, 10.px)
-                .shape(PlayheadHeadShape, UiPaint.Color(TimelineColors.Accent)),
+                .shape(PlayheadHeadShape, UiPaint.Color(controller.playheadColor)),
         )
     }
 }
@@ -450,7 +450,7 @@ internal fun Playhead(controller: TimelineController, pxPerSec: Float, rowsHeigh
         id = "timeline-playhead",
         modifier = Modifier.position((x - 0.5f).px, 0.px)
             .size(1.px, rowsHeight.coerceAtLeast(1f).px)
-            .background(TimelineColors.Accent)
+            .background(controller.playheadColor)
             .inputTransparent(),
     )
 }
