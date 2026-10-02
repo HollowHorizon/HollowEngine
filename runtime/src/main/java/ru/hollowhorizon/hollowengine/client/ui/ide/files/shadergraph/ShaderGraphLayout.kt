@@ -167,6 +167,7 @@ internal fun ShaderNodeCategory.icon(): String = graphIcon(
         ShaderNodeCategory.MATH -> "math"
         ShaderNodeCategory.VECTOR -> "coordinates"
         ShaderNodeCategory.NORMAL -> "material"
+        ShaderNodeCategory.RAY -> "coordinates"
         ShaderNodeCategory.UV -> "coordinates"
         ShaderNodeCategory.TEXTURE -> "texture"
         ShaderNodeCategory.PROCEDURAL -> "noise"

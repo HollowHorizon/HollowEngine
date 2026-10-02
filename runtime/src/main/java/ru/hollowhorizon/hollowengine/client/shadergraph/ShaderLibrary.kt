@@ -287,6 +287,37 @@ enum class ShaderLibrary(val code: String, vararg val requires: ShaderLibrary) {
             return m * m * (3.0 - 2.0 * m);
         }
         """
+    ),
+
+    /**
+     * The ray from the eye toward `position`, which stops there: the scene, or the surface being drawn.
+     * Everything is in the space of the position, the eye at its origin; distances are along the ray.
+     */
+    RAYS(
+        """
+        // Where the ray enters and leaves the sphere, how far it runs inside it before it stops, and 1 when it meets it at all.
+        vec4 sg_ray_sphere(vec3 position, vec3 center, float radius) {
+            float stop = length(position);
+            vec3 direction = position / max(stop, 0.0001);
+            float along = dot(center, direction);
+            float h = along * along - dot(center, center) + radius * radius;
+            if (h < 0.0) return vec4(-1.0, -1.0, 0.0, 0.0);
+            float s = sqrt(h);
+            float enter = along - s;
+            float leave = along + s;
+            float inside = max(min(leave, stop) - max(enter, 0.0), 0.0);
+            return vec4(enter, leave, inside, leave > 0.0 ? 1.0 : 0.0);
+        }
+
+        // How far along the ray it crosses the plane through point facing normal, -1 when it never does ahead of the eye.
+        float sg_ray_plane(vec3 position, vec3 point, vec3 normal) {
+            vec3 direction = normalize(position);
+            float facing = dot(direction, normal);
+            if (abs(facing) < 0.00001) return -1.0;
+            float hit = dot(point, normal) / facing;
+            return hit > 0.0 ? hit : -1.0;
+        }
+        """
     );
 
     companion object {

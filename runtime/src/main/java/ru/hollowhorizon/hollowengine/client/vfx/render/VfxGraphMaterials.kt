@@ -169,7 +169,9 @@ object VfxGraphMaterials {
             uniforms = listOf(
                 ShaderGraphUniform("SceneProjMat", "matrix4x4", Identity),
                 ShaderGraphUniform("InvViewProjMat", "matrix4x4", Identity),
+                ShaderGraphUniform("ViewProjMat", "matrix4x4", Identity),
                 ShaderGraphUniform("ViewEye", "float", listOf(0f, 0f, 0f)),
+                ShaderGraphUniform("NodeOffset", "float", listOf(0f, 0f, 0f)),
                 ShaderGraphUniform("ShaderTime", "float", listOf(0f)),
                 ShaderGraphUniform("ScreenSize", "float", listOf(1f, 1f)),
             ) + ShaderGraphPrograms.propertyUniforms(graph.properties),

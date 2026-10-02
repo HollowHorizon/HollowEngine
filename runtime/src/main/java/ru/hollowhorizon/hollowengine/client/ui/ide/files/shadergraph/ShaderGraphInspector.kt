@@ -162,8 +162,13 @@ private fun GraphFields(document: HollowIdeShaderGraphDocument, problems: List<S
                 }
             }
 
-            ShaderTarget.POST -> TextRow(graphText("preview_scene"), preview.scene, id = "sg-preview-scene") { scene ->
-                document.edit { it.withPreviewSettings(preview.copy(scene = scene)) }
+            ShaderTarget.POST -> {
+                TextRow(graphText("preview_scene"), preview.scene, id = "sg-preview-scene") { scene ->
+                    document.edit { it.withPreviewSettings(preview.copy(scene = scene)) }
+                }
+                TextRow(graphText("preview_scene_depth"), preview.sceneDepth, id = "sg-preview-scene-depth") { depth ->
+                    document.edit { it.withPreviewSettings(preview.copy(sceneDepth = depth)) }
+                }
             }
         }
     }

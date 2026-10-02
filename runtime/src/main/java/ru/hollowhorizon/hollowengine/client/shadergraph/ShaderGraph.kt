@@ -7,13 +7,14 @@ import kotlinx.serialization.json.Json
 @Serializable
 enum class ShaderTarget(val inputs: Set<ShaderInput>) {
     /** The surface of a particle, a mesh or a ribbon of an effect. */
-    SURFACE(ShaderInput.entries.toSet()),
+    SURFACE(ShaderInput.entries.toSet() - ShaderInput.NODE_POSITION - ShaderInput.SCREEN_PROJECTION),
 
     POST(
         setOf(
             ShaderInput.UV, ShaderInput.TEXTURE_UV, ShaderInput.FRAME_UV, ShaderInput.SCREEN_UV, ShaderInput.TIME,
             ShaderInput.POSITION, ShaderInput.VIEW_DIRECTION, ShaderInput.MAIN_TEXTURE, ShaderInput.SCENE_DEPTH,
-            ShaderInput.FRAGMENT_DEPTH, ShaderInput.SCENE_COLOR,
+            ShaderInput.FRAGMENT_DEPTH, ShaderInput.SCENE_COLOR, ShaderInput.NODE_POSITION,
+            ShaderInput.SCREEN_PROJECTION,
         )
     ),
 }
@@ -50,10 +51,12 @@ data class ShaderGraphPreview(
     val rotate: Boolean = true,
     val texture: String = DEFAULT_TEXTURE,
     val scene: String = DEFAULT_SCENE,
+    val sceneDepth: String = DEFAULT_SCENE_DEPTH,
 ) {
     companion object {
         const val DEFAULT_TEXTURE = "hollowengine:textures/particle/circle.png"
         const val DEFAULT_SCENE = "hollowengine:textures/gui/preview/sampler_preview.png"
+        const val DEFAULT_SCENE_DEPTH = "hollowengine:textures/gui/preview/depth_preview.png"
 
         const val SCREEN_ASPECT = 0.8f
     }

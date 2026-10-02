@@ -11,8 +11,10 @@ uniform sampler2D SceneDepth;
 // The projection of the level, and the way back from the screen to the space it was drawn in.
 uniform mat4 SceneProjMat;
 uniform mat4 InvViewProjMat;
+uniform mat4 ViewProjMat;
 // The eye in that space: the origin in the world, somewhere else in the preview of an effect.
 uniform vec3 ViewEye;
+uniform vec3 NodeOffset;
 uniform float ShaderTime;
 //#uniforms
 
@@ -37,6 +39,11 @@ vec2 sg_frame_uv(vec2 uv) {
     return uv;
 }
 
+vec3 sg_project(vec3 point) {
+    vec4 clip = ViewProjMat * vec4(point + ViewEye, 1.0);
+    return vec3(clip.xy / max(abs(clip.w), 0.0001) * 0.5 + 0.5, clip.w);
+}
+
 vec3 sg_pixel_position() {
     float depth = texture(SceneDepth, texCoord).r;
     vec4 at = InvViewProjMat * vec4(texCoord * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
@@ -52,6 +59,7 @@ void main() {
     float sg_time = ShaderTime;
     vec3 sg_position = sg_pixel_position();
     vec3 sg_view_direction = normalize(-sg_position);
+    vec3 sg_node_position = NodeOffset;
 
     vec3 sg_out_color = sg_scene_color(texCoord);
     float sg_out_alpha = 1.0;

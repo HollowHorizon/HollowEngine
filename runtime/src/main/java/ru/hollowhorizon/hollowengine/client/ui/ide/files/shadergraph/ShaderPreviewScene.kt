@@ -7,14 +7,14 @@ import org.lwjgl.opengl.GL33
 import ru.hollowhorizon.hollowengine.common.utils.rl
 
 /**
- * The screenshot a post effect is previewed over, copied into a target of its own and turned over on
- * the way.
+ * An image a post effect is previewed over, the screenshot or its depth, copied into a target of its
+ * own and turned over on the way.
  */
 internal class ShaderPreviewScene {
     private var location: String? = null
     private var copy: TextureTarget? = null
 
-    /** The copy of the screenshot at [location]; render thread, with no scissor on. */
+    /** The copy of the image at [location]; render thread, with no scissor on. */
     fun texture(location: String): Int {
         val current = copy
         if (current != null && location == this.location) return current.colorTextureId

@@ -1,0 +1,312 @@
+{
+    "target": "POST",
+    "nodes": [
+        {
+            "id": "speed",
+            "type": "hollowengine:input/property",
+            "x": -1500.0,
+            "y": 900.0,
+            "options": { "property": "Speed" }
+        },
+        {
+            "id": "phase",
+            "type": "hollowengine:math/expression",
+            "x": -1260.0,
+            "y": 880.0,
+            "options": { "expression": "fract(time * speed)", "type": "float" }
+        },
+        {
+            "id": "open",
+            "type": "hollowengine:math/expression",
+            "x": -1020.0,
+            "y": 880.0,
+            "options": { "expression": "smoothstep(0.45, 0.6, t) * (1.0 - smoothstep(0.9, 1.0, t))", "type": "float" }
+        },
+        {
+            "id": "radius",
+            "type": "hollowengine:input/property",
+            "x": -1260.0,
+            "y": 1080.0,
+            "options": { "property": "Radius" }
+        },
+        {
+            "id": "crater_radius",
+            "type": "hollowengine:math/expression",
+            "x": -780.0,
+            "y": 1000.0,
+            "options": { "expression": "radius * open", "type": "float" }
+        },
+        {
+            "id": "spin",
+            "type": "hollowengine:math/expression",
+            "x": -1260.0,
+            "y": 700.0,
+            "options": { "expression": "time * 0.4", "type": "float" }
+        },
+        {
+            "id": "local",
+            "type": "hollowengine:math/expression",
+            "x": -1500.0,
+            "y": -200.0,
+            "options": { "expression": "position - node", "type": "vec3" }
+        },
+        {
+            "id": "polar",
+            "type": "hollowengine:math/expression",
+            "x": -1260.0,
+            "y": -200.0,
+            "options": { "expression": "vec2(length(l.xz) / radius, atan(l.z, l.x))", "type": "vec2" }
+        },
+        {
+            "id": "rings",
+            "type": "hollowengine:math/expression",
+            "x": -1020.0,
+            "y": -420.0,
+            "options": {
+                "expression": "(1.0 - smoothstep(0.0, 0.03, abs(p.x - 1.0))) + (1.0 - smoothstep(0.0, 0.02, abs(p.x - 0.86))) + (1.0 - smoothstep(0.0, 0.02, abs(p.x - 0.35)))",
+                "type": "float"
+            }
+        },
+        {
+            "id": "star",
+            "type": "hollowengine:math/expression",
+            "x": -1020.0,
+            "y": -200.0,
+            "options": {
+                "expression": "max(1.0 - smoothstep(0.0, 0.02, abs(p.x * cos(mod(p.y + spin, 2.0944) - 1.0472) - 0.43)), 1.0 - smoothstep(0.0, 0.02, abs(p.x * cos(mod(p.y + spin + 1.0472, 2.0944) - 1.0472) - 0.43))) * step(p.x, 0.86)",
+                "type": "float"
+            }
+        },
+        {
+            "id": "rune_uv",
+            "type": "hollowengine:math/expression",
+            "x": -1020.0,
+            "y": 20.0,
+            "options": { "expression": "vec2(p.y * 7.64 - spin * 3.0, p.x * 40.0)", "type": "vec2" }
+        },
+        {
+            "id": "rune_noise",
+            "type": "hollowengine:procedural/value_noise",
+            "x": -780.0,
+            "y": 20.0,
+            "values": { "Scale": [1.0] }
+        },
+        {
+            "id": "runes",
+            "type": "hollowengine:math/expression",
+            "x": -540.0,
+            "y": 20.0,
+            "options": { "expression": "step(0.62, n) * step(0.89, p.x) * step(p.x, 0.97)", "type": "float" }
+        },
+        {
+            "id": "circle",
+            "type": "hollowengine:math/expression",
+            "x": -300.0,
+            "y": -200.0,
+            "options": {
+                "expression": "(rings + star + runes) * exp(-abs(l.y) * 6.0) * step(p.y / 6.2832 + 0.5, smoothstep(0.0, 0.35, t)) * (1.0 - smoothstep(0.5, 0.62, t))",
+                "type": "float"
+            }
+        },
+        {
+            "id": "node",
+            "type": "hollowengine:input/node_position",
+            "x": -1500.0,
+            "y": 300.0
+        },
+        {
+            "id": "plane",
+            "type": "hollowengine:ray/plane",
+            "x": -1260.0,
+            "y": 300.0
+        },
+        {
+            "id": "hole",
+            "type": "hollowengine:math/expression",
+            "x": -780.0,
+            "y": 300.0,
+            "options": {
+                "expression": "step(0.0, d) * step(-0.3, gap) * (1.0 - smoothstep(cr * 0.9, cr + 0.001, length((hit - node).xz)))",
+                "type": "float"
+            }
+        },
+        {
+            "id": "bowl",
+            "type": "hollowengine:ray/sphere",
+            "x": -1020.0,
+            "y": 520.0
+        },
+        {
+            "id": "depth",
+            "type": "hollowengine:math/expression",
+            "x": -780.0,
+            "y": 560.0,
+            "options": { "expression": "clamp(-(exit - node).y / max(cr, 0.001), 0.0, 1.0)", "type": "float" }
+        },
+        {
+            "id": "swirl_uv",
+            "type": "hollowengine:math/expression",
+            "x": -780.0,
+            "y": 740.0,
+            "options": { "expression": "(exit - node) * 1.5 + vec3(0.0, time * 0.6, 0.0)", "type": "vec3" }
+        },
+        {
+            "id": "swirl",
+            "type": "hollowengine:procedural/fbm",
+            "x": -540.0,
+            "y": 740.0,
+            "values": { "Scale": [1.0], "Octaves": [4.0] }
+        },
+        {
+            "id": "color",
+            "type": "hollowengine:input/property",
+            "x": -540.0,
+            "y": 540.0,
+            "options": { "property": "Color" }
+        },
+        {
+            "id": "interior",
+            "type": "hollowengine:math/expression",
+            "x": -300.0,
+            "y": 540.0,
+            "options": {
+                "expression": "mix(glow * 1.6, vec3(0.02, 0.0, 0.05), smoothstep(0.0, 0.7, depth)) + glow * pow(swirl, 3.0) * 3.0 * (1.0 - depth)",
+                "type": "vec3"
+            }
+        },
+        {
+            "id": "rim",
+            "type": "hollowengine:math/expression",
+            "x": -540.0,
+            "y": 240.0,
+            "options": {
+                "expression": "(1.0 - smoothstep(0.0, 0.18, abs(length(l.xz) - cr))) * open * exp(-abs(l.y) * 4.0)",
+                "type": "float"
+            }
+        },
+        {
+            "id": "aura_radius",
+            "type": "hollowengine:math/expression",
+            "x": -1020.0,
+            "y": 1200.0,
+            "options": { "expression": "cr * 1.4 + 0.001", "type": "float" }
+        },
+        {
+            "id": "aura",
+            "type": "hollowengine:ray/sphere",
+            "x": -780.0,
+            "y": 1200.0
+        },
+        {
+            "id": "haze",
+            "type": "hollowengine:math/expression",
+            "x": -540.0,
+            "y": 1200.0,
+            "options": { "expression": "pow(clamp(inside / (2.8 * max(cr, 0.001)), 0.0, 1.0), 2.0) * open", "type": "float" }
+        },
+        {
+            "id": "center",
+            "type": "hollowengine:ray/screen_position",
+            "x": -1260.0,
+            "y": 1400.0
+        },
+        {
+            "id": "warp",
+            "type": "hollowengine:math/expression",
+            "x": -300.0,
+            "y": 120.0,
+            "options": { "expression": "uv + normalize(c - uv + 0.00001) * rim * 0.015", "type": "vec2" }
+        },
+        {
+            "id": "scene",
+            "type": "hollowengine:input/scene_color",
+            "x": -60.0,
+            "y": 120.0
+        },
+        {
+            "id": "final",
+            "type": "hollowengine:math/expression",
+            "x": 180.0,
+            "y": 0.0,
+            "options": {
+                "expression": "mix(rgb + glow * (circle * 2.0 + rim * 3.0), interior, hole) + glow * haze * 1.5",
+                "type": "vec3"
+            }
+        },
+        {
+            "id": "output",
+            "type": "hollowengine:output/post",
+            "x": 420.0,
+            "y": 0.0
+        }
+    ],
+    "links": [
+        { "from": "speed", "output": "Out", "to": "phase", "input": "speed" },
+        { "from": "phase", "output": "Out", "to": "open", "input": "t" },
+        { "from": "radius", "output": "Out", "to": "crater_radius", "input": "radius" },
+        { "from": "open", "output": "Out", "to": "crater_radius", "input": "open" },
+
+        { "from": "local", "output": "Out", "to": "polar", "input": "l" },
+        { "from": "radius", "output": "Out", "to": "polar", "input": "radius" },
+        { "from": "polar", "output": "Out", "to": "rings", "input": "p" },
+        { "from": "polar", "output": "Out", "to": "star", "input": "p" },
+        { "from": "spin", "output": "Out", "to": "star", "input": "spin" },
+        { "from": "polar", "output": "Out", "to": "rune_uv", "input": "p" },
+        { "from": "spin", "output": "Out", "to": "rune_uv", "input": "spin" },
+        { "from": "rune_uv", "output": "Out", "to": "rune_noise", "input": "UV" },
+        { "from": "rune_noise", "output": "Out", "to": "runes", "input": "n" },
+        { "from": "polar", "output": "Out", "to": "runes", "input": "p" },
+        { "from": "rings", "output": "Out", "to": "circle", "input": "rings" },
+        { "from": "star", "output": "Out", "to": "circle", "input": "star" },
+        { "from": "runes", "output": "Out", "to": "circle", "input": "runes" },
+        { "from": "local", "output": "Out", "to": "circle", "input": "l" },
+        { "from": "polar", "output": "Out", "to": "circle", "input": "p" },
+        { "from": "phase", "output": "Out", "to": "circle", "input": "t" },
+
+        { "from": "node", "output": "Position", "to": "plane", "input": "Point" },
+        { "from": "plane", "output": "Distance", "to": "hole", "input": "d" },
+        { "from": "plane", "output": "Gap", "to": "hole", "input": "gap" },
+        { "from": "plane", "output": "Point", "to": "hole", "input": "hit" },
+        { "from": "crater_radius", "output": "Out", "to": "hole", "input": "cr" },
+
+        { "from": "node", "output": "Position", "to": "bowl", "input": "Center" },
+        { "from": "crater_radius", "output": "Out", "to": "bowl", "input": "Radius" },
+        { "from": "bowl", "output": "Exit", "to": "depth", "input": "exit" },
+        { "from": "crater_radius", "output": "Out", "to": "depth", "input": "cr" },
+        { "from": "bowl", "output": "Exit", "to": "swirl_uv", "input": "exit" },
+        { "from": "swirl_uv", "output": "Out", "to": "swirl", "input": "UV" },
+        { "from": "color", "output": "Out", "to": "interior", "input": "glow" },
+        { "from": "depth", "output": "Out", "to": "interior", "input": "depth" },
+        { "from": "swirl", "output": "Out", "to": "interior", "input": "swirl" },
+
+        { "from": "local", "output": "Out", "to": "rim", "input": "l" },
+        { "from": "crater_radius", "output": "Out", "to": "rim", "input": "cr" },
+        { "from": "open", "output": "Out", "to": "rim", "input": "open" },
+
+        { "from": "crater_radius", "output": "Out", "to": "aura_radius", "input": "cr" },
+        { "from": "node", "output": "Position", "to": "aura", "input": "Center" },
+        { "from": "aura_radius", "output": "Out", "to": "aura", "input": "Radius" },
+        { "from": "aura", "output": "Inside", "to": "haze", "input": "inside" },
+        { "from": "crater_radius", "output": "Out", "to": "haze", "input": "cr" },
+        { "from": "open", "output": "Out", "to": "haze", "input": "open" },
+
+        { "from": "node", "output": "Position", "to": "center", "input": "Point" },
+        { "from": "center", "output": "UV", "to": "warp", "input": "c" },
+        { "from": "rim", "output": "Out", "to": "warp", "input": "rim" },
+        { "from": "warp", "output": "Out", "to": "scene", "input": "UV" },
+
+        { "from": "scene", "output": "RGB", "to": "final", "input": "rgb" },
+        { "from": "color", "output": "Out", "to": "final", "input": "glow" },
+        { "from": "circle", "output": "Out", "to": "final", "input": "circle" },
+        { "from": "rim", "output": "Out", "to": "final", "input": "rim" },
+        { "from": "interior", "output": "Out", "to": "final", "input": "interior" },
+        { "from": "hole", "output": "Out", "to": "final", "input": "hole" },
+        { "from": "haze", "output": "Out", "to": "final", "input": "haze" },
+        { "from": "final", "output": "Out", "to": "output", "input": "Color" }
+    ],
+    "properties": [
+        { "name": "Color", "type": "VEC3", "default": [0.55, 0.3, 1.0] },
+        { "name": "Radius", "default": [2.0] },
+        { "name": "Speed", "default": [0.2] }
+    ]
+}

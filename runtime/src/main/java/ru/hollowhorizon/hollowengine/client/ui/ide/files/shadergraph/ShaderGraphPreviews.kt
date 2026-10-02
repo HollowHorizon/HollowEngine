@@ -40,6 +40,7 @@ internal class ShaderGraphPreviews {
     private val name = "preview_${Counter.incrementAndGet()}"
     private val meshes = ShaderPreviewMeshes()
     private val scene = ShaderPreviewScene()
+    private val sceneDepth = ShaderPreviewScene()
     private val started = System.nanoTime()
     private var program: ShaderInstance? = null
     private var programSource: String? = null
@@ -77,6 +78,8 @@ internal class ShaderGraphPreviews {
                 val texture = textureAt(frame.graph.preview.texture)
                 val sceneTexture = if (screen) scene.texture(frame.graph.preview.scene) else texture
                 val mainTexture = if (screen) sceneTexture else texture
+                val depthTexture = if (screen) sceneDepth.texture(frame.graph.preview.sceneDepth) else texture
+                val images = PreviewImages(mainTexture, sceneTexture, depthTexture)
                 compiled.previewIndex.forEach { (node, index) ->
                     val width = if (node == master) OUTPUT_PIXELS else PIXELS
                     val height = if (screen) (width * ShaderGraphPreview.SCREEN_ASPECT).toInt() else width
@@ -85,7 +88,7 @@ internal class ShaderGraphPreviews {
                     target.clear(Minecraft.ON_OSX)
                     target.bindWrite(true)
                     val mesh = frame.graph.preview.mesh.takeIf { !screen && node in compiled.spatial } ?: ShaderPreviewMesh.QUAD
-                    draw(shader, frame.graph, compiled, mesh, index, width, height, mainTexture, sceneTexture)
+                    draw(shader, frame.graph, compiled, mesh, index, width, height, images)
                 }
             }
         }
@@ -108,8 +111,7 @@ internal class ShaderGraphPreviews {
         index: Int,
         width: Int,
         height: Int,
-        mainTexture: Int,
-        sceneTexture: Int,
+        images: PreviewImages,
     ) {
         val seconds = (System.nanoTime() - started) / 1_000_000_000f
         val flat = mesh == ShaderPreviewMesh.QUAD
@@ -125,8 +127,9 @@ internal class ShaderGraphPreviews {
         shader.safeGetUniform("PreviewFlat").set(if (flat) 1f else 0f)
         shader.safeGetUniform("PreviewSize").set(width.toFloat(), height.toFloat())
         shader.safeGetUniform("PreviewScreen").set(if (graph.target == ShaderTarget.POST) 1f else 0f)
-        shader.setSampler("PreviewScene", sceneTexture)
-        shader.setSampler("Sampler0", mainTexture)
+        shader.setSampler("PreviewScene", images.scene)
+        shader.setSampler("PreviewDepth", images.depth)
+        shader.setSampler("Sampler0", images.main)
         graph.properties.forEach { property ->
             if (property.type == ShaderType.TEXTURE) {
                 if (property.texture.isNotBlank()) shader.setSampler(
@@ -172,6 +175,9 @@ internal class ShaderGraphPreviews {
         }
     }
 
+    /** The textures a draw samples: the main texture, and for a post effect the screenshot and its depth. */
+    private class PreviewImages(val main: Int, val scene: Int, val depth: Int)
+
     /** Where the mesh is in the world, and the camera that looks at it. */
     private class PreviewCamera(val model: Matrix4f, val view: Matrix4f, val projection: Matrix4f)
 
@@ -205,7 +211,7 @@ internal class ShaderGraphPreviews {
                 vertex = ShaderGraphPrograms.stage(stage),
                 fragment = ShaderGraphPrograms.stage(stage),
                 attributes = listOf("Position", "Color", "UV0", "UV1", "UV2", "Normal"),
-                samplers = listOf("Sampler0", "PreviewScene") + ShaderGraphPrograms.propertySamplers(graph.properties),
+                samplers = listOf("Sampler0", "PreviewScene", "PreviewDepth") + ShaderGraphPrograms.propertySamplers(graph.properties),
                 uniforms = listOf(
                     ShaderGraphUniform("ModelViewMat", "matrix4x4", IDENTITY),
                     ShaderGraphUniform("ProjMat", "matrix4x4", IDENTITY),
@@ -246,6 +252,7 @@ internal class ShaderGraphPreviews {
         drawnRevision = null
         meshes.release()
         scene.release()
+        sceneDepth.release()
         targets.values.forEach(TextureTarget::destroyBuffers)
         targets.clear()
     }

@@ -1,0 +1,144 @@
+{
+    "target": "POST",
+    "nodes": [
+        {
+            "id": "position",
+            "type": "hollowengine:input/position",
+            "x": -1020.0,
+            "y": -200.0
+        },
+        {
+            "id": "node",
+            "type": "hollowengine:input/node_position",
+            "x": -1020.0,
+            "y": 60.0
+        },
+        {
+            "id": "distance",
+            "type": "hollowengine:vector/distance",
+            "x": -780.0,
+            "y": -120.0
+        },
+        {
+            "id": "speed",
+            "type": "hollowengine:input/property",
+            "x": -1020.0,
+            "y": 320.0,
+            "options": {
+                "property": "Speed"
+            }
+        },
+        {
+            "id": "range",
+            "type": "hollowengine:input/property",
+            "x": -1020.0,
+            "y": 410.0,
+            "options": {
+                "property": "Range"
+            }
+        },
+        {
+            "id": "radius",
+            "type": "hollowengine:math/expression",
+            "x": -780.0,
+            "y": 300.0,
+            "options": {
+                "expression": "fract(time * speed) * range",
+                "type": "float"
+            }
+        },
+        {
+            "id": "width",
+            "type": "hollowengine:input/property",
+            "x": -540.0,
+            "y": 360.0,
+            "options": {
+                "property": "Width"
+            }
+        },
+        {
+            "id": "ring",
+            "type": "hollowengine:math/expression",
+            "x": -540.0,
+            "y": -60.0,
+            "options": {
+                "expression": "smoothstep(radius - width * 3.0, radius, d) * (1.0 - smoothstep(radius, radius + width * 0.3, d)) * (1.0 - radius / range)",
+                "type": "float"
+            }
+        },
+        {
+            "id": "lift",
+            "type": "hollowengine:input/property",
+            "x": -300.0,
+            "y": 300.0,
+            "options": {
+                "property": "Lift"
+            }
+        },
+        {
+            "id": "warp",
+            "type": "hollowengine:math/expression",
+            "x": -300.0,
+            "y": -60.0,
+            "options": {
+                "expression": "uv - vec2(0.0, ring * lift)",
+                "type": "vec2"
+            }
+        },
+        {
+            "id": "scene",
+            "type": "hollowengine:input/scene_color",
+            "x": -60.0,
+            "y": -60.0
+        },
+        {
+            "id": "color",
+            "type": "hollowengine:input/property",
+            "x": -60.0,
+            "y": 220.0,
+            "options": {
+                "property": "Color"
+            }
+        },
+        {
+            "id": "shade",
+            "type": "hollowengine:math/expression",
+            "x": 180.0,
+            "y": -60.0,
+            "options": {
+                "expression": "rgb + glow * ring",
+                "type": "vec3"
+            }
+        },
+        {
+            "id": "output",
+            "type": "hollowengine:output/post",
+            "x": 420.0,
+            "y": -60.0
+        }
+    ],
+    "links": [
+        { "from": "position", "output": "Position", "to": "distance", "input": "A" },
+        { "from": "node", "output": "Position", "to": "distance", "input": "B" },
+        { "from": "speed", "output": "Out", "to": "radius", "input": "speed" },
+        { "from": "range", "output": "Out", "to": "radius", "input": "range" },
+        { "from": "distance", "output": "Out", "to": "ring", "input": "d" },
+        { "from": "radius", "output": "Out", "to": "ring", "input": "radius" },
+        { "from": "width", "output": "Out", "to": "ring", "input": "width" },
+        { "from": "range", "output": "Out", "to": "ring", "input": "range" },
+        { "from": "ring", "output": "Out", "to": "warp", "input": "ring" },
+        { "from": "lift", "output": "Out", "to": "warp", "input": "lift" },
+        { "from": "warp", "output": "Out", "to": "scene", "input": "UV" },
+        { "from": "scene", "output": "RGB", "to": "shade", "input": "rgb" },
+        { "from": "color", "output": "Out", "to": "shade", "input": "glow" },
+        { "from": "ring", "output": "Out", "to": "shade", "input": "ring" },
+        { "from": "shade", "output": "Out", "to": "output", "input": "Color" }
+    ],
+    "properties": [
+        { "name": "Color", "type": "VEC3", "default": [1.0, 0.7, 0.35] },
+        { "name": "Speed", "default": [0.5] },
+        { "name": "Range", "default": [8.0] },
+        { "name": "Width", "default": [0.5] },
+        { "name": "Lift", "default": [0.012] }
+    ]
+}

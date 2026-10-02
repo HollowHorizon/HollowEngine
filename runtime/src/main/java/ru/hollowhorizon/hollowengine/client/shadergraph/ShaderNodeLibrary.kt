@@ -18,7 +18,7 @@ object ShaderNodeLibrary {
     const val REROUTE_OUTPUT = "Out"
 
     val all: List<ShaderNodeType> by lazy {
-        inputs() + uv() + texture() + output() + ShaderMathNodes.all + ShaderNormalNodes.all + reroute()
+        inputs() + uv() + texture() + output() + ShaderMathNodes.all + ShaderNormalNodes.all + ShaderRayNodes.all + reroute()
     }
 
     /** What a new graph of [target] starts as. */
@@ -66,6 +66,7 @@ object ShaderNodeLibrary {
         engineInput("normal", ShaderInput.NORMAL, "Normal"),
         engineInput("view_direction", ShaderInput.VIEW_DIRECTION, "Direction"),
         engineInput("screen_uv", ShaderInput.SCREEN_UV, "UV", "coordinates"),
+        engineInput("node_position", ShaderInput.NODE_POSITION, "Position", "coordinates"),
 
         shaderNode("hollowengine:input/vertex_color", INPUT) {
             group("surface")

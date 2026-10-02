@@ -140,7 +140,19 @@ enum class ShaderInput(
     FRAGMENT_DEPTH("sg_fragment_depth()", ShaderType.FLOAT, fragmentOnly = true),
 
     /** A function of a screen UV: the frame as it was before the effect drew. */
-    SCENE_COLOR("sg_scene_color", ShaderType.VEC3, fragmentOnly = true);
+    SCENE_COLOR("sg_scene_color", ShaderType.VEC3, fragmentOnly = true),
+
+    /**
+     * Where the node of the post effect is relative to the eye, in blocks, in the space of [POSITION]:
+     * what anchors an effect drawn over the frame to a place in the world.
+     */
+    NODE_POSITION("sg_node_position", ShaderType.VEC3, expressionName = "node"),
+
+    /**
+     * A function of a point in the space of [POSITION]: where it lands on the screen, 0 to 1, and how
+     * far ahead of the eye it is, negative behind it.
+     */
+    SCREEN_PROJECTION("sg_project", ShaderType.VEC3);
 
     companion object {
         fun forExpression(name: String): ShaderInput? = entries.firstOrNull { it.expressionName == name }

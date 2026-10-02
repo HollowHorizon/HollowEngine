@@ -25,7 +25,7 @@ enum class ShaderPreviewStyle {
 
 /** Where a kind of node shows up in the add menu. */
 enum class ShaderNodeCategory {
-    INPUT, MATH, VECTOR, NORMAL, UV, TEXTURE, PROCEDURAL, OUTPUT,
+    INPUT, MATH, VECTOR, NORMAL, RAY, UV, TEXTURE, PROCEDURAL, OUTPUT,
 }
 
 /** An input of a kind of node: what it takes, and what it is when nothing is linked to it. */

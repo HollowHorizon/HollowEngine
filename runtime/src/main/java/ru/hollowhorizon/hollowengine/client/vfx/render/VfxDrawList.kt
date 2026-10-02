@@ -97,8 +97,8 @@ class VfxRibbonDraw(
     }
 }
 
-/** A full-screen pass, with the uniforms it is drawn with this frame. */
-class VfxPostDraw(val shader: String, val uniforms: VfxUniformValues)
+/** A full-screen pass, with the uniforms it is drawn with this frame and where its node is in the space of the view. */
+class VfxPostDraw(val shader: String, val uniforms: VfxUniformValues, val position: Vector3f)
 
 /** A sky node's pass, with where its node is in the space of the view and how long the effect has played. */
 class VfxSkyDraw(val shader: String, val uniforms: VfxUniformValues, val position: Vector3f, val time: Float)

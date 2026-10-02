@@ -1,0 +1,124 @@
+{
+    "target": "POST",
+    "nodes": [
+        {
+            "id": "position",
+            "type": "hollowengine:input/position",
+            "x": -1020.0,
+            "y": -200.0
+        },
+        {
+            "id": "distance",
+            "type": "hollowengine:vector/length",
+            "x": -780.0,
+            "y": -260.0
+        },
+        {
+            "id": "rise",
+            "type": "hollowengine:vector/split",
+            "x": -780.0,
+            "y": -60.0
+        },
+        {
+            "id": "node",
+            "type": "hollowengine:input/node_position",
+            "x": -1020.0,
+            "y": 120.0
+        },
+        {
+            "id": "base",
+            "type": "hollowengine:vector/split",
+            "x": -780.0,
+            "y": 160.0
+        },
+        {
+            "id": "eye",
+            "type": "hollowengine:math/negate",
+            "x": -540.0,
+            "y": 200.0
+        },
+        {
+            "id": "start",
+            "type": "hollowengine:input/property",
+            "x": -540.0,
+            "y": 420.0,
+            "options": {
+                "property": "Start"
+            }
+        },
+        {
+            "id": "density",
+            "type": "hollowengine:input/property",
+            "x": -540.0,
+            "y": 510.0,
+            "options": {
+                "property": "Density"
+            }
+        },
+        {
+            "id": "falloff",
+            "type": "hollowengine:input/property",
+            "x": -540.0,
+            "y": 600.0,
+            "options": {
+                "property": "Falloff"
+            }
+        },
+        {
+            "id": "amount",
+            "type": "hollowengine:math/expression",
+            "x": -300.0,
+            "y": -60.0,
+            "options": {
+                "expression": "density * max(dist - start, 0.0) * exp(-falloff * eye) * (abs(falloff * rise) > 0.0001 ? (1.0 - exp(-falloff * rise)) / (falloff * rise) : 1.0)",
+                "type": "float"
+            }
+        },
+        {
+            "id": "fog",
+            "type": "hollowengine:math/expression",
+            "x": -60.0,
+            "y": -60.0,
+            "options": {
+                "expression": "1.0 - exp(-amount)",
+                "type": "float"
+            }
+        },
+        {
+            "id": "color",
+            "type": "hollowengine:input/property",
+            "x": -60.0,
+            "y": -240.0,
+            "options": {
+                "property": "Color"
+            }
+        },
+        {
+            "id": "output",
+            "type": "hollowengine:output/post",
+            "x": 180.0,
+            "y": -60.0
+        }
+    ],
+    "links": [
+        { "from": "position", "output": "Position", "to": "distance", "input": "In" },
+        { "from": "position", "output": "Position", "to": "rise", "input": "In" },
+        { "from": "node", "output": "Position", "to": "base", "input": "In" },
+        { "from": "base", "output": "G", "to": "eye", "input": "In" },
+        { "from": "distance", "output": "Out", "to": "amount", "input": "dist" },
+        { "from": "rise", "output": "G", "to": "amount", "input": "rise" },
+        { "from": "eye", "output": "Out", "to": "amount", "input": "eye" },
+        { "from": "start", "output": "Out", "to": "amount", "input": "start" },
+        { "from": "density", "output": "Out", "to": "amount", "input": "density" },
+        { "from": "falloff", "output": "Out", "to": "amount", "input": "falloff" },
+        { "from": "amount", "output": "Out", "to": "fog", "input": "amount" },
+        { "from": "color", "output": "Out", "to": "output", "input": "Color" },
+        { "from": "fog", "output": "Out", "to": "output", "input": "Alpha" }
+    ],
+    "properties": [
+        { "name": "Color", "type": "VEC3", "default": [0.66, 0.74, 0.86] },
+        { "name": "Density", "default": [0.12] },
+        { "name": "Start", "default": [1.0] },
+        { "name": "Falloff", "default": [0.4] }
+    ]
+}
