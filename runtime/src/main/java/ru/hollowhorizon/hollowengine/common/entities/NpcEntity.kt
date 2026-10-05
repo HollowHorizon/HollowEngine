@@ -134,7 +134,7 @@ class NpcEntity : PathfinderMob {
 
 
     fun seat() {
-        SeatEntity.seat(this, direction)
+        SeatEntity.seat(this)
     }
 
     fun standup() {

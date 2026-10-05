@@ -12,7 +12,7 @@ import ru.hollowhorizon.hollowengine.common.utils.JavaHacks
 
 class RegisterTagsEvent(
     val registry: Registry<*>,
-    private val tags: MutableMap<ResourceLocation, MutableList<TagLoader.EntryWithSource>>,
+    internal val tags: MutableMap<ResourceLocation, MutableList<TagLoader.EntryWithSource>>,
 ) : ServerEvent {
     companion object : EventHandler<RegisterTagsEvent>()
 

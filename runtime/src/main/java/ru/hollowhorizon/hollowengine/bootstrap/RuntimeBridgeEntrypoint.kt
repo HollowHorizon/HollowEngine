@@ -308,13 +308,16 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
         return event.stack.takeIf { it != stack }
     }
 
-    override fun onRegisterTags(registry: Any, value: Map<ResourceLocation, List<TagLoader.EntryWithSource>>) {
-        @Suppress("UNCHECKED_CAST") RegisterTagsEvent.post(
-            RegisterTagsEvent(
-                registry as net.minecraft.core.Registry<*>,
-                value.mapValuesTo(LinkedHashMap()) { (_, entries) -> entries.toMutableList() },
-            )
+    override fun onRegisterTags(
+        registry: Any,
+        value: Map<ResourceLocation, List<TagLoader.EntryWithSource>>,
+    ): Map<ResourceLocation, List<TagLoader.EntryWithSource>> {
+        val event = RegisterTagsEvent(
+            registry as net.minecraft.core.Registry<*>,
+            value.mapValuesTo(LinkedHashMap()) { (_, entries) -> entries.toMutableList() },
         )
+        RegisterTagsEvent.post(event)
+        return event.tags
     }
 
     override fun getSkySunSize(level: ClientLevel, originalSize: Float): Float {

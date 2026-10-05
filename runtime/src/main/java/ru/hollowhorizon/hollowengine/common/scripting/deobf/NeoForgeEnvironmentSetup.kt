@@ -30,9 +30,7 @@ object NeoForgeEnvironmentSetup : EnvironmentSetup {
 
     private fun runtimeClasspath(): List<File> {
         val obfuscatedMinecraftJar = Regex("""[/\\]versions[/\\][^/\\]+[/\\][^/\\]+\.jar$""")
-        return System.getProperty("java.class.path")
-            .orEmpty()
-            .split(File.pathSeparator)
+        return launchClasspath()
             .asSequence()
             .filter(String::isNotBlank)
             .map(::File)
@@ -40,6 +38,21 @@ object NeoForgeEnvironmentSetup : EnvironmentSetup {
             .filterNot { isMinecraftGameJar(it) || obfuscatedMinecraftJar.containsMatchIn(it.absolutePath) }
             .distinctBy { it.absoluteFile.normalize() }
             .toList()
+    }
+
+    /**
+     * A dedicated server hands the game libraries (brigadier, authlib, DFU...) to the bootstrap launcher as
+     * `legacyClassPath` or a `legacyClassPath.file` listing, not as `java.class.path`, so all three are read.
+     */
+    private fun launchClasspath(): List<String> {
+        val listed = System.getProperty("legacyClassPath.file")
+            ?.let(::File)
+            ?.takeIf(File::isFile)
+            ?.readLines()
+            .orEmpty()
+        val legacy = System.getProperty("legacyClassPath").orEmpty().split(File.pathSeparator)
+        val java = System.getProperty("java.class.path").orEmpty().split(File.pathSeparator)
+        return (listed + legacy + java).map(String::trim)
     }
 
     private fun isMinecraftGameJar(file: File): Boolean {

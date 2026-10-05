@@ -31,8 +31,10 @@ object ServerModelAnimationMetadata {
             ?.mapValues { (_, animation) -> animation.duration }
             .orEmpty()
 
+    // Not computeIfAbsent: runBlocking on the server thread drains coroutines queued on that thread, one of them
+    // may ask for the same model, and the re-entrant computeIfAbsent throws "Recursive update".
     fun model(model: String): Model? =
-        modelCache.computeIfAbsent(model, ::loadModel).getOrNull()
+        (modelCache[model] ?: loadModel(model).let { modelCache.putIfAbsent(model, it) ?: it }).getOrNull()
 
     fun clearCache() {
         modelCache.clear()

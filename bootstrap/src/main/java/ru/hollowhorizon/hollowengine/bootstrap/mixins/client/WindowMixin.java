@@ -1,12 +1,13 @@
 package ru.hollowhorizon.hollowengine.bootstrap.mixins.client;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.platform.Window;
 import net.minecraft.client.Minecraft;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import ru.hollowhorizon.hollowengine.bootstrap.impl.BootstrapRuntimeManager;
 import ru.hollowhorizon.hollowengine.bootstrap.runtime.RuntimeBridge;
@@ -29,7 +30,8 @@ public class WindowMixin {
         }
     }
 
-    @Redirect(
+    // Not a Redirect: GPU/performance mods hook the same call, and a second Redirect on it fails the launch.
+    @WrapOperation(
             method = "<init>",
             at = @At(
                     value = "INVOKE",
@@ -37,7 +39,7 @@ public class WindowMixin {
             ),
             remap = false
     )
-    private void redirectGlfwWindowHint(int target, int value) {
+    private void overrideGlfwWindowHint(int target, int value, Operation<Void> original) {
         if (target == GLFW.GLFW_CONTEXT_VERSION_MAJOR || target == GLFW.GLFW_CONTEXT_VERSION_MINOR) {
             String versionText = BootstrapRuntimeManager.bridge().getOpenGlVersionOverride();
             if (versionText != null && versionText.contains(".")) {
@@ -49,7 +51,7 @@ public class WindowMixin {
                 }
             }
         }
-        GLFW.glfwWindowHint(target, value);
+        original.call(target, value);
     }
 
     @Inject(method = "getGuiScale", at = @At("HEAD"), cancellable = true)

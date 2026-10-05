@@ -120,7 +120,8 @@ public interface RuntimeBridge extends AutoCloseable {
 
     @Nullable ItemStack onArrowNock(ItemStack stack, Level level, Player player, InteractionHand usedHand);
 
-    void onRegisterTags(Object registry, Map<ResourceLocation, List<TagLoader.EntryWithSource>> value);
+    /** The entries the tags are built from: {@code value} with the additions and removals of the runtime applied. */
+    Map<ResourceLocation, List<TagLoader.EntryWithSource>> onRegisterTags(Object registry, Map<ResourceLocation, List<TagLoader.EntryWithSource>> value);
 
     float getSkySunSize(ClientLevel level, float originalSize);
 

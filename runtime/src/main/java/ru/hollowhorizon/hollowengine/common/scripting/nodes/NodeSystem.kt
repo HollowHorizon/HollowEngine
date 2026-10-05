@@ -27,6 +27,15 @@ class NodeManager(val server: MinecraftServer) {
      */
     private val dormant = mutableMapOf<String, CompoundTag>()
 
+    /**
+     * Nodes that were stopped but whose coroutines are still unwinding. A new instance of the same path waits
+     * for them, otherwise the old `onStop` and event unsubscriptions would run after the new `onStart`.
+     */
+    private val stopping = mutableMapOf<String, Job>()
+
+    /** Starts queued behind a [stopping] node, cancelled when the node is stopped again before it starts. */
+    private val pendingStarts = mutableMapOf<String, Job>()
+
     fun serialize(tag: CompoundTag) {
         dormant.forEach { (name, nodeTag) -> tag.put(name, nodeTag) }
         nodes.forEach { (name, entry) ->
@@ -63,7 +72,37 @@ class NodeManager(val server: MinecraftServer) {
     fun removeNode(path: String) {
         val canonicalPath = canonicalNodePath(path)
         dormant.remove(canonicalPath)
-        nodes.remove(canonicalPath)?.script?.coroutineContext?.job?.cancel()
+        pendingStarts.remove(canonicalPath)?.cancel()
+        nodes.remove(canonicalPath)?.let { stop(canonicalPath, it) }
+    }
+
+    /**
+     * Runs [start] once the previous instance of [path], if any, has fully stopped. A node that is still
+     * running is restarted rather than duplicated.
+     */
+    internal fun startAfterStop(path: String, start: () -> Unit) {
+        val canonicalPath = canonicalNodePath(path)
+        removeNode(canonicalPath)
+
+        val previous = stopping[canonicalPath]?.takeUnless { it.isCompleted }
+        if (previous == null) {
+            stopping.remove(canonicalPath)
+            start()
+            return
+        }
+
+        pendingStarts[canonicalPath] = server.runtimeContext.scope.launch {
+            previous.join()
+            stopping.remove(canonicalPath, previous)
+            pendingStarts.remove(canonicalPath)
+            start()
+        }
+    }
+
+    private fun stop(path: String, node: RunningNode) {
+        val job = node.script.coroutineContext.job
+        job.cancel()
+        if (!job.isCompleted) stopping[path] = job
     }
 
     fun dispose() {
@@ -81,7 +120,7 @@ class NodeManager(val server: MinecraftServer) {
                 runCatching { dormant[path] = entry.persist(server) }
                     .onFailure { HollowEngine.LOGGER.error("Error while suspending node '$path'", it) }
                 nodes.remove(path)
-                entry.script.coroutineContext.job.cancel()
+                stop(path, entry)
             }
     }
 
@@ -203,15 +242,17 @@ private fun NodeHost.describe(): String = when (this) {
 fun canonicalNodePath(path: String): String = ScriptRegistry.display(ScriptRegistry.parse(path))
 
 fun MinecraftServer.addNode(path: String, tag: CompoundTag? = null, context: StateContext? = null) {
-    val (script, executor) = buildNode(
-        host = NodeHost.Server(this),
-        parentScope = runtimeContext.scope,
-        path = path,
-        tag = tag,
-        receivers = listOf(this),
-    ) ?: return
+    runtimeContext.nodes.startAfterStop(path) {
+        val (script, executor) = buildNode(
+            host = NodeHost.Server(this),
+            parentScope = runtimeContext.scope,
+            path = path,
+            tag = tag,
+            receivers = listOf(this),
+        ) ?: return@startAfterStop
 
-    runtimeContext.nodes.register(script, executor, context)
+        runtimeContext.nodes.register(script, executor, context)
+    }
 }
 
 fun MinecraftServer.removeNode(path: String) {

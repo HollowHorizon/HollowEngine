@@ -1,11 +1,9 @@
 package ru.hollowhorizon.hollowengine.common.entities
 
-import net.minecraft.core.Direction
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.network.protocol.Packet
 import net.minecraft.network.protocol.game.ClientGamePacketListener
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket
-import net.minecraft.network.syncher.SynchedEntityData
 import net.minecraft.server.level.ServerEntity
 import net.minecraft.util.Mth
 import net.minecraft.world.entity.*
@@ -19,13 +17,14 @@ import ru.hollowhorizon.hollowengine.common.registry.ModEntities
 class SeatEntity(entityType: EntityType<SeatEntity>, pLevel: Level) : LivingEntity(entityType, pLevel) {
     constructor(level: Level) : this(ModEntities.SEAT, level)
 
-    constructor(level: Level, pos: Vec3, dir: Direction) : this(level) {
+    constructor(level: Level, pos: Vec3, yaw: Float) : this(level) {
         this.setPos(pos.x, pos.y, pos.z)
-        this.setRot(dir.opposite.toYRot(), 0F)
+        this.setRot(yaw, 0F)
     }
 
     init {
         this.noPhysics = true
+        this.isNoGravity = true
         this.isInvulnerable = true
     }
 
@@ -33,18 +32,14 @@ class SeatEntity(entityType: EntityType<SeatEntity>, pLevel: Level) : LivingEnti
         super.tick()
         if (this.level().isClientSide) return
 
-        if (this.passengers.isNotEmpty() && !this.level().isEmptyBlock(this.blockPosition())) return
-
-        this.remove(RemovalReason.DISCARDED)
-        this.level().updateNeighbourForOutputSignal(
-            this.blockPosition(),
-            this.level().getBlockState(this.blockPosition()).block
-        )
+        // The seat only exists to carry its rider, so it goes away as soon as the rider leaves.
+        if (this.passengers.isEmpty()) this.discard()
     }
+
+    override fun isPushable() = false
 
     override fun getMainArm(): HumanoidArm = HumanoidArm.RIGHT
 
-    override fun defineSynchedData(builder: SynchedEntityData.Builder) {}
     override fun getAddEntityPacket(entity: ServerEntity): Packet<ClientGamePacketListener?>? {
         return ClientboundAddEntityPacket(this, entity)
     }
@@ -104,14 +99,14 @@ class SeatEntity(entityType: EntityType<SeatEntity>, pLevel: Level) : LivingEnti
     }
 
     companion object {
-        fun seat(player: Entity, dir: Direction) {
-            val level = player.level()
+        fun seat(entity: Entity) {
+            val level = entity.level()
 
             if (level.isClientSide()) return
 
-            val seat = SeatEntity(level, player.position(), dir)
+            val seat = SeatEntity(level, entity.position(), entity.yRot)
             level.addFreshEntity(seat)
-            player.startRiding(seat, false)
+            entity.startRiding(seat, false)
         }
     }
 }

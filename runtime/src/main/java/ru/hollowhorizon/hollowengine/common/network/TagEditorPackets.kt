@@ -9,7 +9,7 @@ import ru.hollowhorizon.hollowengine.common.tags.TagDataManager
 import ru.hollowhorizon.hollowengine.common.utils.PlayerPermissions
 import ru.hollowhorizon.hollowengine.common.utils.nbt.ForResourceLocation
 
-@HollowPacketHandler(HollowPacketHandler.Direction.TO_SERVER)
+@HollowPacketHandler(HollowPacketHandler.Direction.TO_CLIENT)
 @Serializable
 class SSyncTagDataPacket(val data: Map<ResourceLocation, Set<ResourceLocation>>, val registryType: String) : HollowPacket {
     override fun handle(player: Player) {

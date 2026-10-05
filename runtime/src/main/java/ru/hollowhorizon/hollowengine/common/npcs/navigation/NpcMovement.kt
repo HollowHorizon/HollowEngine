@@ -2,6 +2,7 @@ package ru.hollowhorizon.hollowengine.common.npcs.navigation
 
 import kotlinx.coroutines.delay
 import net.minecraft.world.entity.Entity
+import net.minecraft.world.level.pathfinder.Path
 import net.minecraft.world.phys.Vec3
 import ru.hollowhorizon.hollowengine.common.coroutines.Ref
 import ru.hollowhorizon.hollowengine.common.entities.NpcEntity
@@ -54,6 +55,7 @@ internal suspend fun NpcEntity.moveToPosition(target: () -> Vec3?, options: Move
     var ticksSinceRepath = options.repathIntervalTicks
     var ticksWithoutPath = 0
     var pathCreationFailed = false
+    var reachingPath: Path? = null
 
     try {
         while (true) {
@@ -69,6 +71,8 @@ internal suspend fun NpcEntity.moveToPosition(target: () -> Vec3?, options: Move
             }
 
             val targetMoved = lastPathTarget?.distanceToSqr(currentTarget)?.let { it > targetMoveThresholdSq } ?: true
+            if (!targetMoved && reachingPath?.isDone == true) return MoveResult.Arrived
+
             val stuck = ticksSinceProgress >= options.stuckTimeoutTicks
             val repathReady = ticksSinceRepath >= options.repathIntervalTicks
             val shouldRepath = targetMoved || stuck || repathReady && navigation.isDone
@@ -76,12 +80,10 @@ internal suspend fun NpcEntity.moveToPosition(target: () -> Vec3?, options: Move
             if (shouldRepath) {
                 val path = navigation.createPath(currentTarget.x, currentTarget.y, currentTarget.z, 0)
                 lastPathTarget = currentTarget
-                if (path == null || !navigation.moveTo(path, options.speed)) {
-                    pathCreationFailed = true
-                } else {
-                    pathCreationFailed = false
-                    ticksWithoutPath = 0
-                }
+                val moving = path != null && navigation.moveTo(path, options.speed)
+                reachingPath = navigation.path?.takeIf { moving && it.canReach() }
+                pathCreationFailed = reachingPath == null
+                if (!pathCreationFailed) ticksWithoutPath = 0
                 ticksSinceRepath = 0
                 if (stuck) {
                     ticksSinceProgress = 0

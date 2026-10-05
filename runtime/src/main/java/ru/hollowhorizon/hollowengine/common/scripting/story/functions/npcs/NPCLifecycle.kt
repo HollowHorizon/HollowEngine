@@ -32,7 +32,7 @@ import kotlin.contracts.ExperimentalContracts
  * @param pos Позиция размещения NPC в мире (в мировых координатах).
  * @param name Отображаемое имя NPC. Показывается над головой, если [nameplateMode] = NameplateMode.SHOW.
  * @param model Путь к 3D-модели в формате `.gltf`. Используется для рендеринга внешности NPC.
- * @param rotation Начальная ориентация NPC в виде углов (yaw, pitch), в радианах.
+ * @param rotation Начальная ориентация NPC: `x` - yaw, `y` - pitch, в градусах.
  * @param world Идентификатор мира, в котором должен появиться NPC. Например: `"minecraft:overworld"`.
  * @param attributes Дополнительные числовые параметры NPC (например, `"health"` → `20f`, `"speed"` → `0.3f`), определяют поведение.
  * @param transform Локальные трансформации модели: смещение, поворот и масштаб по всем осям.
@@ -64,8 +64,9 @@ fun npc(
 
     return NpcEntity(level).apply {
         inventory.resize(inventorySize)
-        setPos(pos.x, pos.y, pos.z)
         moveTo(pos.x, pos.y, pos.z, rotation.x, rotation.y)
+        yHeadRot = rotation.x
+        yBodyRot = rotation.x
 
         set(Model(model))
         set(HitboxComponent(HitboxMode.PULLING))
