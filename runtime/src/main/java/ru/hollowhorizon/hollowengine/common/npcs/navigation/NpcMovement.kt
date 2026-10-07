@@ -28,6 +28,7 @@ data class MoveOptions(
     val unreachableTimeoutTicks: Int = 40,
     val unreachable: UnreachablePolicy = UnreachablePolicy.WAIT_AND_RETRY,
     val unavailableTarget: UnavailableTargetPolicy = UnavailableTargetPolicy.WAIT_AND_RETRY,
+    val navigation: (NavigationComponent.() -> NavigationComponent)? = null,
 ) {
     init {
         require(speed > 0.0) { "Movement speed must be greater than zero" }
@@ -55,6 +56,7 @@ internal suspend fun NpcEntity.moveToPosition(target: () -> Vec3?, options: Move
     var ticksWithoutPath = 0
     var pathCreationFailed = false
 
+    npcNavigation.settingsOverride = options.navigation?.let { tune -> (navigationComponent ?: NavigationComponent()).tune() }
     try {
         while (true) {
             val currentTarget = target() ?: return MoveResult.TargetUnavailable
@@ -108,6 +110,7 @@ internal suspend fun NpcEntity.moveToPosition(target: () -> Vec3?, options: Move
         }
     } finally {
         navigation.stop()
+        npcNavigation.settingsOverride = null
     }
 }
 
