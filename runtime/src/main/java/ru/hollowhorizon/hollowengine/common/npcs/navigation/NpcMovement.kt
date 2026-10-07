@@ -30,6 +30,8 @@ data class MoveOptions(
     val unavailableTarget: UnavailableTargetPolicy = UnavailableTargetPolicy.WAIT_AND_RETRY,
     val navigation: (NavigationComponent.() -> NavigationComponent)? = null,
     val facing: Facing = Facing.Path,
+    val passDistance: Double = 1.0,
+    val avoid: List<Zone> = emptyList(),
 ) {
     init {
         require(speed > 0.0) { "Movement speed must be greater than zero" }
@@ -38,6 +40,7 @@ data class MoveOptions(
         require(targetMoveThreshold >= 0.0) { "Target move threshold cannot be negative" }
         require(stuckTimeoutTicks > 0) { "Stuck timeout must be greater than zero" }
         require(unreachableTimeoutTicks > 0) { "Unreachable timeout must be greater than zero" }
+        require(passDistance > 0.0) { "Pass distance must be greater than zero" }
     }
 }
 
@@ -47,9 +50,44 @@ sealed interface MoveResult {
     data object TargetUnavailable : MoveResult
 }
 
-internal suspend fun NpcEntity.moveToPosition(target: () -> Vec3?, options: MoveOptions): MoveResult {
-    val arrivalDistance = maxOf(options.arrivalDistance, MIN_ARRIVAL_DISTANCE)
-    val arrivalDistanceSq = arrivalDistance * arrivalDistance
+internal suspend fun NpcEntity.moveToPosition(target: () -> Vec3?, options: MoveOptions): MoveResult =
+    moveThrough(listOf(target), options)
+
+/**
+ * Walks through [targets] in turn, stopping only at the last: each one before it counts as passed within
+ * [MoveOptions.passDistance], and the NPC plans its pace along the ones still ahead, so it rounds them as turns.
+ */
+internal suspend fun NpcEntity.moveThrough(targets: List<() -> Vec3?>, options: MoveOptions): MoveResult {
+    npcNavigation.settingsOverride = options.navigation?.let { tune -> (navigationComponent ?: NavigationComponent()).tune() }
+    npcNavigation.facing.setMove(options.facing)
+    npcNavigation.moveZones = options.avoid
+    try {
+        for ((index, target) in targets.withIndex()) {
+            val last = index == targets.lastIndex
+            // Nothing stops on a point exactly: an arrival distance of zero means as close as the NPC gets.
+            val reach = if (last) maxOf(options.arrivalDistance, MIN_ARRIVAL_DISTANCE) else options.passDistance
+            val result = walkLeg(target, targets.subList(index + 1, targets.size), options, reach)
+            if (result != MoveResult.Arrived) return result
+        }
+        finishFacing(options.facing)
+        return MoveResult.Arrived
+    } finally {
+        navigation.stop()
+        npcNavigation.settingsOverride = null
+        npcNavigation.aim(null)
+        npcNavigation.moveZones = emptyList()
+        npcNavigation.facing.setMove(Facing.Path)
+    }
+}
+
+/** Walks until [target] is within [reach], the points [after] it still ahead; repaths and gives up as [options] say. */
+private suspend fun NpcEntity.walkLeg(
+    target: () -> Vec3?,
+    after: List<() -> Vec3?>,
+    options: MoveOptions,
+    reach: Double,
+): MoveResult {
+    val arrivalDistanceSq = reach * reach
     val targetMoveThresholdSq = options.targetMoveThreshold * options.targetMoveThreshold
     var lastPathTarget: Vec3? = null
     var lastProgressPosition = position()
@@ -58,65 +96,49 @@ internal suspend fun NpcEntity.moveToPosition(target: () -> Vec3?, options: Move
     var ticksWithoutPath = 0
     var pathCreationFailed = false
 
-    npcNavigation.settingsOverride = options.navigation?.let { tune -> (navigationComponent ?: NavigationComponent()).tune() }
-    npcNavigation.stopDistance = options.arrivalDistance
-    npcNavigation.facing.setMove(options.facing)
-    try {
-        while (true) {
-            val currentTarget = target() ?: return MoveResult.TargetUnavailable
-            npcNavigation.exactTarget = currentTarget
-            if (distanceToSqr(currentTarget) <= arrivalDistanceSq) {
-                finishFacing(options.facing)
-                return MoveResult.Arrived
-            }
+    while (true) {
+        val currentTarget = target() ?: return MoveResult.TargetUnavailable
+        npcNavigation.aim(currentTarget, after.mapNotNull { it() }, options.arrivalDistance)
+        if (distanceToSqr(currentTarget) <= arrivalDistanceSq) return MoveResult.Arrived
 
-            val progressed = position().distanceToSqr(lastProgressPosition) >= MIN_PROGRESS_DISTANCE_SQ
-            if (progressed) {
-                lastProgressPosition = position()
-                ticksSinceProgress = 0
-            } else {
-                ticksSinceProgress++
-            }
-
-            val targetMoved = lastPathTarget?.distanceToSqr(currentTarget)?.let { it > targetMoveThresholdSq } ?: true
-            val stuck = ticksSinceProgress >= options.stuckTimeoutTicks
-            val repathReady = ticksSinceRepath >= options.repathIntervalTicks
-            val shouldRepath = targetMoved || stuck || repathReady && navigation.isDone
-
-            if (shouldRepath) {
-                val path = navigation.createPath(currentTarget.x, currentTarget.y, currentTarget.z, 0)
-                lastPathTarget = currentTarget
-                if (path == null || !navigation.moveTo(path, options.speed)) {
-                    pathCreationFailed = true
-                } else {
-                    pathCreationFailed = false
-                    ticksWithoutPath = 0
-                }
-                ticksSinceRepath = 0
-                if (stuck) {
-                    ticksSinceProgress = 0
-                    lastProgressPosition = position()
-                }
-            }
-
-            if (pathCreationFailed && navigation.isDone) {
-                ticksWithoutPath++
-                if (options.unreachable == UnreachablePolicy.FAIL &&
-                    ticksWithoutPath >= options.unreachableTimeoutTicks
-                ) {
-                    return MoveResult.Unreachable
-                }
-            }
-
-            delay(TICK_DURATION)
-            ticksSinceRepath++
+        val progressed = position().distanceToSqr(lastProgressPosition) >= MIN_PROGRESS_DISTANCE_SQ
+        if (progressed) {
+            lastProgressPosition = position()
+            ticksSinceProgress = 0
+        } else {
+            ticksSinceProgress++
         }
-    } finally {
-        navigation.stop()
-        npcNavigation.settingsOverride = null
-        npcNavigation.stopDistance = 0.0
-        npcNavigation.exactTarget = null
-        npcNavigation.facing.setMove(Facing.Path)
+
+        val targetMoved = lastPathTarget?.distanceToSqr(currentTarget)?.let { it > targetMoveThresholdSq } ?: true
+        val stuck = ticksSinceProgress >= options.stuckTimeoutTicks
+        val repathReady = ticksSinceRepath >= options.repathIntervalTicks
+        val shouldRepath = targetMoved || stuck || repathReady && navigation.isDone
+
+        if (shouldRepath) {
+            val path = navigation.createPath(currentTarget.x, currentTarget.y, currentTarget.z, 0)
+            lastPathTarget = currentTarget
+            if (path == null || !navigation.moveTo(path, options.speed)) {
+                pathCreationFailed = true
+            } else {
+                pathCreationFailed = false
+                ticksWithoutPath = 0
+            }
+            ticksSinceRepath = 0
+            if (stuck) {
+                ticksSinceProgress = 0
+                lastProgressPosition = position()
+            }
+        }
+
+        if (pathCreationFailed && navigation.isDone) {
+            ticksWithoutPath++
+            if (options.unreachable == UnreachablePolicy.FAIL && ticksWithoutPath >= options.unreachableTimeoutTicks) {
+                return MoveResult.Unreachable
+            }
+        }
+
+        delay(TICK_DURATION)
+        ticksSinceRepath++
     }
 }
 
