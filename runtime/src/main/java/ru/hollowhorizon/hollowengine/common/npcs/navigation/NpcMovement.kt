@@ -21,7 +21,7 @@ enum class UnavailableTargetPolicy {
 
 data class MoveOptions(
     val speed: Double = 1.0,
-    val arrivalDistance: Double = 1.5,
+    val arrivalDistance: Double = 0.0,
     val repathIntervalTicks: Int = 10,
     val targetMoveThreshold: Double = 1.0,
     val stuckTimeoutTicks: Int = 60,
@@ -48,6 +48,24 @@ sealed interface MoveResult {
     data object Arrived : MoveResult
     data object Unreachable : MoveResult
     data object TargetUnavailable : MoveResult
+
+    /** The NPC stopped as close to the point as it got, [distance] blocks from it, for [reason]. */
+    data class Closest(val reason: Shortfall, val distance: Double) : MoveResult
+}
+
+/** Why a move stopped short of its point. */
+enum class Shortfall {
+    /**
+     * The point has no room for the NPC: it is in a wall, in the air or too tight for its body. The NPC went to
+     * the nearest spot that has.
+     */
+    NO_ROOM,
+
+    /** No way leads to the point: the NPC went as far as a way does. */
+    NO_PATH,
+
+    /** Something it can neither pass nor push aside stood in its way. */
+    BLOCKED,
 }
 
 internal suspend fun NpcEntity.moveToPosition(target: () -> Vec3?, options: MoveOptions): MoveResult =
@@ -66,7 +84,7 @@ internal suspend fun NpcEntity.moveThrough(targets: List<() -> Vec3?>, options: 
             val last = index == targets.lastIndex
             // Nothing stops on a point exactly: an arrival distance of zero means as close as the NPC gets.
             val reach = if (last) maxOf(options.arrivalDistance, MIN_ARRIVAL_DISTANCE) else options.passDistance
-            val result = walkLeg(target, targets.subList(index + 1, targets.size), options, reach)
+            val result = walkLeg(target, targets.subList(index + 1, targets.size), options, reach, last)
             if (result != MoveResult.Arrived) return result
         }
         finishFacing(options.facing)
@@ -86,23 +104,37 @@ private suspend fun NpcEntity.walkLeg(
     after: List<() -> Vec3?>,
     options: MoveOptions,
     reach: Double,
+    last: Boolean,
 ): MoveResult {
     val arrivalDistanceSq = reach * reach
     val targetMoveThresholdSq = options.targetMoveThreshold * options.targetMoveThreshold
     var lastPathTarget: Vec3? = null
+    var spotFor: Vec3? = null
+    var spot: Vec3? = null
     var lastProgressPosition = position()
     var ticksSinceProgress = 0
+    var stuckRepaths = 0
     var ticksSinceRepath = options.repathIntervalTicks
     var ticksWithoutPath = 0
-    var pathCreationFailed = false
+    var found = false
+    var reaches = false
 
     while (true) {
         val currentTarget = target() ?: return MoveResult.TargetUnavailable
-        npcNavigation.aim(currentTarget, after.mapNotNull { it() }, options.arrivalDistance)
         if (distanceToSqr(currentTarget) <= arrivalDistanceSq) return MoveResult.Arrived
+        if (spotFor != currentTarget) {
+            spotFor = currentTarget
+            spot = NpcNavigationGeometry.standingSpot(level(), this, currentTarget)
+        }
+        val goal = spot ?: currentTarget
+        val shortBy = goal.distanceTo(currentTarget)
+        npcNavigation.aim(goal, after.mapNotNull { it() }, maxOf(0.0, options.arrivalDistance - shortBy))
+        if (shortBy > reach && position().distanceTo(goal) <= SPOT_REACH) {
+            return if (last) MoveResult.Closest(Shortfall.NO_ROOM, position().distanceTo(currentTarget)) else MoveResult.Arrived
+        }
 
-        val progressed = position().distanceToSqr(lastProgressPosition) >= MIN_PROGRESS_DISTANCE_SQ
-        if (progressed) {
+        if (navigation.isDone || position().distanceToSqr(lastProgressPosition) >= MIN_PROGRESS_DISTANCE_SQ) {
+            if (!navigation.isDone) stuckRepaths = 0
             lastProgressPosition = position()
             ticksSinceProgress = 0
         } else {
@@ -112,17 +144,16 @@ private suspend fun NpcEntity.walkLeg(
         val targetMoved = lastPathTarget?.distanceToSqr(currentTarget)?.let { it > targetMoveThresholdSq } ?: true
         val stuck = ticksSinceProgress >= options.stuckTimeoutTicks
         val repathReady = ticksSinceRepath >= options.repathIntervalTicks
-        val shouldRepath = targetMoved || stuck || repathReady && navigation.isDone
+        if (stuck && ++stuckRepaths >= STUCK_REPATHS && options.unreachable == UnreachablePolicy.FAIL) {
+            return MoveResult.Closest(Shortfall.BLOCKED, position().distanceTo(currentTarget))
+        }
 
-        if (shouldRepath) {
-            val path = navigation.createPath(currentTarget.x, currentTarget.y, currentTarget.z, 0)
+        if (targetMoved || stuck || repathReady && navigation.isDone) {
+            val path = navigation.createPath(goal.x, goal.y, goal.z, 0)
             lastPathTarget = currentTarget
-            if (path == null || !navigation.moveTo(path, options.speed)) {
-                pathCreationFailed = true
-            } else {
-                pathCreationFailed = false
-                ticksWithoutPath = 0
-            }
+            found = path != null && navigation.moveTo(path, options.speed)
+            reaches = found && path?.canReach() == true
+            if (reaches) ticksWithoutPath = 0
             ticksSinceRepath = 0
             if (stuck) {
                 ticksSinceProgress = 0
@@ -130,10 +161,10 @@ private suspend fun NpcEntity.walkLeg(
             }
         }
 
-        if (pathCreationFailed && navigation.isDone) {
+        if (!reaches && navigation.isDone) {
             ticksWithoutPath++
             if (options.unreachable == UnreachablePolicy.FAIL && ticksWithoutPath >= options.unreachableTimeoutTicks) {
-                return MoveResult.Unreachable
+                return if (found) MoveResult.Closest(Shortfall.NO_PATH, position().distanceTo(currentTarget)) else MoveResult.Unreachable
             }
         }
 
@@ -203,3 +234,9 @@ private const val MIN_ARRIVAL_DISTANCE = 0.2
 private const val MAX_FINISH_TURN_TICKS = 20
 private const val FINISH_TURN = 18f
 private const val MIN_PROGRESS_DISTANCE_SQ = 0.0025
+
+/** How close the NPC has to come to the spot that stands in for a point without room to be there. */
+private const val SPOT_REACH = 0.15
+
+/** How many times in a row walking gets the NPC nowhere and it plans anew before it counts as blocked. */
+private const val STUCK_REPATHS = 2
