@@ -71,7 +71,8 @@ class NodeEditor internal constructor(private val script: NodeScript) {
             assets = assets,
         )
 
-        EditorProperty(field, key, PersistedValue(key, default), restart, onChange).also {
+        val storage = PersistedValue(key, default, script.binding.initialTag?.getCompound(PropertiesTag))
+        EditorProperty(field, key, storage, restart, onChange).also {
             properties[property.name] = it
             bind()
         }
@@ -115,10 +116,6 @@ class NodeEditor internal constructor(private val script: NodeScript) {
         if (bound) return
         bound = true
 
-        script.onLoadHandlers += { context ->
-            val tag = context.tag.getCompound(PropertiesTag)
-            properties.values.forEach { it.load(tag) }
-        }
         script.onSaveHandlers += { context ->
             val tag = CompoundTag()
             properties.values.forEach { it.save(tag) }
@@ -159,8 +156,6 @@ internal class EditorProperty<T : Any>(
         onChange?.invoke(decoded)
         return restart
     }
-
-    fun load(tag: CompoundTag) = storage.load(tag)
 
     fun save(tag: CompoundTag) = storage.save(tag)
 }

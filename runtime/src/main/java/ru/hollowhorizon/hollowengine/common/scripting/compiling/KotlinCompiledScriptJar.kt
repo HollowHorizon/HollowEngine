@@ -3,6 +3,7 @@ package ru.hollowhorizon.hollowengine.common.scripting.compiling
 import kotlinx.coroutines.runBlocking
 import ru.hollowhorizon.hollowengine.common.scripting.STARTUP_SCRIPT_EXTENSION
 import ru.hollowhorizon.hollowengine.common.scripting.cache.ScriptCache
+import ru.hollowhorizon.hollowengine.common.scripting.cache.ScriptFingerprint
 import ru.hollowhorizon.hollowengine.common.scripting.ide.*
 import java.io.File
 import java.io.InputStream
@@ -40,13 +41,18 @@ fun File.loadKotlinCompiledScriptFromJar(baseClassLoader: ClassLoader? = null): 
     val evaluationConfiguration = ScriptEvaluationConfiguration {
         baseClassLoader?.let { ScriptEvaluationConfiguration.jvm.baseClassLoader(it) }
     }
-    return KotlinCompiledScriptJar(nameWithoutExtension, script, evaluationConfiguration)
+    val stamp = ScriptCache.stampOf(this)
+    val fingerprint = stamp?.let {
+        ScriptFingerprint.Fingerprint(it.code ?: return@let null, it.layout ?: return@let null, it.runtime ?: return@let null)
+    }
+    return KotlinCompiledScriptJar(nameWithoutExtension, script, evaluationConfiguration, fingerprint)
 }
 
 internal class KotlinCompiledScriptJar(
     override val name: String,
     private val script: KJvmCompiledScriptFromJar,
     private val evaluationConfiguration: ScriptEvaluationConfiguration,
+    override val fingerprint: ScriptFingerprint.Fingerprint?,
 ) : CompiledScript {
     private val evaluator = HollowEngineScriptEvaluator()
     private val scriptClass = lazy {

@@ -118,6 +118,7 @@ import ru.hollowhorizon.hollowengine.client.models.internal.manager.MaterialSour
 import ru.hollowhorizon.hollowengine.common.registry.CommonRegistryHelper
 import ru.hollowhorizon.hollowengine.common.registry.CommonRegistryProvider
 import ru.hollowhorizon.hollowengine.common.scripting.reload.ServerReloadScripts
+import ru.hollowhorizon.hollowengine.common.scripting.nodes.NodeScriptReload
 import ru.hollowhorizon.hollowengine.common.runtime.EmptyRuntimeAnnotationIndex
 import ru.hollowhorizon.hollowengine.common.runtime.RuntimeAnnotationEnvironment
 import ru.hollowhorizon.hollowengine.common.utils.*
@@ -538,6 +539,10 @@ class RuntimeBridgeEntrypoint : RuntimeBridge {
 
     override fun onServerTick(server: MinecraftServer) {
         RuntimeDispatcherState.runServerTasks(server)
+    }
+
+    override fun onServerResourcesReloaded(server: MinecraftServer) {
+        NodeScriptReload.reloadChanged(server)
     }
 
     override fun onServerStopping(server: MinecraftServer) {

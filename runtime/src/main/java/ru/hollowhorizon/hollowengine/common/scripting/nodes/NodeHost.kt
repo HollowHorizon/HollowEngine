@@ -1,8 +1,10 @@
 package ru.hollowhorizon.hollowengine.common.scripting.nodes
 
 import kotlinx.coroutines.CoroutineScope
+import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
 import net.minecraft.world.entity.Entity
+import ru.hollowhorizon.hollowengine.common.scripting.cache.ScriptFingerprint
 
 /**
  * Describes what a node script is attached to. Every host exposes the [server] it belongs to so
@@ -19,7 +21,13 @@ sealed interface NodeHost {
     }
 }
 
-class NodeBinding(val host: NodeHost, val scope: CoroutineScope)
+class NodeBinding(
+    val host: NodeHost,
+    val scope: CoroutineScope,
+    internal val initialTag: CompoundTag? = null,
+) {
+    internal var fingerprint: ScriptFingerprint.Fingerprint? = null
+}
 
 @JvmInline
 value class Ticks(val count: Int)

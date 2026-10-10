@@ -7,7 +7,8 @@ import kotlin.coroutines.CoroutineContext
 
 /**
  * Base class of every `*.node.kts` script. The script body runs as the constructor, so by the time it
- * executes [binding] is already set and the registration handlers ([onStart], [onStop], [onSave],
+ * executes [binding] is already set. Persisted delegates restore their values when declared, so the
+ * rest of the body sees saved values. The registration handlers ([onStart], [onStop], [onSave],
  * [onLoad], [onUpdate], entity handlers) can attach themselves to this node's [CoroutineScope].
  */
 abstract class NodeScript(

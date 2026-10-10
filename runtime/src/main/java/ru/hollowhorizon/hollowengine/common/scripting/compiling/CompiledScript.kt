@@ -1,11 +1,14 @@
 package ru.hollowhorizon.hollowengine.common.scripting.compiling
 
+import ru.hollowhorizon.hollowengine.common.scripting.cache.ScriptFingerprint
 import java.io.File
 import kotlin.reflect.KClass
 import kotlin.script.experimental.api.ResultValue
 import kotlin.script.experimental.api.ScriptEvaluationConfiguration
 
 interface CompiledScript {
+    /** Sources of the bytecode being executed, including imported scripts. */
+    val fingerprint: ScriptFingerprint.Fingerprint? get() = null
     val name: String
     val type: KClass<*>
     val implicitReceiverCount: Int

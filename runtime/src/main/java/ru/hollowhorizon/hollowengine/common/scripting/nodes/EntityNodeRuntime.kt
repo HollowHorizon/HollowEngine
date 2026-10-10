@@ -3,11 +3,13 @@ package ru.hollowhorizon.hollowengine.common.scripting.nodes
 import kotlinx.coroutines.job
 import kotlinx.serialization.json.JsonObject
 import net.minecraft.nbt.CompoundTag
+import net.minecraft.server.MinecraftServer
 import net.minecraft.world.entity.Entity
 import ru.hollowhorizon.hollowengine.HollowEngine
-import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
 import ru.hollowhorizon.hollowengine.common.attachments.api.AttachmentRegistry
 import ru.hollowhorizon.hollowengine.common.attachments.editor.ScriptEditorInfo
+import ru.hollowhorizon.hollowengine.common.coroutines.coroutineScope
+import ru.hollowhorizon.hollowengine.common.scripting.compiling.CompiledScript
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
 import ru.hollowhorizon.hollowengine.common.scripting.state.StateContext
 
@@ -44,6 +46,14 @@ object EntityNodeRuntime {
         forEachManager { it.resumeNamespace(namespace) }
     }
 
+    internal fun reloadChanged(server: MinecraftServer, plan: NodeReloadPlan) {
+        AttachmentRegistry.allAttachments().forEach { attachments ->
+            if (attachments.entity.server === server && !attachments.entity.level().isClientSide) {
+                attachments.nodesOrNull?.reloadChanged(plan)
+            }
+        }
+    }
+
     private fun managerOrNull(entity: Entity): EntityNodeManager? =
         AttachmentRegistry.attachmentsOrNull(entity)?.nodesOrNull
 
@@ -55,13 +65,14 @@ object EntityNodeRuntime {
 /** Per-entity node store. Mirrors [NodeManager] but binds nodes to the entity's coroutine scope. */
 class EntityNodeManager(private val entity: Entity) {
     private val nodes = mutableMapOf<String, RunningNode>()
+    private val lifecycle = NodeLifecycle { entity.coroutineScope }
 
     /** Attached nodes whose namespace is currently unavailable. See [NodeManager] for the rationale. */
     private val dormant = mutableMapOf<String, CompoundTag>()
 
     fun attach(path: String, tag: CompoundTag?, context: StateContext?): Boolean {
         val canonicalPath = canonicalNodePath(path)
-        if (nodes.containsKey(canonicalPath)) return false
+        if (nodes.containsKey(canonicalPath) || lifecycle.isPending(canonicalPath)) return false
 
         if (tag == null && context == null) {
             dormant[canonicalPath]?.let { return attachSaved(canonicalPath, it) }
@@ -70,13 +81,31 @@ class EntityNodeManager(private val entity: Entity) {
     }
 
     /** Attaches a node from the state [serialize] wrote for it. */
-    private fun attachSaved(canonicalPath: String, nodeTag: CompoundTag): Boolean = start(
+    private fun attachSaved(canonicalPath: String, nodeTag: CompoundTag, compiled: CompiledScript? = null): Boolean = start(
         canonicalPath,
         nodeTag.getCompound("extras"),
         (nodeTag.get("states") as? CompoundTag)?.let { StateContext.deserialize(it) },
+        compiled,
     )
 
-    private fun start(canonicalPath: String, tag: CompoundTag?, context: StateContext?): Boolean {
+    private fun start(canonicalPath: String, tag: CompoundTag?, context: StateContext?, compiled: CompiledScript? = null): Boolean {
+        dormant[canonicalPath] = CompoundTag().apply {
+            tag?.let { put("extras", it.copy()) }
+            context?.let { put("states", it.serialize().copy()) }
+        }
+        var accepted = true
+        lifecycle.start(canonicalPath) {
+            accepted = startNow(canonicalPath, tag, context, compiled)
+        }
+        return accepted
+    }
+
+    private fun startNow(
+        canonicalPath: String,
+        tag: CompoundTag?,
+        context: StateContext?,
+        compiled: CompiledScript?,
+    ): Boolean {
         val server = entity.server ?: return false
 
         val (script, executor) = buildNode(
@@ -85,6 +114,7 @@ class EntityNodeManager(private val entity: Entity) {
             path = canonicalPath,
             tag = tag,
             receivers = listOf(server, entity),
+            compiled = compiled,
         ) ?: return false
 
         dormant.remove(canonicalPath)
@@ -95,21 +125,45 @@ class EntityNodeManager(private val entity: Entity) {
 
     fun detach(path: String): Boolean {
         val canonicalPath = canonicalNodePath(path)
+        val hadPendingStart = lifecycle.isPending(canonicalPath)
         dormant.remove(canonicalPath)
-        val removed = nodes.remove(canonicalPath) ?: return false
-        removed.script.coroutineContext.job.cancel()
+        lifecycle.cancelStart(canonicalPath)
+        val removed = nodes.remove(canonicalPath) ?: return hadPendingStart
+        lifecycle.stop(canonicalPath, removed.script.coroutineContext.job)
         return true
     }
 
-    fun restart(path: String): Boolean {
+    fun restart(path: String): Boolean = restart(path, null)
+
+    private fun restart(path: String, compiled: CompiledScript?): Boolean {
         val canonicalPath = canonicalNodePath(path)
         val node = nodes[canonicalPath] ?: return false
         val saved = runCatching { node.persist(node.script.server) }
             .onFailure { HollowEngine.LOGGER.error("Error while restarting entity node '$canonicalPath'", it) }
             .getOrNull() ?: return false
 
-        detach(canonicalPath)
-        return attachSaved(canonicalPath, saved)
+        dormant[canonicalPath] = saved
+        lifecycle.stop(canonicalPath, node.script.coroutineContext.job)
+        var accepted = true
+        lifecycle.start(canonicalPath) {
+            val latest = runCatching { node.persist(node.script.server) }
+                .onFailure { HollowEngine.LOGGER.error("Error while saving stopped node '$canonicalPath'", it) }
+                .getOrDefault(saved)
+            nodes.remove(canonicalPath, node)
+            dormant[canonicalPath] = latest
+            accepted = attachSaved(canonicalPath, latest, compiled)
+        }
+        return accepted
+    }
+
+    internal fun reloadChanged(plan: NodeReloadPlan) {
+        val waiting = dormant.filterKeys { it !in nodes && !lifecycle.isPending(it) }
+        nodes.toMap().forEach { (path, node) ->
+            plan.replacement(path, node.script.binding.fingerprint, expectedReceivers = 2)?.let { restart(path, it) }
+        }
+        waiting.forEach { (path, saved) ->
+            plan.replacement(path, null, expectedReceivers = 2)?.let { attachSaved(path, saved, it) }
+        }
     }
 
     internal fun editors(): List<ScriptEditorInfo> =
@@ -118,11 +172,10 @@ class EntityNodeManager(private val entity: Entity) {
     internal fun applyEditorValues(path: String, values: JsonObject): Boolean {
         val canonicalPath = canonicalNodePath(path)
         val node = nodes[canonicalPath] ?: return false
-        if (node.script.editor.apply(values)) restart(canonicalPath)
-        return true
+        return !node.script.editor.apply(values) || restart(canonicalPath)
     }
 
-    fun paths(): Set<String> = nodes.keys.toSet()
+    fun paths(): Set<String> = nodes.keys + lifecycle.pendingPaths()
 
     fun serialize(): CompoundTag {
         val tag = CompoundTag()
@@ -143,7 +196,7 @@ class EntityNodeManager(private val entity: Entity) {
         tag.allKeys.forEach { path ->
             val canonicalPath = canonicalNodePath(path)
             val nodeTag = tag.getCompound(path)
-            if (nodes.containsKey(canonicalPath)) return@forEach
+            if (nodes.containsKey(canonicalPath) || lifecycle.isPending(canonicalPath)) return@forEach
 
             val available = ScriptRegistry.source(ScriptRegistry.parse(path).namespace) != null
             val attached = runCatching { available && attachSaved(canonicalPath, nodeTag) }
@@ -161,18 +214,21 @@ class EntityNodeManager(private val entity: Entity) {
     }
 
     internal fun suspendNamespace(namespace: String) {
+        lifecycle.pendingPaths().filter { ScriptRegistry.parse(it).namespace == namespace }
+            .forEach(lifecycle::cancelStart)
         nodes.filterKeys { path -> ScriptRegistry.parse(path).namespace == namespace }
             .forEach { (path, node) ->
                 runCatching { dormant[path] = node.persist(node.script.server) }
                     .onFailure { HollowEngine.LOGGER.error("Error while suspending entity node '$path'", it) }
                 nodes.remove(path)
-                node.script.coroutineContext.job.cancel()
+                lifecycle.stop(path, node.script.coroutineContext.job)
             }
     }
 
     internal fun resumeNamespace(namespace: String) {
         dormant.filterKeys { path -> ScriptRegistry.parse(path).namespace == namespace }
             .forEach { (path, nodeTag) ->
+                if (path in nodes || lifecycle.isPending(path)) return@forEach
                 runCatching { attachSaved(path, nodeTag) }
                     .onFailure { HollowEngine.LOGGER.error("Error while resuming entity node '$path'", it) }
             }

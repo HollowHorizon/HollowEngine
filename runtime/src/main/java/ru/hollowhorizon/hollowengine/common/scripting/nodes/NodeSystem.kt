@@ -1,14 +1,20 @@
 package ru.hollowhorizon.hollowengine.common.scripting.nodes
 
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.job
+import kotlinx.coroutines.launch
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.server.MinecraftServer
 import ru.hollowhorizon.hollowengine.HollowEngine
 import ru.hollowhorizon.hollowengine.common.coroutines.runtimeContext
 import ru.hollowhorizon.hollowengine.common.scripting.ScriptLoader
+import ru.hollowhorizon.hollowengine.common.scripting.compiling.CompiledScript
 import ru.hollowhorizon.hollowengine.common.scripting.source.ScriptRegistry
 import ru.hollowhorizon.hollowengine.common.scripting.state.StateContext
 import ru.hollowhorizon.hollowengine.common.scripting.state.StateExecutor
+import kotlin.script.experimental.api.ScriptEvaluationConfiguration
 import kotlin.script.experimental.api.constructorArgs
 import kotlin.script.experimental.api.implicitReceivers
 
@@ -27,14 +33,7 @@ class NodeManager(val server: MinecraftServer) {
      */
     private val dormant = mutableMapOf<String, CompoundTag>()
 
-    /**
-     * Nodes that were stopped but whose coroutines are still unwinding. A new instance of the same path waits
-     * for them, otherwise the old `onStop` and event unsubscriptions would run after the new `onStart`.
-     */
-    private val stopping = mutableMapOf<String, Job>()
-
-    /** Starts queued behind a [stopping] node, cancelled when the node is stopped again before it starts. */
-    private val pendingStarts = mutableMapOf<String, Job>()
+    private val lifecycle = NodeLifecycle { server.runtimeContext.scope }
 
     fun serialize(tag: CompoundTag) {
         dormant.forEach { (name, nodeTag) -> tag.put(name, nodeTag) }
@@ -72,7 +71,7 @@ class NodeManager(val server: MinecraftServer) {
     fun removeNode(path: String) {
         val canonicalPath = canonicalNodePath(path)
         dormant.remove(canonicalPath)
-        pendingStarts.remove(canonicalPath)?.cancel()
+        lifecycle.cancelStart(canonicalPath)
         nodes.remove(canonicalPath)?.let { stop(canonicalPath, it) }
     }
 
@@ -80,41 +79,61 @@ class NodeManager(val server: MinecraftServer) {
      * Runs [start] once the previous instance of [path], if any, has fully stopped. A node that is still
      * running is restarted rather than duplicated.
      */
-    internal fun startAfterStop(path: String, start: () -> Unit) {
+    internal fun startAfterStop(path: String, saved: CompoundTag, start: () -> Unit) {
         val canonicalPath = canonicalNodePath(path)
         removeNode(canonicalPath)
+        dormant[canonicalPath] = saved
 
-        val previous = stopping[canonicalPath]?.takeUnless { it.isCompleted }
-        if (previous == null) {
-            stopping.remove(canonicalPath)
-            start()
-            return
-        }
-
-        pendingStarts[canonicalPath] = server.runtimeContext.scope.launch {
-            previous.join()
-            stopping.remove(canonicalPath, previous)
-            pendingStarts.remove(canonicalPath)
-            start()
-        }
+        lifecycle.start(canonicalPath, start)
     }
 
     private fun stop(path: String, node: RunningNode) {
-        val job = node.script.coroutineContext.job
-        job.cancel()
-        if (!job.isCompleted) stopping[path] = job
+        lifecycle.stop(path, node.script.coroutineContext.job)
     }
 
     fun dispose() {
-        nodes.keys.toList().forEach(::removeNode)
+        paths().forEach(::removeNode)
     }
 
-    fun contains(path: String): Boolean = nodes.containsKey(canonicalNodePath(path))
+    fun contains(path: String): Boolean = canonicalNodePath(path).let { nodes.containsKey(it) || lifecycle.isPending(it) }
 
-    fun paths(): Set<String> = nodes.keys.toSet()
+    fun paths(): Set<String> = nodes.keys + lifecycle.pendingPaths()
+
+    internal fun reloadChanged(plan: NodeReloadPlan) {
+        val waiting = dormant.filterKeys { it !in nodes && !lifecycle.isPending(it) }
+        nodes.toMap().forEach { (path, node) ->
+            val compiled = plan.replacement(path, node.script.binding.fingerprint, expectedReceivers = 1) ?: return@forEach
+            val saved = runCatching { node.persist(server) }
+                .onFailure { HollowEngine.LOGGER.error("Error while restarting server node '$path'", it) }
+                .getOrNull() ?: return@forEach
+            dormant[path] = saved
+            stop(path, node)
+            lifecycle.start(path) {
+                val latest = runCatching { node.persist(server) }
+                    .onFailure { HollowEngine.LOGGER.error("Error while saving stopped node '$path'", it) }
+                    .getOrDefault(saved)
+                nodes.remove(path, node)
+                startSaved(path, latest, compiled)
+            }
+        }
+        waiting.forEach { (path, saved) ->
+            plan.replacement(path, null, expectedReceivers = 1)?.let { startSaved(path, saved, it) }
+        }
+    }
+
+    private fun startSaved(path: String, saved: CompoundTag, compiled: CompiledScript) {
+        server.addNode(
+            path,
+            saved.getCompound("extras"),
+            (saved.get("states") as? CompoundTag)?.let { StateContext.deserialize(it) },
+            compiled,
+        )
+    }
 
     /** Stops the nodes of [namespace] without losing their state. */
     internal fun suspendNamespace(namespace: String) {
+        lifecycle.pendingPaths().filter { ScriptRegistry.parse(it).namespace == namespace }
+            .forEach(lifecycle::cancelStart)
         nodes.filterKeys { path -> ScriptRegistry.parse(path).namespace == namespace }
             .forEach { (path, entry) ->
                 runCatching { dormant[path] = entry.persist(server) }
@@ -128,6 +147,7 @@ class NodeManager(val server: MinecraftServer) {
     internal fun resumeNamespace(namespace: String) {
         dormant.filterKeys { path -> ScriptRegistry.parse(path).namespace == namespace }
             .forEach { (path, nodeTag) ->
+                if (path in nodes || lifecycle.isPending(path)) return@forEach
                 dormant.remove(path)
                 runCatching {
                     val context = (nodeTag.get("states") as? CompoundTag)?.let { StateContext.deserialize(it) }
@@ -152,7 +172,7 @@ internal class RunningNode(
         return CompoundTag().apply {
             put("extras", serialization.tag)
             context?.let { put("states", it.serialize()) }
-        }
+        }.copy()
     }
 }
 
@@ -169,38 +189,51 @@ internal fun buildNode(
     path: String,
     tag: CompoundTag?,
     receivers: List<Any>,
+    compiled: CompiledScript? = null,
 ): Pair<NodeScript, StateExecutor>? {
     val id = ScriptRegistry.parse(path)
     // Nodes are keyed by their path in the world save, so every spelling of one script has to settle on
     // the same string before anything is registered.
     val canonicalPath = ScriptRegistry.display(id)
     val nodeScope = CoroutineScope(parentScope.coroutineContext + SupervisorJob(parentScope.coroutineContext.job))
-    val binding = NodeBinding(host, nodeScope)
+    val binding = NodeBinding(host, nodeScope, tag)
 
-    val script = ScriptLoader.executeCompiled<NodeScript>(
-        id = id,
-        validate = { compiled ->
-            receiverMismatch(compiled.implicitReceiverCount, host, receivers)?.let { error(it) }
-        },
-    ) {
+    val validate: (CompiledScript) -> Unit = { program ->
+        receiverMismatch(program.implicitReceiverCount, host, receivers)?.let { error(it) }
+        binding.fingerprint = program.fingerprint
+    }
+    val configure: ScriptEvaluationConfiguration.Builder.() -> Unit = {
         constructorArgs(canonicalPath, binding)
         implicitReceivers(*receivers.toTypedArray())
-    }.onFailure {
+    }
+    val evaluated = if (compiled == null) {
+        ScriptLoader.executeCompiled<NodeScript>(id, validate, configure)
+    } else {
+        runCatching {
+            validate(compiled)
+            compiled.execute<NodeScript>(configure).getOrThrow()
+        }
+    }
+    val script = evaluated.onFailure {
         HollowEngine.LOGGER.error("Error while loading $canonicalPath", it)
         nodeScope.cancel()
     }.getOrNull() ?: return null
 
-    val executor = StateExecutor(nodeScope)
-    script.prepareExecutor(executor)
+    return runCatching {
+        val executor = StateExecutor(nodeScope)
+        script.prepareExecutor(executor)
 
-    tag?.let { extras ->
-        val context = SerializationContext(host.server, extras)
-        script.onLoadHandlers.forEach { it(context) }
-    }
+        tag?.let { extras ->
+            val context = SerializationContext(host.server, extras)
+            script.onLoadHandlers.forEach { it(context) }
+        }
 
-    script.onStartHandlers.forEach { start -> nodeScope.launch { start() } }
-
-    return script to executor
+        script.onStartHandlers.forEach { start -> nodeScope.launch { start() } }
+        script to executor
+    }.onFailure {
+        HollowEngine.LOGGER.error("Error while initializing $canonicalPath", it)
+        nodeScope.cancel()
+    }.getOrNull()
 }
 
 /**
@@ -241,14 +274,22 @@ private fun NodeHost.describe(): String = when (this) {
  */
 fun canonicalNodePath(path: String): String = ScriptRegistry.display(ScriptRegistry.parse(path))
 
-fun MinecraftServer.addNode(path: String, tag: CompoundTag? = null, context: StateContext? = null) {
-    runtimeContext.nodes.startAfterStop(path) {
+fun MinecraftServer.addNode(path: String, tag: CompoundTag? = null, context: StateContext? = null) =
+    addNode(path, tag, context, null)
+
+internal fun MinecraftServer.addNode(path: String, tag: CompoundTag?, context: StateContext?, compiled: CompiledScript?) {
+    val saved = CompoundTag().apply {
+        tag?.let { put("extras", it.copy()) }
+        context?.let { put("states", it.serialize().copy()) }
+    }
+    runtimeContext.nodes.startAfterStop(path, saved) {
         val (script, executor) = buildNode(
             host = NodeHost.Server(this),
             parentScope = runtimeContext.scope,
             path = path,
             tag = tag,
             receivers = listOf(this),
+            compiled = compiled,
         ) ?: return@startAfterStop
 
         runtimeContext.nodes.register(script, executor, context)

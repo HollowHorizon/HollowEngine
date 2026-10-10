@@ -47,7 +47,7 @@ object ScriptLoader {
                 // The artifact at this path has just been rewritten, so an earlier rejection of it
                 // says nothing about the new one.
                 rejectedArtifacts -= cached.canonicalPath
-            }.map { it as CompiledScript }
+            }.map { VersionedScript(it, fingerprint) }
         }
 
         val stale = listOfNotNull(
@@ -163,3 +163,8 @@ object ScriptLoader {
     private const val SCRIPT_EXTENSION = ".kts"
     private const val MAX_CAUSE_DEPTH = 8
 }
+
+private class VersionedScript(
+    private val base: CompiledScript,
+    override val fingerprint: ScriptFingerprint.Fingerprint?,
+) : CompiledScript by base

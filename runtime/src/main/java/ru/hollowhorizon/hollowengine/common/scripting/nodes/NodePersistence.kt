@@ -9,7 +9,8 @@ import kotlin.properties.ReadWriteProperty
 import kotlin.reflect.KProperty
 
 /**
- * A node-local value that survives a world reload, declared as a property:
+ * A node-local value that survives a world reload, restored when its delegate is declared so later
+ * initializers in the script body can use it:
  *
  * ```kotlin
  * var radius by persisted("radius") { 3 }
@@ -24,8 +25,7 @@ fun <T : Any> persisted(
     script: NodeScript,
     key: DataKey<T>,
     default: () -> T,
-): ReadWriteProperty<Any?, T> = PersistedValue(key, default).also { holder ->
-    script.onLoadHandlers += { context -> holder.load(context.tag) }
+): ReadWriteProperty<Any?, T> = PersistedValue(key, default, script.binding.initialTag).also { holder ->
     script.onSaveHandlers += { context -> holder.save(context.tag) }
 }
 
@@ -33,11 +33,12 @@ fun <T : Any> persisted(
 internal class PersistedValue<T : Any>(
     private val key: DataKey<T>,
     private val default: () -> T,
+    initialTag: CompoundTag? = null,
 ) : ReadWriteProperty<Any?, T> {
-    private var value: T? = null
+    private var value: T? = initialTag?.read(key)
 
     /** Whether this value was ever loaded or assigned, as opposed to merely falling back to [default]. */
-    private var stored = false
+    private var stored = value != null
 
     override fun getValue(thisRef: Any?, property: KProperty<*>): T = current()
 
@@ -48,13 +49,6 @@ internal class PersistedValue<T : Any>(
     fun assign(value: T) {
         this.value = value
         stored = true
-    }
-
-    fun load(tag: CompoundTag) {
-        tag.read(key)?.let {
-            value = it
-            stored = true
-        }
     }
 
     fun save(tag: CompoundTag) {

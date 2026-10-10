@@ -167,6 +167,8 @@ public interface RuntimeBridge extends AutoCloseable {
 
     void onServerLevelsCreated(MinecraftServer server);
 
+    void onServerResourcesReloaded(MinecraftServer server);
+
     void onServerTick(MinecraftServer server);
 
     void onServerStopping(MinecraftServer server);
